@@ -203,6 +203,86 @@ export class GitService {
   }
 
   /**
+   * Add multiple files and commit them in a single transaction
+   */
+  public async addFilesAndCommit(files: string[], baseMessage: string): Promise<string> {
+    await this.ensureRepository();
+
+    if (!baseMessage || !baseMessage.trim()) {
+      throw new GitOperationError('Commit message cannot be empty');
+    }
+
+    if (files.length === 0) {
+      throw new GitOperationError('No files provided for commit');
+    }
+
+    try {
+      // Add all files first
+      await this.addFiles(files);
+      
+      // Generate comprehensive commit message
+      const commitMessage = this.generateMultiFileCommitMessage(files, baseMessage.trim());
+      
+      // Commit all changes
+      const result = await this.git.commit(commitMessage);
+      return result.commit;
+    } catch (error) {
+      throw new GitOperationError(
+        `Failed to add and commit files: ${files.join(', ')}`,
+        error instanceof Error ? error.message : String(error)
+      );
+    }
+  }
+
+  /**
+   * Generate comprehensive commit message for multiple files
+   */
+  private generateMultiFileCommitMessage(files: string[], baseMessage: string): string {
+    if (files.length === 1) {
+      return `${baseMessage}: ${files[0]}`;
+    }
+
+    // Group files by directory to provide better structure
+    const filesByDir = new Map<string, string[]>();
+    files.forEach(file => {
+      const dir = path.dirname(file);
+      const fileName = path.basename(file);
+      if (!filesByDir.has(dir)) {
+        filesByDir.set(dir, []);
+      }
+      filesByDir.get(dir)!.push(fileName);
+    });
+
+    const lines = [baseMessage, ''];
+    lines.push('Files added:');
+    
+    // Sort directories for consistent output
+    const sortedDirs = Array.from(filesByDir.keys()).sort();
+    
+    for (const dir of sortedDirs) {
+      const dirFiles = filesByDir.get(dir)!.sort();
+      if (dir === '.') {
+        // Root directory files
+        dirFiles.forEach(file => {
+          lines.push(`- ${file}`);
+        });
+      } else {
+        // Subdirectory files
+        dirFiles.forEach(file => {
+          lines.push(`- ${dir}/${file}`);
+        });
+      }
+    }
+
+    // Add summary
+    const totalDirs = filesByDir.size;
+    lines.push('');
+    lines.push(`Total: ${files.length} file${files.length === 1 ? '' : 's'}${totalDirs > 1 ? `, ${totalDirs} ${totalDirs === 1 ? 'directory' : 'directories'} affected` : ''}`);
+
+    return lines.join('\n');
+  }
+
+  /**
    * Get commit log
    */
   public async getLog(options?: { maxCount?: number; oneline?: boolean }): Promise<GitLogEntry[]> {

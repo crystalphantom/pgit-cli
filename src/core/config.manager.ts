@@ -191,6 +191,67 @@ export class ConfigManager {
   }
 
   /**
+   * Add multiple tracked paths atomically
+   */
+  public async addMultipleTrackedPaths(filePaths: string[]): Promise<PrivateConfig> {
+    const config = await this.load();
+    
+    // Normalize all paths
+    const normalizedPaths = filePaths.map(filePath => path.normalize(filePath));
+    
+    // Check for duplicates within the input
+    const uniquePaths = [...new Set(normalizedPaths)];
+    if (uniquePaths.length !== normalizedPaths.length) {
+      throw new ConfigError('Duplicate paths found in input');
+    }
+    
+    // Check if any paths are already tracked
+    const alreadyTracked = uniquePaths.filter(normalizedPath => 
+      config.trackedPaths.includes(normalizedPath)
+    );
+    
+    if (alreadyTracked.length > 0) {
+      throw new ConfigError(
+        `The following paths are already tracked: ${alreadyTracked.join(', ')}`
+      );
+    }
+
+    // Add all new paths
+    config.trackedPaths.push(...uniquePaths);
+    await this.save(config);
+    return config;
+  }
+
+  /**
+   * Remove multiple tracked paths atomically
+   */
+  public async removeMultipleTrackedPaths(filePaths: string[]): Promise<PrivateConfig> {
+    const config = await this.load();
+    
+    // Normalize all paths
+    const normalizedPaths = filePaths.map(filePath => path.normalize(filePath));
+    
+    // Check that all paths are currently tracked
+    const notTracked = normalizedPaths.filter(normalizedPath => 
+      !config.trackedPaths.includes(normalizedPath)
+    );
+    
+    if (notTracked.length > 0) {
+      throw new ConfigError(
+        `The following paths are not tracked: ${notTracked.join(', ')}`
+      );
+    }
+
+    // Remove all paths
+    config.trackedPaths = config.trackedPaths.filter(trackedPath => 
+      !normalizedPaths.includes(trackedPath)
+    );
+    
+    await this.save(config);
+    return config;
+  }
+
+  /**
    * Remove tracked path
    */
   public async removeTrackedPath(filePath: string): Promise<PrivateConfig> {

@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   program
     .name('pgit')
     .description('Private Git Tracking CLI - Manage private files with dual repositories')
-    .version('1.0.1');
+    .version('0.0.3');
 
   // Initialize command
   program
@@ -84,18 +84,18 @@ async function main(): Promise<void> {
 
   // Add command
   program
-    .command('add <path>')
-    .description('Add file or directory to private tracking')
+    .command('add <path...>')
+    .description('Add file(s) or directory(ies) to private tracking')
     .option('-v, --verbose', 'Show verbose output')
-    .action(async (path, options) => {
+    .action(async (paths, options) => {
       try {
         const addCommand = new AddCommand();
-        const result = await addCommand.execute(path, { verbose: options.verbose });
+        const result = await addCommand.execute(paths, { verbose: options.verbose });
         
         if (result.success) {
-          console.log(chalk.green(`✓ ${result.message || 'File added to private tracking successfully'}`));
+          console.log(chalk.green(`✓ ${result.message || 'Files added to private tracking successfully'}`));
         } else {
-          console.error(chalk.red(`✗ ${result.message || 'Failed to add file to private tracking'}`));
+          console.error(chalk.red(`✗ ${result.message || 'Failed to add files to private tracking'}`));
           process.exit(result.exitCode);
         }
       } catch (error) {
