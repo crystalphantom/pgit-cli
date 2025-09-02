@@ -1,0 +1,26 @@
+{
+  "version": "1.0.0",
+  "privateRepoPath": ".git-private",
+  "storagePath": ".private-storage",
+  "trackedPaths": [
+    "fix_test.txt",
+    "testfile.txt",
+    "newfile.txt",
+    "finaltest.txt"
+  ],
+  "initialized": "2025-08-31T03:16:05.350Z",
+  "settings": {
+    "autoGitignore": true,
+    "autoCleanup": true,
+    "verboseOutput": false,
+    "createBackups": true,
+    "maxBackups": 5
+  },
+  "metadata": {
+    "projectName": "pgit-cli",
+    "mainRepoPath": "/Users/vaishnav/playground1/necto-pro/pgit-cli",
+    "cliVersion": "1.0.0",
+    "platform": "macOS",
+    "lastModified": "2025-09-01T19:10:50.814Z"
+  }
+}
