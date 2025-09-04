@@ -118,6 +118,13 @@ export class FileSystemService {
   }
 
   /**
+   * Ensure directory exists (alias for createDirectory)
+   */
+  public async ensureDirectoryExists(dirPath: string): Promise<void> {
+    return this.createDirectory(dirPath);
+  }
+
+  /**
    * Write file atomically with backup
    */
   public async writeFileAtomic(filePath: string, content: string): Promise<void> {
@@ -192,6 +199,22 @@ export class FileSystemService {
 
       await this.rollback();
       throw new AtomicOperationError(
+        `Failed to write file ${filePath}`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  /**
+   * Write file content (convenience method)
+   */
+  public async writeFile(filePath: string, content: string): Promise<void> {
+    this.validatePathString(filePath);
+
+    try {
+      await fs.writeFile(filePath, content, 'utf8');
+    } catch (error) {
+      throw new FileSystemError(
         `Failed to write file ${filePath}`,
         error instanceof Error ? error.message : String(error),
       );
