@@ -57,7 +57,7 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
-       - name: Test CLI installation and basic functionality
+      - name: Test CLI installation and basic functionality
          run: |
            npm pack
            ls -la *.tgz
