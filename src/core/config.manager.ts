@@ -1,18 +1,15 @@
 import * as path from 'path';
-import { 
-  PrivateConfig, 
-  ConfigSettings, 
-  DEFAULT_SETTINGS, 
-  DEFAULT_PATHS, 
+import {
+  PrivateConfig,
+  ConfigSettings,
+  DEFAULT_SETTINGS,
+  DEFAULT_PATHS,
   CURRENT_CONFIG_VERSION,
   ValidationResult,
   MigrationInfo,
-  ConfigHealth
+  ConfigHealth,
 } from '../types/config.types';
-import { 
-  PrivateConfigSchema, 
-  PrivateConfigJsonSchema
-} from '../types/config.schema';
+import { PrivateConfigSchema, PrivateConfigJsonSchema } from '../types/config.schema';
 import { FileSystemService } from './filesystem.service';
 import { PlatformDetector } from '../utils/platform.detector';
 import { BaseError } from '../errors/base.error';
@@ -54,7 +51,7 @@ export class ConfigManager {
   public async load(): Promise<PrivateConfig> {
     try {
       // Check if config exists
-      if (!await this.exists()) {
+      if (!(await this.exists())) {
         throw new ConfigError('Configuration file not found. Run "private init" first.');
       }
 
@@ -77,15 +74,12 @@ export class ConfigManager {
       if (error instanceof SyntaxError) {
         throw new ConfigValidationError(
           'Configuration file is corrupted (invalid JSON)',
-          error.message
+          error.message,
         );
       }
-      
+
       if (error instanceof Error && error.name === 'ZodError') {
-        throw new ConfigValidationError(
-          'Configuration file format is invalid',
-          error.message
-        );
+        throw new ConfigValidationError('Configuration file format is invalid', error.message);
       }
 
       if (error instanceof ConfigError) {
@@ -94,7 +88,7 @@ export class ConfigManager {
 
       throw new ConfigError(
         'Failed to load configuration',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -121,15 +115,12 @@ export class ConfigManager {
       this.cachedConfig = validatedConfig;
     } catch (error) {
       if (error instanceof Error && error.name === 'ZodError') {
-        throw new ConfigValidationError(
-          'Configuration data is invalid',
-          error.message
-        );
+        throw new ConfigValidationError('Configuration data is invalid', error.message);
       }
 
       throw new ConfigError(
         'Failed to save configuration',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -137,7 +128,10 @@ export class ConfigManager {
   /**
    * Create initial configuration
    */
-  public async create(projectPath: string, options: Partial<ConfigSettings> = {}): Promise<PrivateConfig> {
+  public async create(
+    projectPath: string,
+    options: Partial<ConfigSettings> = {},
+  ): Promise<PrivateConfig> {
     const projectName = path.basename(path.resolve(projectPath));
     const now = new Date();
 
@@ -176,10 +170,10 @@ export class ConfigManager {
    */
   public async addTrackedPath(filePath: string): Promise<PrivateConfig> {
     const config = await this.load();
-    
+
     // Normalize path
     const normalizedPath = path.normalize(filePath);
-    
+
     // Check if already tracked
     if (config.trackedPaths.includes(normalizedPath)) {
       throw new ConfigError(`Path is already tracked: ${normalizedPath}`);
@@ -195,24 +189,24 @@ export class ConfigManager {
    */
   public async addMultipleTrackedPaths(filePaths: string[]): Promise<PrivateConfig> {
     const config = await this.load();
-    
+
     // Normalize all paths
     const normalizedPaths = filePaths.map(filePath => path.normalize(filePath));
-    
+
     // Check for duplicates within the input
     const uniquePaths = [...new Set(normalizedPaths)];
     if (uniquePaths.length !== normalizedPaths.length) {
       throw new ConfigError('Duplicate paths found in input');
     }
-    
+
     // Check if any paths are already tracked
-    const alreadyTracked = uniquePaths.filter(normalizedPath => 
-      config.trackedPaths.includes(normalizedPath)
+    const alreadyTracked = uniquePaths.filter(normalizedPath =>
+      config.trackedPaths.includes(normalizedPath),
     );
-    
+
     if (alreadyTracked.length > 0) {
       throw new ConfigError(
-        `The following paths are already tracked: ${alreadyTracked.join(', ')}`
+        `The following paths are already tracked: ${alreadyTracked.join(', ')}`,
       );
     }
 
@@ -227,26 +221,24 @@ export class ConfigManager {
    */
   public async removeMultipleTrackedPaths(filePaths: string[]): Promise<PrivateConfig> {
     const config = await this.load();
-    
+
     // Normalize all paths
     const normalizedPaths = filePaths.map(filePath => path.normalize(filePath));
-    
+
     // Check that all paths are currently tracked
-    const notTracked = normalizedPaths.filter(normalizedPath => 
-      !config.trackedPaths.includes(normalizedPath)
+    const notTracked = normalizedPaths.filter(
+      normalizedPath => !config.trackedPaths.includes(normalizedPath),
     );
-    
+
     if (notTracked.length > 0) {
-      throw new ConfigError(
-        `The following paths are not tracked: ${notTracked.join(', ')}`
-      );
+      throw new ConfigError(`The following paths are not tracked: ${notTracked.join(', ')}`);
     }
 
     // Remove all paths
-    config.trackedPaths = config.trackedPaths.filter(trackedPath => 
-      !normalizedPaths.includes(trackedPath)
+    config.trackedPaths = config.trackedPaths.filter(
+      trackedPath => !normalizedPaths.includes(trackedPath),
     );
-    
+
     await this.save(config);
     return config;
   }
@@ -256,10 +248,10 @@ export class ConfigManager {
    */
   public async removeTrackedPath(filePath: string): Promise<PrivateConfig> {
     const config = await this.load();
-    
+
     // Normalize path
     const normalizedPath = path.normalize(filePath);
-    
+
     // Find and remove path
     const index = config.trackedPaths.indexOf(normalizedPath);
     if (index === -1) {
@@ -289,7 +281,7 @@ export class ConfigManager {
     };
 
     try {
-      if (!await this.exists()) {
+      if (!(await this.exists())) {
         result.valid = false;
         result.errors.push('Configuration file does not exist');
         return result;
@@ -299,7 +291,9 @@ export class ConfigManager {
 
       // Check version compatibility
       if (config.version !== CURRENT_CONFIG_VERSION) {
-        result.warnings.push(`Configuration version ${config.version} differs from current version ${CURRENT_CONFIG_VERSION}`);
+        result.warnings.push(
+          `Configuration version ${config.version} differs from current version ${CURRENT_CONFIG_VERSION}`,
+        );
       }
 
       // Check paths exist
@@ -307,12 +301,12 @@ export class ConfigManager {
       const privateRepoPath = path.join(workingDir, config.privateRepoPath);
       const storagePath = path.join(workingDir, config.storagePath);
 
-      if (!await this.fileSystem.pathExists(privateRepoPath)) {
+      if (!(await this.fileSystem.pathExists(privateRepoPath))) {
         result.errors.push(`Private repository path does not exist: ${privateRepoPath}`);
         result.valid = false;
       }
 
-      if (!await this.fileSystem.pathExists(storagePath)) {
+      if (!(await this.fileSystem.pathExists(storagePath))) {
         result.errors.push(`Storage path does not exist: ${storagePath}`);
         result.valid = false;
       }
@@ -321,8 +315,8 @@ export class ConfigManager {
       for (const trackedPath of config.trackedPaths) {
         const fullPath = path.join(workingDir, trackedPath);
         const storagePath = path.join(workingDir, config.storagePath, trackedPath);
-        
-        if (!await this.fileSystem.pathExists(storagePath)) {
+
+        if (!(await this.fileSystem.pathExists(storagePath))) {
           result.warnings.push(`Tracked file missing in storage: ${trackedPath}`);
         }
 
@@ -336,7 +330,6 @@ export class ConfigManager {
           result.warnings.push(`Tracked symbolic link does not exist: ${trackedPath}`);
         }
       }
-
     } catch (error) {
       result.valid = false;
       result.errors.push(error instanceof Error ? error.message : String(error));
@@ -366,7 +359,7 @@ export class ConfigManager {
       const config = await this.load();
       health.currentVersion = config.version;
       health.needsMigration = config.version !== CURRENT_CONFIG_VERSION;
-      
+
       if (health.needsMigration) {
         health.targetVersion = CURRENT_CONFIG_VERSION;
       }
@@ -374,7 +367,6 @@ export class ConfigManager {
       const validation = await this.validate();
       health.valid = validation.valid;
       health.errors = validation.errors;
-
     } catch (error) {
       health.errors.push(error instanceof Error ? error.message : String(error));
     }
@@ -386,13 +378,13 @@ export class ConfigManager {
    * Get migration information
    */
   public async getMigrationInfo(): Promise<MigrationInfo | null> {
-    if (!await this.exists()) {
+    if (!(await this.exists())) {
       return null;
     }
 
     try {
       const config = await this.load();
-      
+
       if (config.version === CURRENT_CONFIG_VERSION) {
         return null; // No migration needed
       }
@@ -407,7 +399,7 @@ export class ConfigManager {
     } catch (error) {
       throw new ConfigMigrationError(
         'Failed to get migration information',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -417,7 +409,7 @@ export class ConfigManager {
    */
   public async migrate(): Promise<PrivateConfig> {
     const migrationInfo = await this.getMigrationInfo();
-    
+
     if (!migrationInfo) {
       throw new ConfigMigrationError('No migration needed or configuration not found');
     }
@@ -441,7 +433,7 @@ export class ConfigManager {
           await this.fileSystem.writeFileAtomic(this.configPath, originalContent);
           throw new ConfigMigrationError(
             `Migration step '${step.id}' failed`,
-            error instanceof Error ? error.message : String(error)
+            error instanceof Error ? error.message : String(error),
           );
         }
       }
@@ -449,15 +441,14 @@ export class ConfigManager {
       // Reload and return migrated configuration
       this.cachedConfig = undefined; // Clear cache
       return await this.load();
-
     } catch (error) {
       if (error instanceof ConfigMigrationError) {
         throw error;
       }
-      
+
       throw new ConfigMigrationError(
         'Migration failed',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -516,7 +507,10 @@ export class ConfigManager {
   /**
    * Get migration steps for version upgrade
    */
-  private getMigrationSteps(fromVersion: string, toVersion: string): Array<{
+  private getMigrationSteps(
+    fromVersion: string,
+    toVersion: string,
+  ): Array<{
     id: string;
     description: string;
     destructive: boolean;

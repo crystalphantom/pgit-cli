@@ -80,14 +80,14 @@ export class PlatformDetector {
     try {
       // Create test file
       await fs.promises.writeFile(testSource, 'test');
-      
+
       // Try to create symbolic link
       await fs.promises.symlink(testSource, testTarget);
-      
+
       // Clean up
       await fs.promises.unlink(testTarget);
       await fs.promises.unlink(testSource);
-      
+
       return true;
     } catch (error) {
       // Clean up on error
@@ -175,7 +175,7 @@ export class PlatformDetector {
   }> {
     try {
       await fs.promises.access(filePath, fs.constants.F_OK);
-      
+
       const readable = await this.hasPermission(filePath, fs.constants.R_OK);
       const writable = await this.hasPermission(filePath, fs.constants.W_OK);
       const executable = await this.hasPermission(filePath, fs.constants.X_OK);

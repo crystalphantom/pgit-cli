@@ -1,10 +1,6 @@
 import * as path from 'path';
 import chalk from 'chalk';
-import { 
-  CommandResult, 
-  CommandOptions, 
-  DEFAULT_PATHS 
-} from '../types/config.types';
+import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types';
 import { ConfigManager } from '../core/config.manager';
 import { FileSystemService } from '../core/filesystem.service';
 import { GitService } from '../core/git.service';
@@ -49,7 +45,7 @@ export class BatchOperationError extends BaseError {
   public readonly recoverable = true;
   public readonly failedPaths: string[];
   public readonly successfulPaths: string[];
-  
+
   constructor(message: string, failedPaths: string[] = [], successfulPaths: string[] = []) {
     super(message);
     this.failedPaths = failedPaths;
@@ -62,7 +58,7 @@ export class PartialSuccessError extends BaseError {
   public readonly recoverable = false;
   public readonly processedPaths: string[];
   public readonly remainingPaths: string[];
-  
+
   constructor(message: string, processedPaths: string[] = [], remainingPaths: string[] = []) {
     super(message);
     this.processedPaths = processedPaths;
@@ -89,17 +85,22 @@ export class AddCommand {
   /**
    * Execute the add command for single or multiple files
    */
-  public async execute(filePaths: string | string[], options: CommandOptions = {}): Promise<CommandResult> {
+  public async execute(
+    filePaths: string | string[],
+    options: CommandOptions = {},
+  ): Promise<CommandResult> {
     try {
       // Handle both single and multiple file inputs
       const pathsArray = Array.isArray(filePaths) ? filePaths : [filePaths];
-      
+
       // Limit the number of files that can be processed in a single batch
       const MAX_BATCH_SIZE = 100;
       if (pathsArray.length > MAX_BATCH_SIZE) {
-        throw new AddError(`Cannot process more than ${MAX_BATCH_SIZE} files in a single operation. Please split your request into smaller batches.`);
+        throw new AddError(
+          `Cannot process more than ${MAX_BATCH_SIZE} files in a single operation. Please split your request into smaller batches.`,
+        );
       }
-      
+
       if (options.verbose) {
         if (pathsArray.length === 1) {
           console.log(chalk.blue(`🔄 Adding ${pathsArray[0]} to private tracking...`));
@@ -113,35 +114,35 @@ export class AddCommand {
 
       // Validate and process multiple paths
       const validationResult = await this.validateAndNormalizeMultiplePaths(pathsArray);
-      
+
       // Check for validation errors
       if (validationResult.invalidPaths.length > 0) {
-        const errorMessages = validationResult.invalidPaths.map(item => 
-          `${item.path}: ${item.error}`
-        ).join('\n');
-        
+        const errorMessages = validationResult.invalidPaths
+          .map(item => `${item.path}: ${item.error}`)
+          .join('\n');
+
         if (pathsArray.length === 1) {
           throw new InvalidInputError(`Invalid path detected:\n${errorMessages}`);
         } else {
           throw new BatchOperationError(
             `Invalid paths detected in batch operation:\n${errorMessages}`,
             validationResult.invalidPaths.map(item => item.path),
-            validationResult.validPaths
+            validationResult.validPaths,
           );
         }
       }
-      
+
       // Check for already tracked paths
       if (validationResult.alreadyTracked.length > 0) {
         if (pathsArray.length === 1) {
           throw new AlreadyTrackedError(
-            `Path is already tracked: ${validationResult.alreadyTracked[0]}`
+            `Path is already tracked: ${validationResult.alreadyTracked[0]}`,
           );
         } else {
           throw new BatchOperationError(
             `The following paths are already tracked: ${validationResult.alreadyTracked.join(', ')}`,
             validationResult.alreadyTracked,
-            validationResult.validPaths
+            validationResult.validPaths,
           );
         }
       }
@@ -149,16 +150,16 @@ export class AddCommand {
       // Execute the add operation atomically for all files
       await this.executeMultipleAddOperation(validationResult.normalizedPaths, options);
 
-      const successMessage = pathsArray.length === 1 
-        ? `Successfully added ${validationResult.normalizedPaths[0]} to private tracking`
-        : `Successfully added ${validationResult.normalizedPaths.length} files to private tracking`;
-      
+      const successMessage =
+        pathsArray.length === 1
+          ? `Successfully added ${validationResult.normalizedPaths[0]} to private tracking`
+          : `Successfully added ${validationResult.normalizedPaths.length} files to private tracking`;
+
       return {
         success: true,
         message: successMessage,
         exitCode: 0,
       };
-
     } catch (error) {
       if (error instanceof BaseError) {
         return {
@@ -183,24 +184,24 @@ export class AddCommand {
    */
   private async validateEnvironment(): Promise<void> {
     // Check if private git tracking is initialized
-    if (!await this.configManager.exists()) {
+    if (!(await this.configManager.exists())) {
       throw new NotInitializedError(
-        'Private git tracking is not initialized. Run "private init" first.'
+        'Private git tracking is not initialized. Run "private init" first.',
       );
     }
 
     // Check if symbolic links are supported
-    if (!await SymlinkService.supportsSymlinks()) {
+    if (!(await SymlinkService.supportsSymlinks())) {
       throw new AddError(
-        'This platform does not support symbolic links, which are required for private file tracking.'
+        'This platform does not support symbolic links, which are required for private file tracking.',
       );
     }
 
     // Check if private storage directory exists
     const storagePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
-    if (!await this.fileSystem.pathExists(storagePath)) {
+    if (!(await this.fileSystem.pathExists(storagePath))) {
       throw new AddError(
-        'Private storage directory does not exist. The initialization may have failed.'
+        'Private storage directory does not exist. The initialization may have failed.',
       );
     }
   }
@@ -208,7 +209,9 @@ export class AddCommand {
   /**
    * Validate and normalize multiple file paths
    */
-  private async validateAndNormalizeMultiplePaths(filePaths: string[]): Promise<MultiPathValidationResult> {
+  private async validateAndNormalizeMultiplePaths(
+    filePaths: string[],
+  ): Promise<MultiPathValidationResult> {
     const result: MultiPathValidationResult = {
       validPaths: [],
       invalidPaths: [],
@@ -218,15 +221,15 @@ export class AddCommand {
 
     // Remove duplicates while preserving order
     const uniquePaths = [...new Set(filePaths)];
-    
+
     // Load config once for efficiency
     const config = await this.configManager.load();
-    
+
     for (const filePath of uniquePaths) {
       try {
         // Validate individual path
         const normalizedPath = await this.validateAndNormalizePath(filePath);
-        
+
         // Check if already tracked
         if (config.trackedPaths.includes(normalizedPath)) {
           result.alreadyTracked.push(normalizedPath);
@@ -266,32 +269,34 @@ export class AddCommand {
 
     // Create safe absolute path
     const safePath = InputValidator.createSafePath(this.workingDir, validation.normalizedPath);
-    
+
     // Check if file/directory exists
-    if (!await this.fileSystem.pathExists(safePath)) {
+    if (!(await this.fileSystem.pathExists(safePath))) {
       throw new PathNotFoundError(`Path does not exist: ${filePath}`);
     }
 
     // Convert back to relative path for storage
     const relativePath = path.relative(this.workingDir, safePath);
-    
+
     return relativePath;
   }
 
   /**
    * Get the current git state of a file
    */
-  private async getFileGitState(relativePath: string): Promise<{ isTracked: boolean; isStaged: boolean }> {
+  private async getFileGitState(
+    relativePath: string,
+  ): Promise<{ isTracked: boolean; isStaged: boolean }> {
     try {
       const gitService = new GitService(this.workingDir, this.fileSystem);
-      
-      if (!await gitService.isRepository()) {
+
+      if (!(await gitService.isRepository())) {
         return { isTracked: false, isStaged: false };
       }
 
       const status = await gitService.getStatus();
       const fileStatus = status.files.find(file => file.path === relativePath);
-      
+
       if (!fileStatus) {
         return { isTracked: false, isStaged: false };
       }
@@ -299,7 +304,7 @@ export class AddCommand {
       // Check if file is tracked (in index) and/or staged
       const isTracked = !fileStatus.index || fileStatus.index !== '?';
       const isStaged = !!(fileStatus.index && fileStatus.index !== ' ' && fileStatus.index !== '?');
-      
+
       return { isTracked, isStaged };
     } catch {
       return { isTracked: false, isStaged: false };
@@ -309,7 +314,10 @@ export class AddCommand {
   /**
    * Execute atomic add operation for multiple files
    */
-  private async executeMultipleAddOperation(relativePaths: string[], options: CommandOptions): Promise<void> {
+  private async executeMultipleAddOperation(
+    relativePaths: string[],
+    options: CommandOptions,
+  ): Promise<void> {
     if (relativePaths.length === 0) {
       throw new AddError('No valid paths to process');
     }
@@ -339,12 +347,12 @@ export class AddCommand {
       if (options.verbose) {
         console.log(chalk.gray('   Removing files from main git index...'));
       }
-      
+
       for (const relativePath of relativePaths) {
         await this.removeFromMainGitIndex(relativePath);
         processedPaths.push(relativePath);
       }
-      
+
       // Add rollback for all git operations
       rollbackActions.push(async () => {
         for (const relativePath of processedPaths) {
@@ -359,23 +367,23 @@ export class AddCommand {
       if (options.verbose) {
         console.log(chalk.gray('   Moving files to private storage...'));
       }
-      
+
       const movedFiles: string[] = [];
       for (const relativePath of relativePaths) {
         const originalPath = path.join(this.workingDir, relativePath);
         const storagePath = path.join(this.workingDir, DEFAULT_PATHS.storage, relativePath);
-        
+
         await this.fileSystem.moveFileAtomic(originalPath, storagePath);
         this.fileSystem.clearRollbackActions();
         movedFiles.push(relativePath);
       }
-      
+
       // Add rollback for file moves
       rollbackActions.push(async () => {
         for (const relativePath of movedFiles.reverse()) {
           const originalPath = path.join(this.workingDir, relativePath);
           const storagePath = path.join(this.workingDir, DEFAULT_PATHS.storage, relativePath);
-          
+
           if (await this.fileSystem.pathExists(storagePath)) {
             if (await this.fileSystem.pathExists(originalPath)) {
               await this.fileSystem.remove(originalPath);
@@ -390,12 +398,12 @@ export class AddCommand {
       if (options.verbose) {
         console.log(chalk.gray('   Creating symbolic links...'));
       }
-      
+
       const createdLinks: string[] = [];
       for (const relativePath of relativePaths) {
         const originalPath = path.join(this.workingDir, relativePath);
         const storagePath = path.join(this.workingDir, DEFAULT_PATHS.storage, relativePath);
-        
+
         const isDirectory = await this.fileSystem.isDirectory(storagePath);
         await this.symlinkService.create(storagePath, originalPath, {
           force: true,
@@ -404,7 +412,7 @@ export class AddCommand {
         });
         createdLinks.push(relativePath);
       }
-      
+
       // Add rollback for symbolic links
       rollbackActions.push(async () => {
         for (const relativePath of createdLinks.reverse()) {
@@ -417,20 +425,20 @@ export class AddCommand {
       if (options.verbose) {
         console.log(chalk.gray('   Adding files to private git repository...'));
       }
-      
+
       const privateStoragePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
       const gitService = new GitService(privateStoragePath, this.fileSystem);
-      
-      if (!await gitService.isRepository()) {
+
+      if (!(await gitService.isRepository())) {
         throw new AddError('Private git repository not found. The initialization may have failed.');
       }
 
       // Use the new atomic commit method
       const commitHash = await gitService.addFilesAndCommit(
-        relativePaths, 
-        'Add files to private tracking'
+        relativePaths,
+        'Add files to private tracking',
       );
-      
+
       // Add rollback for git operations
       rollbackActions.push(async () => {
         try {
@@ -446,9 +454,9 @@ export class AddCommand {
       if (options.verbose) {
         console.log(chalk.gray('   Updating configuration...'));
       }
-      
+
       await this.configManager.addMultipleTrackedPaths(relativePaths);
-      
+
       // Add rollback for configuration
       rollbackActions.push(async () => {
         try {
@@ -459,10 +467,11 @@ export class AddCommand {
       });
 
       if (options.verbose) {
-        console.log(chalk.green(`   ✓ Successfully added ${relativePaths.length} files to private tracking`));
+        console.log(
+          chalk.green(`   ✓ Successfully added ${relativePaths.length} files to private tracking`),
+        );
         console.log(chalk.gray(`   Commit hash: ${commitHash}`));
       }
-
     } catch (error) {
       // Execute rollback in reverse order
       if (options.verbose) {
@@ -474,7 +483,11 @@ export class AddCommand {
           await rollbackAction();
         } catch (rollbackError) {
           // Log rollback errors but don't throw to avoid masking original error
-          console.error(chalk.red(`   Rollback failed: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`));
+          console.error(
+            chalk.red(
+              `   Rollback failed: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
+            ),
+          );
         }
       }
 
@@ -488,7 +501,7 @@ export class AddCommand {
   private async executeAddOperation(relativePath: string, options: CommandOptions): Promise<void> {
     const originalPath = path.join(this.workingDir, relativePath);
     const storagePath = path.join(this.workingDir, DEFAULT_PATHS.storage, relativePath);
-    
+
     // Store rollback actions
     const rollbackActions: Array<() => Promise<void>> = [];
 
@@ -499,7 +512,7 @@ export class AddCommand {
       if (options.verbose) {
         console.log(chalk.gray('   Removing from main git index...'));
       }
-      
+
       // Step 1: Remove from main git index (if tracked)
       await this.removeFromMainGitIndex(relativePath);
       rollbackActions.push(async () => {
@@ -531,8 +544,12 @@ export class AddCommand {
         console.log(chalk.gray('   Creating symbolic link...'));
         console.log(chalk.gray(`     Target: ${storagePath}`));
         console.log(chalk.gray(`     Link: ${originalPath}`));
-        console.log(chalk.gray(`     Target exists: ${await this.fileSystem.pathExists(storagePath)}`));
-        console.log(chalk.gray(`     Link exists: ${await this.fileSystem.pathExists(originalPath)}`));
+        console.log(
+          chalk.gray(`     Target exists: ${await this.fileSystem.pathExists(storagePath)}`),
+        );
+        console.log(
+          chalk.gray(`     Link exists: ${await this.fileSystem.pathExists(originalPath)}`),
+        );
       }
 
       // Step 3: Create symbolic link
@@ -583,7 +600,6 @@ export class AddCommand {
       if (options.verbose) {
         console.log(chalk.green('   ✓ File successfully added to private tracking'));
       }
-
     } catch (error) {
       // Execute rollback in reverse order
       if (options.verbose) {
@@ -595,7 +611,11 @@ export class AddCommand {
           await rollbackAction();
         } catch (rollbackError) {
           // Log rollback errors but don't throw to avoid masking original error
-          console.error(chalk.red(`   Rollback failed: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`));
+          console.error(
+            chalk.red(
+              `   Rollback failed: ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`,
+            ),
+          );
         }
       }
 
@@ -609,12 +629,12 @@ export class AddCommand {
   private async removeFromMainGitIndex(relativePath: string): Promise<void> {
     try {
       const gitService = new GitService(this.workingDir, this.fileSystem);
-      
+
       if (await gitService.isRepository()) {
         // Check if file is tracked in git
         const status = await gitService.getStatus();
         const isTracked = status.files.some(file => file.path === relativePath);
-        
+
         if (isTracked) {
           // Remove from git index but keep working copy
           await gitService.removeFromIndex(relativePath, true);
@@ -622,7 +642,11 @@ export class AddCommand {
       }
     } catch (error) {
       // If this fails, it's not critical since the file might not be in git
-      console.warn(chalk.yellow(`   Warning: Could not remove from main git index: ${error instanceof Error ? error.message : String(error)}`));
+      console.warn(
+        chalk.yellow(
+          `   Warning: Could not remove from main git index: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
     }
   }
 
@@ -632,8 +656,8 @@ export class AddCommand {
   private async addToPrivateGit(relativePath: string): Promise<void> {
     const privateStoragePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
     const gitService = new GitService(privateStoragePath, this.fileSystem);
-    
-    if (!await gitService.isRepository()) {
+
+    if (!(await gitService.isRepository())) {
       throw new AddError('Private git repository not found. The initialization may have failed.');
     }
 
@@ -646,7 +670,7 @@ export class AddCommand {
   private async commitToPrivateGit(relativePath: string, message: string): Promise<void> {
     const privateStoragePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
     const gitService = new GitService(privateStoragePath, this.fileSystem);
-    
+
     await gitService.commit(`${message}: ${relativePath}`);
   }
 
@@ -657,7 +681,7 @@ export class AddCommand {
     try {
       const privateStoragePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
       const gitService = new GitService(privateStoragePath, this.fileSystem);
-      
+
       await gitService.removeFromIndex(relativePath, false);
     } catch {
       // Ignore errors during rollback
@@ -667,11 +691,14 @@ export class AddCommand {
   /**
    * Restore file to its original git state (for rollback)
    */
-  private async restoreToOriginalGitState(relativePath: string, originalState: { isTracked: boolean; isStaged: boolean }): Promise<void> {
+  private async restoreToOriginalGitState(
+    relativePath: string,
+    originalState: { isTracked: boolean; isStaged: boolean },
+  ): Promise<void> {
     try {
       const gitService = new GitService(this.workingDir, this.fileSystem);
-      
-      if (!await gitService.isRepository()) {
+
+      if (!(await gitService.isRepository())) {
         return; // Nothing to restore in non-git directories
       }
 
@@ -686,7 +713,11 @@ export class AddCommand {
       // If originalState.isTracked is false, file was untracked - do nothing (leave it untracked)
     } catch (error) {
       // Log warning but don't fail rollback
-      console.warn(chalk.yellow(`   Warning: Could not restore original git state: ${error instanceof Error ? error.message : String(error)}`));
+      console.warn(
+        chalk.yellow(
+          `   Warning: Could not restore original git state: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
     }
   }
 }

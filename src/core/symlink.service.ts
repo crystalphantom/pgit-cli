@@ -66,7 +66,11 @@ export class SymlinkService {
   /**
    * Create a symbolic link
    */
-  public async create(targetPath: string, linkPath: string, options: SymlinkOptions = {}): Promise<void> {
+  public async create(
+    targetPath: string,
+    linkPath: string,
+    options: SymlinkOptions = {},
+  ): Promise<void> {
     try {
       // Validate inputs
       await this.validateCreateParameters(targetPath, linkPath, options);
@@ -91,11 +95,10 @@ export class SymlinkService {
 
       // Verify the link was created successfully
       await this.validateLink(linkPath, targetPath);
-
     } catch (error) {
       throw new SymlinkCreateError(
         `Failed to create symbolic link from ${linkPath} to ${targetPath}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -116,7 +119,7 @@ export class SymlinkService {
     try {
       // Check if link exists
       info.exists = await this.fileSystem.pathExists(linkPath);
-      
+
       if (!info.exists) {
         info.issues.push('Symbolic link does not exist');
         return info;
@@ -139,16 +142,17 @@ export class SymlinkService {
 
       // Check if target exists
       info.isValid = await this.fileSystem.pathExists(info.targetPath);
-      
+
       if (!info.isValid) {
         info.issues.push('Target file/directory does not exist');
       }
 
       // Link is healthy if it exists and is valid
       info.isHealthy = info.exists && info.isValid;
-
     } catch (error) {
-      info.issues.push(`Error validating symbolic link: ${error instanceof Error ? error.message : String(error)}`);
+      info.issues.push(
+        `Error validating symbolic link: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     return info;
@@ -168,16 +172,15 @@ export class SymlinkService {
       const isDirectory = await this.fileSystem.isDirectory(newTargetPath);
 
       // Create new link
-      await this.create(newTargetPath, linkPath, { 
-        force: true, 
+      await this.create(newTargetPath, linkPath, {
+        force: true,
         createParents: true,
-        isDirectory 
+        isDirectory,
       });
-
     } catch (error) {
       throw new SymlinkError(
         `Failed to repair symbolic link ${linkPath}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -188,18 +191,17 @@ export class SymlinkService {
   public async remove(linkPath: string): Promise<void> {
     try {
       const info = await this.validate(linkPath);
-      
+
       if (!info.exists) {
         return; // Nothing to remove
       }
 
       // Remove only the link, not the target
       await fs.unlink(linkPath);
-
     } catch (error) {
       throw new SymlinkError(
         `Failed to remove symbolic link ${linkPath}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -210,17 +212,16 @@ export class SymlinkService {
   public async getTarget(linkPath: string): Promise<string> {
     try {
       const info = await this.validate(linkPath);
-      
+
       if (!info.exists) {
         throw new SymlinkValidationError(`Symbolic link does not exist: ${linkPath}`);
       }
 
       return info.targetPath;
-
     } catch (error) {
       throw new SymlinkError(
         `Failed to get target of symbolic link ${linkPath}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -235,23 +236,27 @@ export class SymlinkService {
   /**
    * Validate parameters for link creation
    */
-  private async validateCreateParameters(targetPath: string, linkPath: string, options: SymlinkOptions): Promise<void> {
+  private async validateCreateParameters(
+    targetPath: string,
+    linkPath: string,
+    options: SymlinkOptions,
+  ): Promise<void> {
     // Validate paths
     this.fileSystem.validatePathString(targetPath);
     this.fileSystem.validatePathString(linkPath);
 
     // Check if target exists
-    if (!await this.fileSystem.pathExists(targetPath)) {
+    if (!(await this.fileSystem.pathExists(targetPath))) {
       throw new SymlinkValidationError(`Target path does not exist: ${targetPath}`);
     }
 
     // Check if link already exists and force is not specified
-    if (!options.force && await this.fileSystem.pathExists(linkPath)) {
+    if (!options.force && (await this.fileSystem.pathExists(linkPath))) {
       throw new SymlinkValidationError(`Link path already exists: ${linkPath}`);
     }
 
     // Check platform support
-    if (!await SymlinkService.supportsSymlinks()) {
+    if (!(await SymlinkService.supportsSymlinks())) {
       throw new SymlinkValidationError('Platform does not support symbolic links');
     }
   }
@@ -264,8 +269,8 @@ export class SymlinkService {
       await fs.symlink(targetPath, linkPath);
     } catch (error) {
       throw new SymlinkCreateError(
-        `Failed to create Unix symbolic link`,
-        error instanceof Error ? error.message : String(error)
+        'Failed to create Unix symbolic link',
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -273,22 +278,25 @@ export class SymlinkService {
   /**
    * Create Windows-style symbolic link using mklink
    */
-  private async createWindowsSymlink(targetPath: string, linkPath: string, isDirectory?: boolean): Promise<void> {
+  private async createWindowsSymlink(
+    targetPath: string,
+    linkPath: string,
+    isDirectory?: boolean,
+  ): Promise<void> {
     try {
       // Use mklink command for Windows
       const linkType = isDirectory ? '/D' : '';
       const command = `mklink ${linkType} "${linkPath}" "${targetPath}"`;
-      
+
       const result = await run_in_terminal(command);
-      
+
       if (result.exitCode !== 0) {
         throw new Error(`mklink command failed: ${result.stderr || result.stdout}`);
       }
-
     } catch (error) {
       throw new SymlinkCreateError(
-        `Failed to create Windows symbolic link`,
-        error instanceof Error ? error.message : String(error)
+        'Failed to create Windows symbolic link',
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -298,7 +306,7 @@ export class SymlinkService {
    */
   private async validateLink(linkPath: string, expectedTarget: string): Promise<void> {
     const info = await this.validate(linkPath);
-    
+
     if (!info.exists) {
       throw new SymlinkValidationError('Symbolic link was not created');
     }
@@ -310,7 +318,7 @@ export class SymlinkService {
     // Normalize paths for comparison - resolve real paths to handle /tmp vs /private/tmp issues
     let normalizedTarget: string;
     let normalizedActualTarget: string;
-    
+
     try {
       normalizedTarget = await fs.realpath(expectedTarget);
       normalizedActualTarget = await fs.realpath(info.targetPath);
@@ -319,10 +327,10 @@ export class SymlinkService {
       normalizedTarget = path.resolve(expectedTarget);
       normalizedActualTarget = path.resolve(info.targetPath);
     }
-    
+
     if (normalizedActualTarget !== normalizedTarget) {
       throw new SymlinkValidationError(
-        `Symbolic link target mismatch. Expected: ${normalizedTarget}, Actual: ${normalizedActualTarget}`
+        `Symbolic link target mismatch. Expected: ${normalizedTarget}, Actual: ${normalizedActualTarget}`,
       );
     }
   }

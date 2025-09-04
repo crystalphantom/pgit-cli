@@ -237,7 +237,11 @@ export class ErrorFactory {
   /**
    * Create error for validation failures
    */
-  public static fromValidationError(field: string, value: unknown, expectedType: string): BaseError {
+  public static fromValidationError(
+    field: string,
+    value: unknown,
+    expectedType: string,
+  ): BaseError {
     const message = `Invalid ${field}: expected ${expectedType}`;
     const details = `Received: ${typeof value} (${String(value)})`;
     return new InvalidInputError(message, details);

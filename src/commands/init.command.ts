@@ -69,7 +69,6 @@ export class InitCommand {
         message: 'Private git tracking initialized successfully',
         exitCode: 0,
       };
-
     } catch (error) {
       if (error instanceof BaseError) {
         return {
@@ -95,7 +94,7 @@ export class InitCommand {
   private async checkNotAlreadyInitialized(): Promise<void> {
     if (await this.configManager.exists()) {
       throw new AlreadyInitializedError(
-        'Private git tracking is already initialized in this directory. Use "private status" to check current state.'
+        'Private git tracking is already initialized in this directory. Use "private status" to check current state.',
       );
     }
 
@@ -105,13 +104,13 @@ export class InitCommand {
 
     if (await this.fileSystem.pathExists(privateRepoPath)) {
       throw new AlreadyInitializedError(
-        `Private repository directory already exists: ${DEFAULT_PATHS.privateRepo}`
+        `Private repository directory already exists: ${DEFAULT_PATHS.privateRepo}`,
       );
     }
 
     if (await this.fileSystem.pathExists(storagePath)) {
       throw new AlreadyInitializedError(
-        `Private storage directory already exists: ${DEFAULT_PATHS.storage}`
+        `Private storage directory already exists: ${DEFAULT_PATHS.storage}`,
       );
     }
   }
@@ -126,28 +125,34 @@ export class InitCommand {
 
     // Check if current directory is a git repository
     const mainGitService = new GitService(this.workingDir, this.fileSystem);
-    if (!await mainGitService.isRepository()) {
+    if (!(await mainGitService.isRepository())) {
       throw new InitError(
-        'Current directory is not a git repository. Please run "git init" first or navigate to a git repository.'
+        'Current directory is not a git repository. Please run "git init" first or navigate to a git repository.',
       );
     }
 
     // Check symbolic link support
     const supportsSymlinks = await PlatformDetector.supportsSymlinks();
     if (!supportsSymlinks) {
-      console.log(chalk.yellow('⚠️  Warning: Your system may not support symbolic links. Some features may not work correctly.'));
-      
+      console.log(
+        chalk.yellow(
+          '⚠️  Warning: Your system may not support symbolic links. Some features may not work correctly.',
+        ),
+      );
+
       if (PlatformDetector.isWindows()) {
-        console.log(chalk.yellow('   On Windows, you may need to run as Administrator or enable Developer Mode.'));
+        console.log(
+          chalk.yellow(
+            '   On Windows, you may need to run as Administrator or enable Developer Mode.',
+          ),
+        );
       }
     }
 
     // Check write permissions
     const permissions = await PlatformDetector.checkPermissions(this.workingDir);
     if (!permissions.writable) {
-      throw new InitError(
-        'Cannot write to current directory. Please check permissions.'
-      );
+      throw new InitError('Cannot write to current directory. Please check permissions.');
     }
 
     if (verbose) {
@@ -178,11 +183,10 @@ export class InitCommand {
       if (verbose) {
         console.log(chalk.gray(`   ✓ Created ${DEFAULT_PATHS.storage}/`));
       }
-
     } catch (error) {
       throw new InitError(
         'Failed to create directory structure',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -198,18 +202,17 @@ export class InitCommand {
     try {
       const storagePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
       const privateGitService = new GitService(storagePath, this.fileSystem);
-      
+
       // Initialize git repository in storage directory
       await privateGitService.initRepository();
 
       if (verbose) {
         console.log(chalk.green('   ✓ Private git repository initialized'));
       }
-
     } catch (error) {
       throw new InitError(
         'Failed to initialize private git repository',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -228,11 +231,10 @@ export class InitCommand {
       if (verbose) {
         console.log(chalk.green(`   ✓ Configuration created: ${DEFAULT_PATHS.config}`));
       }
-
     } catch (error) {
       throw new InitError(
         'Failed to create configuration',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -247,7 +249,7 @@ export class InitCommand {
 
     try {
       const gitignorePath = path.join(this.workingDir, DEFAULT_PATHS.gitignore);
-      
+
       // Read existing .gitignore or create empty content
       let gitignoreContent = '';
       if (await this.fileSystem.pathExists(gitignorePath)) {
@@ -278,19 +280,22 @@ export class InitCommand {
           gitignoreContent += '\n';
         }
         gitignoreContent += entriesToAdd.join('\n');
-        
+
         await this.fileSystem.writeFileAtomic(gitignorePath, gitignoreContent);
-        
+
         if (verbose) {
           console.log(chalk.green('   ✓ Updated .gitignore with private git exclusions'));
         }
       } else if (verbose) {
         console.log(chalk.gray('   ✓ .gitignore already contains private git exclusions'));
       }
-
     } catch (error) {
       // This is not critical, so we log a warning but don't fail
-      console.log(chalk.yellow(`   ⚠️  Warning: Could not update .gitignore: ${error instanceof Error ? error.message : String(error)}`));
+      console.log(
+        chalk.yellow(
+          `   ⚠️  Warning: Could not update .gitignore: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
     }
   }
 
@@ -323,16 +328,17 @@ Do not modify this directory manually. Use the \`private\` CLI commands instead.
 
       // Add and commit the README
       await privateGitService.addFiles(['README.md']);
-      const commitHash = await privateGitService.commit('Initial commit: Private files storage initialized');
+      const commitHash = await privateGitService.commit(
+        'Initial commit: Private files storage initialized',
+      );
 
       if (verbose) {
         console.log(chalk.green(`   ✓ Initial commit created: ${commitHash.substring(0, 8)}`));
       }
-
     } catch (error) {
       throw new InitError(
         'Failed to create initial commit',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }

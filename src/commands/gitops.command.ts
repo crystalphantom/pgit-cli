@@ -1,10 +1,6 @@
 import * as path from 'path';
 import chalk from 'chalk';
-import { 
-  CommandResult, 
-  CommandOptions, 
-  DEFAULT_PATHS 
-} from '../types/config.types';
+import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types';
 import { ConfigManager } from '../core/config.manager';
 import { FileSystemService } from '../core/filesystem.service';
 import { GitService } from '../core/git.service';
@@ -56,10 +52,13 @@ export class GitOpsCommand {
   /**
    * Execute git log command
    */
-  public async log(options: LogOptions = {}, cmdOptions: CommandOptions = {}): Promise<CommandResult> {
+  public async log(
+    options: LogOptions = {},
+    cmdOptions: CommandOptions = {},
+  ): Promise<CommandResult> {
     try {
       const gitService = await this.getPrivateGitService();
-      
+
       if (cmdOptions.verbose) {
         console.log(chalk.blue('📜 Getting commit history from private repository...'));
       }
@@ -88,7 +87,6 @@ export class GitOpsCommand {
         data: logEntries,
         exitCode: 0,
       };
-
     } catch (error) {
       return this.handleError(error, 'Failed to get commit history');
     }
@@ -97,10 +95,13 @@ export class GitOpsCommand {
   /**
    * Execute git diff command
    */
-  public async diff(options: DiffOptions = {}, cmdOptions: CommandOptions = {}): Promise<CommandResult> {
+  public async diff(
+    options: DiffOptions = {},
+    cmdOptions: CommandOptions = {},
+  ): Promise<CommandResult> {
     try {
       const gitService = await this.getPrivateGitService();
-      
+
       if (cmdOptions.verbose) {
         console.log(chalk.blue('🔍 Getting differences from private repository...'));
       }
@@ -129,7 +130,6 @@ export class GitOpsCommand {
         data: diffOutput,
         exitCode: 0,
       };
-
     } catch (error) {
       return this.handleError(error, 'Failed to get differences');
     }
@@ -141,9 +141,13 @@ export class GitOpsCommand {
   public async addChanges(all = false, cmdOptions: CommandOptions = {}): Promise<CommandResult> {
     try {
       const gitService = await this.getPrivateGitService();
-      
+
       if (cmdOptions.verbose) {
-        console.log(chalk.blue(`📝 ${all ? 'Staging all changes' : 'Staging changes'} in private repository...`));
+        console.log(
+          chalk.blue(
+            `📝 ${all ? 'Staging all changes' : 'Staging changes'} in private repository...`,
+          ),
+        );
       }
 
       if (all) {
@@ -152,7 +156,7 @@ export class GitOpsCommand {
         // For interactive mode, we'll add all modified files
         const status = await gitService.getStatus();
         const filesToAdd = [...status.modified, ...status.untracked];
-        
+
         if (filesToAdd.length === 0) {
           console.log(chalk.yellow('No changes to stage'));
           return {
@@ -174,7 +178,6 @@ export class GitOpsCommand {
         message: 'Changes staged successfully',
         exitCode: 0,
       };
-
     } catch (error) {
       return this.handleError(error, 'Failed to stage changes');
     }
@@ -183,18 +186,24 @@ export class GitOpsCommand {
   /**
    * Execute git branch operations
    */
-  public async branch(branchName?: string, create = false, cmdOptions: CommandOptions = {}): Promise<CommandResult> {
+  public async branch(
+    branchName?: string,
+    create = false,
+    cmdOptions: CommandOptions = {},
+  ): Promise<CommandResult> {
     try {
       const gitService = await this.getPrivateGitService();
-      
+
       if (branchName && create) {
         // Create new branch
         if (cmdOptions.verbose) {
-          console.log(chalk.blue(`🌿 Creating new branch '${branchName}' in private repository...`));
+          console.log(
+            chalk.blue(`🌿 Creating new branch '${branchName}' in private repository...`),
+          );
         }
-        
+
         await gitService.createBranch(branchName);
-        
+
         if (cmdOptions.verbose) {
           console.log(chalk.green(`   ✓ Branch '${branchName}' created and checked out`));
         }
@@ -209,9 +218,9 @@ export class GitOpsCommand {
         if (cmdOptions.verbose) {
           console.log(chalk.blue('🌿 Getting branches from private repository...'));
         }
-        
+
         const branches = await gitService.getBranches();
-        
+
         console.log(chalk.bold('Branches:'));
         for (const branch of branches.all) {
           const isCurrent = branch === branches.current;
@@ -227,7 +236,6 @@ export class GitOpsCommand {
           exitCode: 0,
         };
       }
-
     } catch (error) {
       return this.handleError(error, 'Failed to perform branch operation');
     }
@@ -239,7 +247,7 @@ export class GitOpsCommand {
   public async checkout(target: string, cmdOptions: CommandOptions = {}): Promise<CommandResult> {
     try {
       const gitService = await this.getPrivateGitService();
-      
+
       if (cmdOptions.verbose) {
         console.log(chalk.blue(`🔄 Checking out '${target}' in private repository...`));
       }
@@ -255,7 +263,6 @@ export class GitOpsCommand {
         message: `Switched to '${target}' successfully`,
         exitCode: 0,
       };
-
     } catch (error) {
       return this.handleError(error, `Failed to checkout '${target}'`);
     }
@@ -264,10 +271,14 @@ export class GitOpsCommand {
   /**
    * Execute git reset command
    */
-  public async reset(mode: 'soft' | 'hard' = 'soft', commit = 'HEAD', cmdOptions: CommandOptions = {}): Promise<CommandResult> {
+  public async reset(
+    mode: 'soft' | 'hard' = 'soft',
+    commit = 'HEAD',
+    cmdOptions: CommandOptions = {},
+  ): Promise<CommandResult> {
     try {
       const gitService = await this.getPrivateGitService();
-      
+
       if (cmdOptions.verbose) {
         console.log(chalk.blue(`🔄 Resetting private repository (${mode}) to ${commit}...`));
       }
@@ -283,7 +294,6 @@ export class GitOpsCommand {
         message: `Reset to ${commit} (${mode}) completed successfully`,
         exitCode: 0,
       };
-
     } catch (error) {
       return this.handleError(error, `Failed to reset to ${commit}`);
     }
@@ -295,7 +305,7 @@ export class GitOpsCommand {
   public async getCurrentBranch(cmdOptions: CommandOptions = {}): Promise<CommandResult> {
     try {
       const gitService = await this.getPrivateGitService();
-      
+
       const currentBranch = await gitService.getCurrentBranch();
 
       if (cmdOptions.verbose) {
@@ -308,7 +318,6 @@ export class GitOpsCommand {
         data: currentBranch,
         exitCode: 0,
       };
-
     } catch (error) {
       return this.handleError(error, 'Failed to get current branch');
     }
@@ -319,25 +328,25 @@ export class GitOpsCommand {
    */
   private async getPrivateGitService(): Promise<GitService> {
     // Validate environment
-    if (!await this.configManager.exists()) {
+    if (!(await this.configManager.exists())) {
       throw new NotInitializedError(
-        'Private git tracking is not initialized. Run "private init" first.'
+        'Private git tracking is not initialized. Run "private init" first.',
       );
     }
 
     const privateStoragePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
-    
-    if (!await this.fileSystem.pathExists(privateStoragePath)) {
+
+    if (!(await this.fileSystem.pathExists(privateStoragePath))) {
       throw new GitOpsError(
-        'Private storage directory does not exist. The initialization may have failed.'
+        'Private storage directory does not exist. The initialization may have failed.',
       );
     }
 
     const gitService = new GitService(privateStoragePath, this.fileSystem);
-    
-    if (!await gitService.isRepository()) {
+
+    if (!(await gitService.isRepository())) {
       throw new GitOpsError(
-        'Private storage is not a git repository. The initialization may have failed.'
+        'Private storage is not a git repository. The initialization may have failed.',
       );
     }
 

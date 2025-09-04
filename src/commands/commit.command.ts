@@ -1,10 +1,6 @@
 import * as path from 'path';
 import chalk from 'chalk';
-import { 
-  CommandResult, 
-  CommandOptions, 
-  DEFAULT_PATHS 
-} from '../types/config.types';
+import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types';
 import { ConfigManager } from '../core/config.manager';
 import { FileSystemService } from '../core/filesystem.service';
 import { GitService } from '../core/git.service';
@@ -91,7 +87,6 @@ export class CommitCommand {
         data: { commitHash, message: commitMessage },
         exitCode: 0,
       };
-
     } catch (error) {
       if (error instanceof BaseError) {
         return {
@@ -116,25 +111,25 @@ export class CommitCommand {
    */
   private async validateEnvironment(): Promise<void> {
     // Check if private git tracking is initialized
-    if (!await this.configManager.exists()) {
+    if (!(await this.configManager.exists())) {
       throw new NotInitializedError(
-        'Private git tracking is not initialized. Run "private init" first.'
+        'Private git tracking is not initialized. Run "private init" first.',
       );
     }
 
     // Check if private storage directory exists
     const storagePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
-    if (!await this.fileSystem.pathExists(storagePath)) {
+    if (!(await this.fileSystem.pathExists(storagePath))) {
       throw new CommitError(
-        'Private storage directory does not exist. The initialization may have failed.'
+        'Private storage directory does not exist. The initialization may have failed.',
       );
     }
 
     // Check if private storage is a git repository
     const gitService = new GitService(storagePath, this.fileSystem);
-    if (!await gitService.isRepository()) {
+    if (!(await gitService.isRepository())) {
       throw new CommitError(
-        'Private storage is not a git repository. The initialization may have failed.'
+        'Private storage is not a git repository. The initialization may have failed.',
       );
     }
   }
@@ -158,7 +153,10 @@ export class CommitCommand {
       if (error instanceof InvalidArgumentError) {
         throw error;
       }
-      throw new CommitError('Invalid commit message', error instanceof Error ? error.message : String(error));
+      throw new CommitError(
+        'Invalid commit message',
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }
 
@@ -191,7 +189,7 @@ export class CommitCommand {
     } catch (error) {
       throw new CommitError(
         'Failed to check repository status',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }

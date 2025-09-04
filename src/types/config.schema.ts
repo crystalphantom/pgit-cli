@@ -175,50 +175,40 @@ export const ErrorInfoSchema = z.object({
 /**
  * Schema for validating file paths
  */
-export const FilePathSchema = z.string()
+export const FilePathSchema = z
+  .string()
   .min(1)
-  .refine(
-    (path) => !path.includes('..'),
-    { message: 'Path traversal not allowed' }
-  )
-  .refine(
-    (path) => !/[<>:"|?*]/.test(path),
-    { message: 'Invalid characters in path' }
-  );
+  .refine(path => !path.includes('..'), { message: 'Path traversal not allowed' })
+  .refine(path => !/[<>:"|?*]/.test(path), { message: 'Invalid characters in path' });
 
 /**
  * Schema for validating git commit messages
  */
-export const CommitMessageSchema = z.string()
+export const CommitMessageSchema = z
+  .string()
   .min(1, 'Commit message cannot be empty')
   .max(100, 'Commit message too long')
-  .refine(
-    (msg) => msg.trim().length > 0,
-    { message: 'Commit message cannot be only whitespace' }
-  );
+  .refine(msg => msg.trim().length > 0, { message: 'Commit message cannot be only whitespace' });
 
 /**
  * Schema for validating branch names
  */
-export const BranchNameSchema = z.string()
+export const BranchNameSchema = z
+  .string()
   .min(1)
   .regex(
     /^[a-zA-Z0-9._/-]+$/,
-    'Branch name can only contain letters, numbers, dots, hyphens, underscores, and forward slashes'
+    'Branch name can only contain letters, numbers, dots, hyphens, underscores, and forward slashes',
   )
-  .refine(
-    (name) => !name.startsWith('.') && !name.endsWith('.'),
-    { message: 'Branch name cannot start or end with a dot' }
-  )
-  .refine(
-    (name) => !name.includes('..'),
-    { message: 'Branch name cannot contain consecutive dots' }
-  );
+  .refine(name => !name.startsWith('.') && !name.endsWith('.'), {
+    message: 'Branch name cannot start or end with a dot',
+  })
+  .refine(name => !name.includes('..'), { message: 'Branch name cannot contain consecutive dots' });
 
 /**
  * Transform function to convert ISO date strings to Date objects
  */
-export const dateTransform = z.string().transform((str) => new Date(str));
+export const dateTransform = z.string().transform(str => new Date(str));
 
 /**
  * JSON serialization schema for configuration
@@ -228,15 +218,18 @@ export const PrivateConfigJsonSchema = z.object({
   privateRepoPath: z.string(),
   storagePath: z.string(),
   trackedPaths: z.array(z.string()),
-  initialized: z.string().transform((str) => new Date(str)),
-  lastCleanup: z.string().transform((str) => new Date(str)).optional(),
+  initialized: z.string().transform(str => new Date(str)),
+  lastCleanup: z
+    .string()
+    .transform(str => new Date(str))
+    .optional(),
   settings: ConfigSettingsSchema,
   metadata: z.object({
     projectName: z.string(),
     mainRepoPath: z.string(),
     cliVersion: z.string(),
     platform: z.string(),
-    lastModified: z.string().transform((str) => new Date(str)),
+    lastModified: z.string().transform(str => new Date(str)),
   }),
 });
 

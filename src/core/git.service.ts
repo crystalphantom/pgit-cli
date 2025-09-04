@@ -1,11 +1,7 @@
 import { simpleGit, SimpleGit, StatusResult, LogResult } from 'simple-git';
 import * as path from 'path';
 import { FileSystemService } from './filesystem.service';
-import { 
-  RepositoryNotFoundError, 
-  GitOperationError, 
-  GitIndexError 
-} from '../errors/git.error';
+import { RepositoryNotFoundError, GitOperationError, GitIndexError } from '../errors/git.error';
 
 /**
  * Git repository status information
@@ -70,7 +66,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         'Failed to initialize git repository',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -83,7 +79,7 @@ export class GitService {
 
     try {
       const status: StatusResult = await this.git.status();
-      
+
       return {
         current: status.current,
         tracking: status.tracking,
@@ -104,7 +100,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         'Failed to get repository status',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -119,11 +115,11 @@ export class GitService {
       if (files.length === 0) {
         return;
       }
-      
+
       // Validate all files exist
       for (const file of files) {
         const fullPath = path.resolve(this.workingDir, file);
-        if (!await this.fileSystem.pathExists(fullPath)) {
+        if (!(await this.fileSystem.pathExists(fullPath))) {
           throw new GitOperationError(`File not found: ${file}`);
         }
       }
@@ -132,7 +128,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         `Failed to add files: ${files.join(', ')}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -148,7 +144,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         'Failed to add all files',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -161,7 +157,7 @@ export class GitService {
 
     try {
       const fileList = Array.isArray(files) ? files : [files];
-      
+
       if (fileList.length === 0) {
         return;
       }
@@ -176,7 +172,7 @@ export class GitService {
     } catch (error) {
       throw new GitIndexError(
         `Failed to remove files from index: ${Array.isArray(files) ? files.join(', ') : files}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -197,7 +193,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         'Failed to commit changes',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -219,17 +215,17 @@ export class GitService {
     try {
       // Add all files first
       await this.addFiles(files);
-      
+
       // Generate comprehensive commit message
       const commitMessage = this.generateMultiFileCommitMessage(files, baseMessage.trim());
-      
+
       // Commit all changes
       const result = await this.git.commit(commitMessage);
       return result.commit;
     } catch (error) {
       throw new GitOperationError(
         `Failed to add and commit files: ${files.join(', ')}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -255,10 +251,10 @@ export class GitService {
 
     const lines = [baseMessage, ''];
     lines.push('Files added:');
-    
+
     // Sort directories for consistent output
     const sortedDirs = Array.from(filesByDir.keys()).sort();
-    
+
     for (const dir of sortedDirs) {
       const dirFiles = filesByDir.get(dir)!.sort();
       if (dir === '.') {
@@ -277,7 +273,9 @@ export class GitService {
     // Add summary
     const totalDirs = filesByDir.size;
     lines.push('');
-    lines.push(`Total: ${files.length} file${files.length === 1 ? '' : 's'}${totalDirs > 1 ? `, ${totalDirs} ${totalDirs === 1 ? 'directory' : 'directories'} affected` : ''}`);
+    lines.push(
+      `Total: ${files.length} file${files.length === 1 ? '' : 's'}${totalDirs > 1 ? `, ${totalDirs} ${totalDirs === 1 ? 'directory' : 'directories'} affected` : ''}`,
+    );
 
     return lines.join('\n');
   }
@@ -290,23 +288,23 @@ export class GitService {
 
     try {
       const logOptions: Record<string, unknown> = {};
-      
+
       if (options?.maxCount) {
         logOptions['maxCount'] = options.maxCount;
       }
-      
+
       if (options?.oneline) {
         logOptions['format'] = {
           hash: '%H',
           date: '%ai',
           message: '%s',
           author: '%an',
-          email: '%ae'
+          email: '%ae',
         };
       }
 
       const log: LogResult = await this.git.log(logOptions);
-      
+
       return log.all.map(entry => ({
         hash: entry.hash,
         date: entry.date,
@@ -317,7 +315,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         'Failed to get commit log',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -330,11 +328,11 @@ export class GitService {
 
     try {
       const diffOptions: string[] = [];
-      
+
       if (options?.cached) {
         diffOptions.push('--cached');
       }
-      
+
       if (options?.nameOnly) {
         diffOptions.push('--name-only');
       }
@@ -344,7 +342,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         'Failed to get diff',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -364,7 +362,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         'Failed to get branches',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -384,7 +382,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         `Failed to create branch ${branchName}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -404,7 +402,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         `Failed to checkout branch ${branchName}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -424,7 +422,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         `Failed to merge branch ${branchName}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -441,7 +439,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         `Failed to reset repository to ${commit}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -466,7 +464,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         'Failed to get repository root',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -497,7 +495,7 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         'Failed to get current branch',
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -514,13 +512,13 @@ export class GitService {
     try {
       // Check if .git directory exists
       const gitDir = path.join(this.workingDir, '.git');
-      if (!await this.fileSystem.pathExists(gitDir)) {
+      if (!(await this.fileSystem.pathExists(gitDir))) {
         issues.push('Git directory not found');
         return { isHealthy: false, issues };
       }
 
       // Check if repository is accessible
-      if (!await this.isRepository()) {
+      if (!(await this.isRepository())) {
         issues.push('Directory is not a valid git repository');
       }
 
@@ -528,18 +526,23 @@ export class GitService {
       try {
         await this.getStatus();
       } catch (error) {
-        issues.push(`Git index may be corrupted: ${error instanceof Error ? error.message : String(error)}`);
+        issues.push(
+          `Git index may be corrupted: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
 
       // Check HEAD reference
       try {
         await this.git.revparse(['HEAD']);
       } catch (error) {
-        issues.push(`HEAD reference is invalid: ${error instanceof Error ? error.message : String(error)}`);
+        issues.push(
+          `HEAD reference is invalid: ${error instanceof Error ? error.message : String(error)}`,
+        );
       }
-
     } catch (error) {
-      issues.push(`Repository health check failed: ${error instanceof Error ? error.message : String(error)}`);
+      issues.push(
+        `Repository health check failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     return {
@@ -552,7 +555,7 @@ export class GitService {
    * Ensure repository exists and is accessible
    */
   private async ensureRepository(): Promise<void> {
-    if (!await this.isRepository()) {
+    if (!(await this.isRepository())) {
       throw new RepositoryNotFoundError(`Not a git repository: ${this.workingDir}`);
     }
   }

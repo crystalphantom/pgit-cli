@@ -1,13 +1,13 @@
 import * as path from 'path';
 import chalk from 'chalk';
-import { 
-  CommandResult, 
-  CommandOptions, 
-  DEFAULT_PATHS, 
-  SystemStatus, 
+import {
+  CommandResult,
+  CommandOptions,
+  DEFAULT_PATHS,
+  SystemStatus,
   RepositoryStatus,
   SymlinkHealth,
-  ConfigHealth 
+  ConfigHealth,
 } from '../types/config.types';
 import { ConfigManager } from '../core/config.manager';
 import { FileSystemService } from '../core/filesystem.service';
@@ -47,10 +47,10 @@ export class StatusCommand {
   public async execute(options: CommandOptions = {}): Promise<CommandResult> {
     try {
       const systemStatus = await this.getSystemStatus();
-      
+
       if (!systemStatus.initialized) {
         throw new NotInitializedError(
-          'Private git tracking is not initialized. Run "private init" first.'
+          'Private git tracking is not initialized. Run "private init" first.',
         );
       }
 
@@ -63,7 +63,6 @@ export class StatusCommand {
         data: systemStatus,
         exitCode: 0,
       };
-
     } catch (error) {
       if (error instanceof BaseError) {
         return {
@@ -89,10 +88,10 @@ export class StatusCommand {
   public async executePrivateOnly(options: CommandOptions = {}): Promise<CommandResult> {
     try {
       const systemStatus = await this.getSystemStatus();
-      
+
       if (!systemStatus.initialized) {
         throw new NotInitializedError(
-          'Private git tracking is not initialized. Run "private init" first.'
+          'Private git tracking is not initialized. Run "private init" first.',
         );
       }
 
@@ -105,7 +104,6 @@ export class StatusCommand {
         data: systemStatus.privateRepo,
         exitCode: 0,
       };
-
     } catch (error) {
       if (error instanceof BaseError) {
         return {
@@ -169,10 +167,10 @@ export class StatusCommand {
 
     try {
       const gitService = new GitService(this.workingDir, this.fileSystem);
-      
+
       if (await gitService.isRepository()) {
         status.exists = true;
-        
+
         const gitStatus = await gitService.getStatus();
         status.branch = gitStatus.current || 'unknown';
         status.isClean = gitStatus.isClean;
@@ -184,7 +182,9 @@ export class StatusCommand {
         status.issues.push('Directory is not a git repository');
       }
     } catch (error) {
-      status.issues.push(`Failed to get main repository status: ${error instanceof Error ? error.message : String(error)}`);
+      status.issues.push(
+        `Failed to get main repository status: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     return status;
@@ -207,23 +207,23 @@ export class StatusCommand {
     };
 
     try {
-      if (!await this.configManager.exists()) {
+      if (!(await this.configManager.exists())) {
         status.issues.push('Private git tracking not initialized');
         return status;
       }
 
       const storagePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
-      
-      if (!await this.fileSystem.pathExists(storagePath)) {
+
+      if (!(await this.fileSystem.pathExists(storagePath))) {
         status.issues.push('Private storage directory does not exist');
         return status;
       }
 
       const gitService = new GitService(storagePath, this.fileSystem);
-      
+
       if (await gitService.isRepository()) {
         status.exists = true;
-        
+
         const gitStatus = await gitService.getStatus();
         status.branch = gitStatus.current || 'unknown';
         status.isClean = gitStatus.isClean;
@@ -235,7 +235,9 @@ export class StatusCommand {
         status.issues.push('Private storage is not a git repository');
       }
     } catch (error) {
-      status.issues.push(`Failed to get private repository status: ${error instanceof Error ? error.message : String(error)}`);
+      status.issues.push(
+        `Failed to get private repository status: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     return status;
@@ -253,7 +255,7 @@ export class StatusCommand {
     };
 
     try {
-      if (!await this.configManager.exists()) {
+      if (!(await this.configManager.exists())) {
         return health;
       }
 
@@ -267,7 +269,7 @@ export class StatusCommand {
         try {
           if (await this.fileSystem.pathExists(fullPath)) {
             const stats = await this.fileSystem.getStats(fullPath);
-            
+
             if (stats.isSymbolicLink()) {
               // Check if target exists
               if (await this.fileSystem.pathExists(targetPath)) {
@@ -401,14 +403,18 @@ export class StatusCommand {
       console.log(chalk.blue.bold('🔗 Symbolic Links'));
       console.log(`   Total: ${status.symlinks.total}`);
       console.log(`   Healthy: ${chalk.green(status.symlinks.healthy)}`);
-      console.log(`   Broken: ${status.symlinks.broken > 0 ? chalk.red(status.symlinks.broken) : chalk.green(status.symlinks.broken)}`);
-      
+      console.log(
+        `   Broken: ${status.symlinks.broken > 0 ? chalk.red(status.symlinks.broken) : chalk.green(status.symlinks.broken)}`,
+      );
+
       if (verbose && status.symlinks.brokenLinks.length > 0) {
         console.log('   Broken links:');
         for (const brokenLink of status.symlinks.brokenLinks) {
           console.log(`     ${chalk.red('✗')} ${brokenLink.linkPath}`);
           console.log(`       Reason: ${brokenLink.reason}`);
-          console.log(`       Repairable: ${brokenLink.repairable ? chalk.green('Yes') : chalk.red('No')}`);
+          console.log(
+            `       Repairable: ${brokenLink.repairable ? chalk.green('Yes') : chalk.red('No')}`,
+          );
         }
       }
       console.log();
@@ -444,7 +450,9 @@ export class StatusCommand {
       console.log(chalk.blue.bold('🔗 Tracked Files Summary'));
       console.log(`   Total tracked files: ${status.symlinks.total}`);
       console.log(`   Healthy symbolic links: ${chalk.green(status.symlinks.healthy)}`);
-      console.log(`   Broken symbolic links: ${status.symlinks.broken > 0 ? chalk.red(status.symlinks.broken) : chalk.green(status.symlinks.broken)}`);
+      console.log(
+        `   Broken symbolic links: ${status.symlinks.broken > 0 ? chalk.red(status.symlinks.broken) : chalk.green(status.symlinks.broken)}`,
+      );
     }
   }
 
@@ -459,7 +467,7 @@ export class StatusCommand {
 
     console.log(`   Branch: ${chalk.cyan(repo.branch)}`);
     console.log(`   Status: ${repo.isClean ? chalk.green('Clean') : chalk.yellow('Has changes')}`);
-    
+
     if (!repo.isClean || verbose) {
       if (repo.stagedFiles > 0) {
         console.log(`   Staged files: ${chalk.green(repo.stagedFiles)}`);
@@ -489,7 +497,7 @@ export class StatusCommand {
   private async displayTrackedFiles(): Promise<void> {
     try {
       const config = await this.configManager.load();
-      
+
       if (config.trackedPaths.length === 0) {
         console.log();
         console.log(chalk.gray('   No files are currently tracked'));
@@ -498,14 +506,14 @@ export class StatusCommand {
 
       console.log();
       console.log(chalk.blue.bold('📁 Tracked Files'));
-      
+
       for (const trackedPath of config.trackedPaths) {
         const fullPath = path.join(this.workingDir, trackedPath);
         const targetPath = path.join(this.workingDir, config.storagePath, trackedPath);
-        
+
         const linkExists = await this.fileSystem.pathExists(fullPath);
         const targetExists = await this.fileSystem.pathExists(targetPath);
-        
+
         let status = '';
         if (linkExists && targetExists) {
           status = chalk.green('✓');
@@ -516,7 +524,7 @@ export class StatusCommand {
         } else {
           status = chalk.red('✗ Both missing');
         }
-        
+
         console.log(`   ${status} ${trackedPath}`);
       }
     } catch (error) {
