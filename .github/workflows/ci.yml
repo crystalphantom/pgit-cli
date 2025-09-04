@@ -33,7 +33,7 @@ jobs:
         run: npm ci
 
       - name: Check code formatting
-        run: npm run format -- --check
+        run: npm run format:check
 
       - name: Lint code
         run: npm run lint
@@ -45,7 +45,7 @@ jobs:
         run: npm run build
 
       - name: Run tests
-        run: npm test -- --coverage --watchAll=false
+        run: npm run test:ci
         env:
           CI: true
 
@@ -93,6 +93,7 @@ jobs:
           pgit init
           pgit add test.txt
           # Verify file exists and content is accessible
+          # TODO: Improve this test to check for symbolic link attributes
           type test.txt | findstr "test content"
         shell: cmd
 

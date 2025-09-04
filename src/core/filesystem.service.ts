@@ -370,6 +370,14 @@ export class FileSystemService {
       throw new InvalidPathError('Path must be a non-empty string');
     }
 
+    if (targetPath.includes('\x00')) {
+      throw new InvalidPathError('Path contains invalid characters');
+    }
+
+    if (targetPath.length > 4096) {
+      throw new InvalidPathError('Path is too long');
+    }
+
     // Prevent path traversal attacks
     const normalizedPath = path.normalize(targetPath);
     if (normalizedPath.includes('..')) {

@@ -2,6 +2,7 @@ import { AddCommand } from '../../commands/add.command';
 import { ConfigManager } from '../../core/config.manager';
 import { FileSystemService } from '../../core/filesystem.service';
 import { SymlinkService } from '../../core/symlink.service';
+import { GitService } from '../../core/git.service';
 
 // Mock all dependencies
 jest.mock('../../core/config.manager');
@@ -15,12 +16,14 @@ jest.mock('../../core/symlink.service');
 const MockedConfigManager = jest.mocked(ConfigManager);
 const MockedFileSystemService = jest.mocked(FileSystemService);
 const MockedSymlinkService = jest.mocked(SymlinkService);
+const MockedGitService = jest.mocked(GitService);
 
 describe('AddCommand', () => {
   let addCommand: AddCommand;
   let mockConfigManager: jest.Mocked<ConfigManager>;
   let mockFileSystem: jest.Mocked<FileSystemService>;
   let mockSymlinkService: jest.Mocked<SymlinkService>;
+  let mockGitServiceInstance: jest.Mocked<GitService>;
   const testWorkingDir = '/test/workspace';
 
   beforeEach(() => {
@@ -28,6 +31,7 @@ describe('AddCommand', () => {
     MockedConfigManager.mockImplementation(() => mockConfigManager);
     MockedFileSystemService.mockImplementation(() => mockFileSystem);
     MockedSymlinkService.mockImplementation(() => mockSymlinkService);
+    MockedGitService.mockImplementation(() => mockGitServiceInstance);
 
     mockConfigManager = {
       exists: jest.fn(),
@@ -51,6 +55,14 @@ describe('AddCommand', () => {
       create: jest.fn(),
       remove: jest.fn(),
       supportsSymlinks: jest.fn(),
+    } as any;
+
+    mockGitServiceInstance = {
+      isRepository: jest.fn(),
+      getStatus: jest.fn(),
+      addFiles: jest.fn(),
+      commit: jest.fn(),
+      addFilesAndCommit: jest.fn(),
     } as any;
 
     // Setup default mock behaviors
