@@ -305,10 +305,10 @@ export class EnhancedErrorHandler {
   private static displayTroubleshootingTips(_context?: ErrorContext): void {
     console.log();
     console.log(chalk.blue.bold('🔧 General Troubleshooting Tips:'));
-    console.log(`   • Run ${chalk.white('private status -v')} to check system health`);
-    console.log(`   • Use ${chalk.white('private cleanup -v')} to repair common issues`);
-    console.log(`   • Check ${chalk.white('private --help')} for command usage`);
-    console.log('   • Ensure you\'re in a git repository directory');
+    console.log('   • Run ' + chalk.white('private status -v') + ' to check system health');
+    console.log('   • Use ' + chalk.white('private cleanup -v') + ' to repair common issues');
+    console.log('   • Check ' + chalk.white('private --help') + ' for command usage');
+    console.log('   • Ensure you are in a git repository directory');
     console.log('   • Verify file paths are relative to the current directory');
 
     if (process.platform === 'win32') {
