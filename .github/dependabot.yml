@@ -1,0 +1,108 @@
+version: 2
+
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "UTC"
+    
+    # Dependency update settings
+    open-pull-requests-limit: 10
+    
+    # Commit message configuration
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+      include: "scope"
+    
+    # Reviewers and assignees
+    reviewers:
+      - "pgit-cli-team"
+    
+    # Pull request labels
+    labels:
+      - "dependencies"
+      - "automated"
+      - "security"
+    
+    # Dependency groups for better organization
+    groups:
+      # Production dependencies
+      production-dependencies:
+        applies-to: version-updates
+        patterns:
+          - "commander"
+          - "chalk" 
+          - "fs-extra"
+          - "simple-git"
+          - "zod"
+        
+      # Development tools
+      development-dependencies:
+        applies-to: version-updates
+        patterns:
+          - "@types/*"
+          - "typescript"
+          - "jest"
+          - "ts-jest"
+          - "ts-node"
+          - "eslint"
+          - "@typescript-eslint/*"
+          - "prettier"
+        
+      # Release automation
+      release-dependencies:
+        applies-to: version-updates
+        patterns:
+          - "release-it"
+          - "@release-it/*"
+          - "auto-changelog"
+          - "semver"
+    
+    # Version constraints
+    ignore:
+      # Ignore major version updates for critical dependencies
+      - dependency-name: "commander"
+        update-types: ["version-update:semver-major"]
+      
+      - dependency-name: "simple-git"
+        update-types: ["version-update:semver-major"]
+      
+      # Ignore specific versions if needed
+      # - dependency-name: "package-name"
+      #   versions: ["1.x", "2.x"]
+    
+    # Allow both direct and indirect dependencies
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    
+    # Rebase strategy
+    rebase-strategy: "auto"
+
+  # Enable security updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "UTC"
+    
+    open-pull-requests-limit: 5
+    
+    commit-message:
+      prefix: "chore(actions)"
+      include: "scope"
+    
+    labels:
+      - "github-actions"
+      - "automated"
+      - "security"
+    
+    reviewers:
+      - "pgit-cli-team"

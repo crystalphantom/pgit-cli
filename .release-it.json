@@ -1,0 +1,85 @@
+{
+  "git": {
+    "commitMessage": "chore: release v${version}",
+    "tagName": "v${version}",
+    "requireBranch": "main",
+    "requireCleanWorkingDir": true,
+    "requireUpstream": false
+  },
+  "github": {
+    "release": true,
+    "releaseName": "v${version}",
+    "web": true
+  },
+  "npm": {
+    "publish": true,
+    "skipChecks": false,
+    "publishPath": "."
+  },
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "preset": {
+        "name": "angular",
+        "types": [
+          {
+            "type": "feat",
+            "section": "🚀 Features"
+          },
+          {
+            "type": "fix",
+            "section": "🐛 Bug Fixes"
+          },
+          {
+            "type": "perf",
+            "section": "⚡ Performance"
+          },
+          {
+            "type": "docs",
+            "section": "📚 Documentation"
+          },
+          {
+            "type": "style",
+            "section": "💄 Styling"
+          },
+          {
+            "type": "refactor",
+            "section": "♻️ Code Refactoring"
+          },
+          {
+            "type": "test",
+            "section": "🧪 Tests"
+          },
+          {
+            "type": "build",
+            "section": "🏗️ Build System"
+          },
+          {
+            "type": "ci",
+            "section": "🔧 CI/CD"
+          },
+          {
+            "type": "chore",
+            "section": "🔧 Maintenance"
+          }
+        ]
+      },
+      "infile": "CHANGELOG.md",
+      "header": "# Changelog\n\nAll notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).\n\n",
+      "gitRawCommitsOpts": {
+        "format": "%B%n-hash-%n%H%n-gitTags-%n%d%n-committerDate-%n%ci"
+      }
+    }
+  },
+  "hooks": {
+    "before:init": [
+      "npm run lint",
+      "npm run test:coverage"
+    ],
+    "after:bump": [
+      "npm run build"
+    ],
+    "before:release": [
+      "git add CHANGELOG.md"
+    ]
+  }
+}
