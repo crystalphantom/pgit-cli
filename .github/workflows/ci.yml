@@ -60,7 +60,7 @@ jobs:
       - name: Test CLI installation and basic functionality
         run: |
           npm pack
-          npm install -g ./private-git-cli-*.tgz
+          npm install -g ./pgit-cli-*.tgz
           pgit --version
           pgit --help
         shell: bash
