@@ -1,6 +1,12 @@
 import * as path from 'path';
 import { z } from 'zod';
-import { InvalidInputError, UnsafePathError, MissingArgumentError, InvalidArgumentError, SecurityError } from '../errors/specific.errors';
+import {
+  InvalidInputError,
+  UnsafePathError,
+  MissingArgumentError,
+  InvalidArgumentError,
+  SecurityError,
+} from '../errors/specific.errors';
 
 /**
  * Path validation result
@@ -58,7 +64,10 @@ export class InputValidator {
   /**
    * Validate file path for security and correctness
    */
-  public static validatePath(inputPath: string, options: ValidationOptions = {}): PathValidationResult {
+  public static validatePath(
+    inputPath: string,
+    options: ValidationOptions = {},
+  ): PathValidationResult {
     const result: PathValidationResult = {
       isValid: true,
       normalizedPath: '',
@@ -127,7 +136,9 @@ export class InputValidator {
       const ext = path.extname(normalized).toLowerCase();
       if (!options.requiredExtensions.includes(ext)) {
         result.isValid = false;
-        result.issues.push(`File must have one of these extensions: ${options.requiredExtensions.join(', ')}`);
+        result.issues.push(
+          `File must have one of these extensions: ${options.requiredExtensions.join(', ')}`,
+        );
       }
     }
 
@@ -177,7 +188,7 @@ export class InputValidator {
     }
 
     const trimmed = branchName.trim();
-    
+
     // Git branch name rules
     const validBranchName = /^[a-zA-Z0-9._/-]+$/;
     if (!validBranchName.test(trimmed)) {
@@ -199,7 +210,7 @@ export class InputValidator {
    */
   public static validateNumber(value: string, field: string, min?: number, max?: number): number {
     const num = parseInt(value, 10);
-    
+
     if (isNaN(num)) {
       throw new InvalidArgumentError(`${field} must be a valid number`, field);
     }
@@ -240,7 +251,7 @@ export class InputValidator {
 
     // Remove control characters except newlines and tabs
     let sanitized = input.replace(/[\x00-\x08\x0E-\x1F\x7F]/g, '');
-    
+
     // Trim and limit length
     sanitized = sanitized.trim();
     if (sanitized.length > maxLength) {
@@ -257,9 +268,11 @@ export class InputValidator {
     // Check Node.js version
     const nodeVersion = process.version;
     const major = parseInt(nodeVersion.slice(1).split('.')[0], 10);
-    
+
     if (major < 18) {
-      throw new InvalidInputError(`Node.js version ${nodeVersion} is not supported. Minimum required: 18.0.0`);
+      throw new InvalidInputError(
+        `Node.js version ${nodeVersion} is not supported. Minimum required: 18.0.0`,
+      );
     }
 
     // Check platform support
@@ -274,11 +287,16 @@ export class InputValidator {
    */
   public static validateWorkingDirectory(workingDir: string): void {
     const normalized = path.resolve(workingDir);
-    
+
     // Check for system directories
     const systemDirs = [
-      '/bin', '/sbin', '/usr/bin', '/usr/sbin',
-      '/System', '/Windows', '/Program Files',
+      '/bin',
+      '/sbin',
+      '/usr/bin',
+      '/usr/sbin',
+      '/System',
+      '/Windows',
+      '/Program Files',
       process.env['SystemRoot'] || '',
     ].filter(dir => dir.length > 0);
 
@@ -312,7 +330,7 @@ export class InputValidator {
     }
 
     const safePath = path.resolve(workingDir, validation.normalizedPath);
-    
+
     // Ensure the resolved path is still within the working directory
     if (!safePath.startsWith(path.resolve(workingDir))) {
       throw new UnsafePathError(relativePath, 'Path escapes working directory');

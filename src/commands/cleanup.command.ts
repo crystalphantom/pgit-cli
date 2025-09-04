@@ -1,10 +1,6 @@
 import * as path from 'path';
 import chalk from 'chalk';
-import { 
-  CommandResult, 
-  CommandOptions, 
-  DEFAULT_PATHS 
-} from '../types/config.types';
+import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types';
 import { ConfigManager } from '../core/config.manager';
 import { FileSystemService } from '../core/filesystem.service';
 import { GitService } from '../core/git.service';
@@ -110,13 +106,12 @@ export class CleanupCommand {
 
       return {
         success: !hasIssues,
-        message: hasIssues 
+        message: hasIssues
           ? `Cleanup completed with ${result.issues.length} issue(s)`
           : 'Cleanup completed successfully',
         data: result,
         exitCode: hasIssues ? 1 : 0,
       };
-
     } catch (error) {
       if (error instanceof BaseError) {
         return {
@@ -141,9 +136,9 @@ export class CleanupCommand {
    */
   private async validateEnvironment(): Promise<void> {
     // Check if private git tracking is initialized
-    if (!await this.configManager.exists()) {
+    if (!(await this.configManager.exists())) {
       throw new NotInitializedError(
-        'Private git tracking is not initialized. Run "private init" first.'
+        'Private git tracking is not initialized. Run "private init" first.',
       );
     }
   }
@@ -154,7 +149,7 @@ export class CleanupCommand {
   private async validateAndRepairConfig(result: CleanupResult, verbose?: boolean): Promise<void> {
     try {
       const health = await this.configManager.getHealth();
-      
+
       if (!health.valid) {
         result.issues.push('Configuration validation failed');
         result.issues.push(...health.errors);
@@ -166,11 +161,14 @@ export class CleanupCommand {
       }
 
       if (health.needsMigration) {
-        result.warnings.push(`Configuration needs migration from ${health.currentVersion} to ${health.targetVersion}`);
+        result.warnings.push(
+          `Configuration needs migration from ${health.currentVersion} to ${health.targetVersion}`,
+        );
       }
-
     } catch (error) {
-      result.issues.push(`Configuration validation error: ${error instanceof Error ? error.message : String(error)}`);
+      result.issues.push(
+        `Configuration validation error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -187,7 +185,7 @@ export class CleanupCommand {
         const targetPath = path.join(storagePath, trackedPath);
 
         const linkInfo = await this.symlinkService.validate(linkPath);
-        
+
         if (!linkInfo.isHealthy) {
           if (verbose) {
             console.log(chalk.yellow(`     Repairing broken symlink: ${trackedPath}`));
@@ -196,36 +194,43 @@ export class CleanupCommand {
           try {
             await this.symlinkService.repair(linkPath, targetPath);
             result.repairedSymlinks++;
-            
+
             if (verbose) {
               console.log(chalk.green(`       ✓ Repaired: ${trackedPath}`));
             }
           } catch (repairError) {
-            result.issues.push(`Failed to repair symlink ${trackedPath}: ${repairError instanceof Error ? repairError.message : String(repairError)}`);
+            result.issues.push(
+              `Failed to repair symlink ${trackedPath}: ${repairError instanceof Error ? repairError.message : String(repairError)}`,
+            );
           }
         } else if (verbose) {
           console.log(chalk.green(`     ✓ Healthy symlink: ${trackedPath}`));
         }
       }
-
     } catch (error) {
-      result.issues.push(`Symlink repair error: ${error instanceof Error ? error.message : String(error)}`);
+      result.issues.push(
+        `Symlink repair error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
   /**
    * Clean up git index issues
    */
-  private async cleanupGitIndex(result: CleanupResult, force: boolean, verbose?: boolean): Promise<void> {
+  private async cleanupGitIndex(
+    result: CleanupResult,
+    force: boolean,
+    verbose?: boolean,
+  ): Promise<void> {
     try {
       const gitService = new GitService(this.workingDir, this.fileSystem);
-      
+
       if (await gitService.isRepository()) {
         const config = await this.configManager.load();
-        
+
         // Check for tracked files that should be private
         const trackedPrivateFiles: string[] = [];
-        
+
         for (const trackedPath of config.trackedPaths) {
           const isTracked = await gitService.isTracked(trackedPath);
           if (isTracked) {
@@ -236,25 +241,36 @@ export class CleanupCommand {
         if (trackedPrivateFiles.length > 0) {
           if (force) {
             if (verbose) {
-              console.log(chalk.yellow(`     Removing ${trackedPrivateFiles.length} private file(s) from git index...`));
+              console.log(
+                chalk.yellow(
+                  `     Removing ${trackedPrivateFiles.length} private file(s) from git index...`,
+                ),
+              );
             }
-            
+
             await gitService.removeFromIndex(trackedPrivateFiles, true);
             result.cleanedIndexEntries = trackedPrivateFiles.length;
-            
+
             if (verbose) {
-              console.log(chalk.green(`       ✓ Removed ${trackedPrivateFiles.length} file(s) from git index`));
+              console.log(
+                chalk.green(
+                  `       ✓ Removed ${trackedPrivateFiles.length} file(s) from git index`,
+                ),
+              );
             }
           } else {
-            result.warnings.push(`Found ${trackedPrivateFiles.length} private file(s) in git index. Use --force to remove them.`);
+            result.warnings.push(
+              `Found ${trackedPrivateFiles.length} private file(s) in git index. Use --force to remove them.`,
+            );
           }
         } else if (verbose) {
           console.log(chalk.green('     ✓ No private files found in git index'));
         }
       }
-
     } catch (error) {
-      result.issues.push(`Git index cleanup error: ${error instanceof Error ? error.message : String(error)}`);
+      result.issues.push(
+        `Git index cleanup error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -268,7 +284,7 @@ export class CleanupCommand {
         '# Private Git Tracking (auto-generated)',
         '.git-private',
         '.private-storage',
-        '.private-config.json'
+        '.private-config.json',
       ];
 
       let gitignoreContent = '';
@@ -293,9 +309,11 @@ export class CleanupCommand {
           console.log(chalk.yellow('     Updating .gitignore...'));
         }
 
-        const newContent = gitignoreContent.trim() + 
-          (gitignoreContent.trim() ? '\n\n' : '') + 
-          requiredEntries.join('\n') + '\n';
+        const newContent =
+          gitignoreContent.trim() +
+          (gitignoreContent.trim() ? '\n\n' : '') +
+          requiredEntries.join('\n') +
+          '\n';
 
         await this.fileSystem.writeFileAtomic(gitignorePath, newContent);
         result.updatedGitignore = true;
@@ -306,9 +324,10 @@ export class CleanupCommand {
       } else if (verbose) {
         console.log(chalk.green('     ✓ .gitignore is up to date'));
       }
-
     } catch (error) {
-      result.issues.push(`Gitignore update error: ${error instanceof Error ? error.message : String(error)}`);
+      result.issues.push(
+        `Gitignore update error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -347,9 +366,10 @@ export class CleanupCommand {
       } else {
         result.issues.push('Private storage directory does not exist');
       }
-
     } catch (error) {
-      result.issues.push(`Repository validation error: ${error instanceof Error ? error.message : String(error)}`);
+      result.issues.push(
+        `Repository validation error: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -359,19 +379,19 @@ export class CleanupCommand {
   private displayCleanupResults(result: CleanupResult): void {
     console.log();
     console.log(chalk.blue.bold('🧹 Cleanup Results'));
-    
+
     if (result.repairedSymlinks > 0) {
       console.log(`   ${chalk.green('✓')} Repaired ${result.repairedSymlinks} symbolic link(s)`);
     }
-    
+
     if (result.cleanedIndexEntries > 0) {
       console.log(`   ${chalk.green('✓')} Cleaned ${result.cleanedIndexEntries} git index entries`);
     }
-    
+
     if (result.updatedGitignore) {
       console.log(`   ${chalk.green('✓')} Updated .gitignore`);
     }
-    
+
     if (result.configValidated) {
       console.log(`   ${chalk.green('✓')} Configuration validated`);
     }

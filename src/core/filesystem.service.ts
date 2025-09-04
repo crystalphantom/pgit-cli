@@ -2,12 +2,12 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { PlatformDetector } from '../utils/platform.detector';
-import { 
-  FileSystemError, 
-  InvalidPathError, 
-  PermissionError, 
+import {
+  FileSystemError,
+  InvalidPathError,
+  PermissionError,
   FileNotFoundError,
-  AtomicOperationError 
+  AtomicOperationError,
 } from '../errors/filesystem.error';
 
 /**
@@ -36,12 +36,12 @@ export class FileSystemService {
 
     try {
       await fs.ensureDir(path.dirname(target));
-      
+
       // Use a more robust move operation to handle fs-extra quirks
       let moveSuccessful = false;
       let retryCount = 0;
       const maxRetries = 3;
-      
+
       while (!moveSuccessful && retryCount < maxRetries) {
         try {
           // Remove target file if it exists to avoid 'dest already exists' error
@@ -50,21 +50,21 @@ export class FileSystemService {
             // Add a small delay to ensure file is fully removed
             await new Promise(resolve => setTimeout(resolve, 10));
           }
-          
+
           await fs.move(source, target);
           moveSuccessful = true;
         } catch (moveError) {
           retryCount++;
-          
+
           if (retryCount >= maxRetries) {
             throw moveError;
           }
-          
+
           // Wait a bit before retrying
           await new Promise(resolve => setTimeout(resolve, 50 * retryCount));
         }
       }
-      
+
       // Clean up backup on success
       if (await fs.pathExists(backupPath)) {
         await fs.remove(backupPath);
@@ -73,7 +73,7 @@ export class FileSystemService {
       await this.rollback();
       throw new AtomicOperationError(
         `Failed to move ${source} to ${target}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -91,7 +91,7 @@ export class FileSystemService {
     } catch (error) {
       throw new AtomicOperationError(
         `Failed to copy ${source} to ${target}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -104,7 +104,7 @@ export class FileSystemService {
 
     try {
       await fs.ensureDir(dirPath);
-      
+
       // Set appropriate permissions (readable/writable by owner only)
       if (PlatformDetector.isUnix()) {
         await fs.chmod(dirPath, 0o700);
@@ -112,7 +112,7 @@ export class FileSystemService {
     } catch (error) {
       throw new FileSystemError(
         `Failed to create directory ${dirPath}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -125,7 +125,7 @@ export class FileSystemService {
 
     const tempPath = `${filePath}.tmp.${Date.now()}`;
     const backupPath = await this.createBackupIfExists(filePath);
-    
+
     if (backupPath) {
       this.addRollbackAction(async () => {
         if (await fs.pathExists(backupPath)) {
@@ -141,17 +141,17 @@ export class FileSystemService {
     try {
       await fs.ensureDir(path.dirname(filePath));
       await fs.writeFile(tempPath, content, 'utf8');
-      
+
       // Remove target file if it exists to avoid 'dest already exists' error
       if (await fs.pathExists(filePath)) {
         await fs.remove(filePath);
       }
-      
+
       // Use a more robust move operation to handle fs-extra quirks
       let moveSuccessful = false;
       let retryCount = 0;
       const maxRetries = 3;
-      
+
       while (!moveSuccessful && retryCount < maxRetries) {
         try {
           // Remove target file if it exists to avoid 'dest already exists' error
@@ -160,28 +160,28 @@ export class FileSystemService {
             // Add a small delay to ensure file is fully removed
             await new Promise(resolve => setTimeout(resolve, 10));
           }
-          
+
           await fs.move(tempPath, filePath);
           moveSuccessful = true;
         } catch (moveError) {
           retryCount++;
-          
+
           if (retryCount >= maxRetries) {
             throw moveError;
           }
-          
+
           // Wait a bit before retrying
           await new Promise(resolve => setTimeout(resolve, 50 * retryCount));
         }
       }
-      
+
       // Set appropriate permissions
       if (PlatformDetector.isUnix()) {
         await fs.chmod(filePath, 0o600);
       }
 
       // Clean up backup on success
-      if (backupPath && await fs.pathExists(backupPath)) {
+      if (backupPath && (await fs.pathExists(backupPath))) {
         await fs.remove(backupPath);
       }
     } catch (error) {
@@ -189,11 +189,11 @@ export class FileSystemService {
       if (await fs.pathExists(tempPath)) {
         await fs.remove(tempPath);
       }
-      
+
       await this.rollback();
       throw new AtomicOperationError(
         `Failed to write file ${filePath}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -212,7 +212,7 @@ export class FileSystemService {
       }
       throw new FileSystemError(
         `Failed to read file ${filePath}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -240,7 +240,7 @@ export class FileSystemService {
       await this.rollback();
       throw new FileSystemError(
         `Failed to remove ${targetPath}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -267,7 +267,7 @@ export class FileSystemService {
       }
       throw new FileSystemError(
         `Failed to get stats for ${targetPath}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -286,7 +286,7 @@ export class FileSystemService {
       }
       throw new FileSystemError(
         `Failed to get link stats for ${targetPath}`,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
       );
     }
   }
@@ -328,7 +328,7 @@ export class FileSystemService {
     this.validatePathString(targetPath);
 
     // Check if path exists
-    if (!await fs.pathExists(targetPath)) {
+    if (!(await fs.pathExists(targetPath))) {
       throw new FileNotFoundError(`Path does not exist: ${targetPath}`);
     }
 
@@ -356,7 +356,7 @@ export class FileSystemService {
     // Prevent access to system files
     const systemPaths = ['.git', 'node_modules', '.npm', '.cache'];
     const pathParts = normalizedPath.split(path.sep);
-    
+
     for (const systemPath of systemPaths) {
       if (pathParts.includes(systemPath) && !pathParts.includes('.private-storage')) {
         throw new InvalidPathError(`Access to system path not allowed: ${targetPath}`);
@@ -371,7 +371,7 @@ export class FileSystemService {
     this.validatePathString(targetPath);
 
     const targetDir = path.dirname(targetPath);
-    
+
     // Check if parent directory exists and is writable
     if (await fs.pathExists(targetDir)) {
       const permissions = await PlatformDetector.checkPermissions(targetDir);
@@ -386,11 +386,11 @@ export class FileSystemService {
    */
   private async createBackup(targetPath: string): Promise<string> {
     const backupPath = `${targetPath}.backup.${Date.now()}.${this.generateId()}`;
-    
+
     if (await fs.pathExists(targetPath)) {
       await fs.copy(targetPath, backupPath);
     }
-    
+
     return backupPath;
   }
 
@@ -417,7 +417,7 @@ export class FileSystemService {
   private async rollback(): Promise<void> {
     const actions = [...this.rollbackActions].reverse();
     this.rollbackActions.length = 0; // Clear actions
-    
+
     for (const action of actions) {
       try {
         await action();
@@ -449,17 +449,17 @@ export class FileSystemService {
   public static getSafeFileName(name: string): string {
     // Remove or replace unsafe characters
     let safeName = name.replace(/[<>:"/\\|?*]/g, '_');
-    
+
     // Ensure it's not too long
     if (safeName.length > 255) {
       safeName = safeName.substring(0, 255);
     }
-    
+
     // Ensure it's not empty
     if (!safeName.trim()) {
       safeName = 'unnamed';
     }
-    
+
     return safeName;
   }
 

@@ -21,7 +21,7 @@ export interface ProgressStep {
  * Progress service for enhanced user experience
  */
 export class ProgressService {
-  private steps: Map<string, ProgressStep> = new Map();
+  private readonly steps: Map<string, ProgressStep> = new Map();
   private currentStep?: string;
   private verbose = false;
   private intervalId?: NodeJS.Timeout;
@@ -84,14 +84,16 @@ export class ProgressService {
     step.status = 'success';
     step.endTime = new Date();
     step.details = details;
-    
+
     if (this.currentStep === id) {
       this.stopSpinner();
       this.currentStep = undefined;
     }
 
     if (this.verbose) {
-      const duration = step.startTime ? ` (${this.getDuration(step.startTime, step.endTime!)})` : '';
+      const duration = step.startTime
+        ? ` (${this.getDuration(step.startTime, step.endTime!)})`
+        : '';
       console.log(chalk.green(`✓ ${step.message}${duration}`));
       if (details) {
         console.log(chalk.gray(`  ${details}`));
@@ -113,14 +115,16 @@ export class ProgressService {
     step.status = 'error';
     step.endTime = new Date();
     step.details = error;
-    
+
     if (this.currentStep === id) {
       this.stopSpinner();
       this.currentStep = undefined;
     }
 
     if (this.verbose) {
-      const duration = step.startTime ? ` (${this.getDuration(step.startTime, step.endTime!)})` : '';
+      const duration = step.startTime
+        ? ` (${this.getDuration(step.startTime, step.endTime!)})`
+        : '';
       console.log(chalk.red(`✗ ${step.message}${duration}`));
       console.log(chalk.gray(`  ${error}`));
     } else {
@@ -160,7 +164,7 @@ export class ProgressService {
     }
 
     step.message = message;
-    
+
     if (this.currentStep === id && !this.verbose) {
       // Update spinner message
       this.stopSpinner();
@@ -180,11 +184,13 @@ export class ProgressService {
 
     console.log();
     console.log(chalk.blue.bold('📊 Summary'));
-    
+
     if (failed === 0) {
       console.log(chalk.green(`✓ All operations completed successfully (${successful}/${total})`));
     } else {
-      console.log(chalk.red(`✗ ${failed} operation(s) failed, ${successful} successful, ${skipped} skipped`));
+      console.log(
+        chalk.red(`✗ ${failed} operation(s) failed, ${successful} successful, ${skipped} skipped`),
+      );
     }
 
     if (this.verbose && allSteps.some(s => s.startTime && s.endTime)) {
@@ -198,7 +204,7 @@ export class ProgressService {
    */
   private startSpinner(message: string): void {
     process.stdout.write(`${ProgressService.SPINNER_FRAMES[0]} ${message}...`);
-    
+
     this.intervalId = setInterval(() => {
       this.spinnerFrame = (this.spinnerFrame + 1) % ProgressService.SPINNER_FRAMES.length;
       process.stdout.write(`\r${ProgressService.SPINNER_FRAMES[this.spinnerFrame]} ${message}...`);
@@ -280,7 +286,7 @@ export class ProgressService {
   public static async withProgress<T>(
     message: string,
     operation: () => Promise<T>,
-    verbose = false
+    verbose = false,
   ): Promise<T> {
     const progress = new ProgressService(verbose);
     progress.addStep('main', message);
@@ -301,7 +307,7 @@ export class ProgressService {
    */
   public static async withSequentialProgress<T>(
     operations: Array<{ message: string; operation: () => Promise<T> }>,
-    verbose = false
+    verbose = false,
   ): Promise<T[]> {
     const progress = new ProgressService(verbose);
     const results: T[] = [];

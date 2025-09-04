@@ -4,11 +4,14 @@
 export abstract class BaseError extends Error {
   public abstract readonly code: string;
   public abstract readonly recoverable: boolean;
-  
-  constructor(message: string, public readonly details?: string) {
+
+  constructor(
+    message: string,
+    public readonly details?: string,
+  ) {
     super(message);
     this.name = this.constructor.name;
-    
+
     // Maintains proper stack trace for where our error was thrown (only available on V8)
     if (Error.captureStackTrace) {
       Error.captureStackTrace(this, this.constructor);

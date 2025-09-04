@@ -23,7 +23,7 @@ export interface CommandResult {
 export async function run_in_terminal(command: string): Promise<CommandResult> {
   try {
     const { stdout, stderr } = await execAsync(command);
-    
+
     return {
       exitCode: 0,
       stdout: stdout.trim(),
@@ -32,7 +32,13 @@ export async function run_in_terminal(command: string): Promise<CommandResult> {
     };
   } catch (error) {
     // Handle execution errors
-    if (error && typeof error === 'object' && 'code' in error && 'stdout' in error && 'stderr' in error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      'stdout' in error &&
+      'stderr' in error
+    ) {
       return {
         exitCode: (error as any).code || 1,
         stdout: (error as any).stdout?.trim() || '',
@@ -40,7 +46,7 @@ export async function run_in_terminal(command: string): Promise<CommandResult> {
         command,
       };
     }
-    
+
     return {
       exitCode: 1,
       stdout: '',

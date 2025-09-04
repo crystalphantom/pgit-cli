@@ -3,7 +3,6 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
 
 # Build Output
 dist/
@@ -41,6 +40,13 @@ Thumbs.db
 *.tmp
 *.temp
 .cache/
+
+# Build Artifacts
+*.tgz
+pgit-cli-*.tgz
+
+# Test Directories
+test-cli/
 
 
 # OS Generated Files

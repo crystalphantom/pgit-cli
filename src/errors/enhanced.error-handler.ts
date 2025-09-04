@@ -132,7 +132,9 @@ export class EnhancedErrorHandler {
     console.log(`   1. ${chalk.cyan('Check your input parameters')}`);
     console.log(`      ${chalk.gray('Ensure all required arguments are provided correctly')}`);
     console.log(`   2. ${chalk.cyan('Verify system requirements')}`);
-    console.log(`      ${chalk.gray('Make sure Node.js version is >= 18.0.0 and git is available')}`);
+    console.log(
+      `      ${chalk.gray('Make sure Node.js version is >= 18.0.0 and git is available')}`,
+    );
     console.log(`   3. ${chalk.cyan('Run system diagnostics')}`);
     console.log(`      ${chalk.green('Run:')} ${chalk.white('private status -v')}`);
   }
@@ -140,7 +142,10 @@ export class EnhancedErrorHandler {
   /**
    * Get recovery suggestions based on error type and code
    */
-  private static getRecoverySuggestions(error: BaseError, _context?: ErrorContext): RecoverySuggestion[] {
+  private static getRecoverySuggestions(
+    error: BaseError,
+    _context?: ErrorContext,
+  ): RecoverySuggestion[] {
     const suggestions: RecoverySuggestion[] = [];
 
     switch (error.code) {
@@ -148,19 +153,19 @@ export class EnhancedErrorHandler {
         suggestions.push({
           action: 'Initialize private git tracking',
           command: 'private init',
-          description: 'Set up private file tracking in the current directory'
+          description: 'Set up private file tracking in the current directory',
         });
         break;
 
       case 'PATH_NOT_FOUND':
         suggestions.push({
           action: 'Check file path',
-          description: 'Verify the file or directory exists and the path is correct'
+          description: 'Verify the file or directory exists and the path is correct',
         });
         suggestions.push({
           action: 'List directory contents',
           command: 'ls -la',
-          description: 'See all files and directories in the current location'
+          description: 'See all files and directories in the current location',
         });
         break;
 
@@ -168,24 +173,25 @@ export class EnhancedErrorHandler {
         suggestions.push({
           action: 'Check tracked files',
           command: 'private status',
-          description: 'See which files are currently being tracked privately'
+          description: 'See which files are currently being tracked privately',
         });
         suggestions.push({
           action: 'Remove from tracking',
           command: 'private cleanup --force',
-          description: 'Remove the file from private tracking if needed'
+          description: 'Remove the file from private tracking if needed',
         });
         break;
 
       case 'SYMLINK_NOT_SUPPORTED':
         suggestions.push({
           action: 'Check platform support',
-          description: 'Symbolic links may not be supported on this platform or require elevated permissions'
+          description:
+            'Symbolic links may not be supported on this platform or require elevated permissions',
         });
         if (process.platform === 'win32') {
           suggestions.push({
             action: 'Enable Developer Mode (Windows)',
-            description: 'Go to Settings > Update & Security > For developers > Developer Mode'
+            description: 'Go to Settings > Update & Security > For developers > Developer Mode',
           });
         }
         break;
@@ -194,29 +200,29 @@ export class EnhancedErrorHandler {
         suggestions.push({
           action: 'Check git installation',
           command: 'git --version',
-          description: 'Verify git is installed and accessible'
+          description: 'Verify git is installed and accessible',
         });
         suggestions.push({
           action: 'Check repository health',
           command: 'private status -v',
-          description: 'Diagnose potential repository issues'
+          description: 'Diagnose potential repository issues',
         });
         suggestions.push({
           action: 'Run system repair',
           command: 'private cleanup -v',
-          description: 'Attempt to repair any repository issues'
+          description: 'Attempt to repair any repository issues',
         });
         break;
 
       case 'FILESYSTEM_ERROR':
         suggestions.push({
           action: 'Check file permissions',
-          description: 'Ensure you have read/write access to the files and directories'
+          description: 'Ensure you have read/write access to the files and directories',
         });
         suggestions.push({
           action: 'Check disk space',
           command: 'df -h .',
-          description: 'Verify there is sufficient disk space available'
+          description: 'Verify there is sufficient disk space available',
         });
         break;
 
@@ -224,11 +230,11 @@ export class EnhancedErrorHandler {
         suggestions.push({
           action: 'Reset configuration',
           command: 'private init --force',
-          description: 'Reinitialize private git tracking with fresh configuration'
+          description: 'Reinitialize private git tracking with fresh configuration',
         });
         suggestions.push({
           action: 'Manual cleanup',
-          description: 'Remove .private-config.json and reinitialize'
+          description: 'Remove .private-config.json and reinitialize',
         });
         break;
 
@@ -237,12 +243,12 @@ export class EnhancedErrorHandler {
         suggestions.push({
           action: 'Run diagnostics',
           command: 'private status -v',
-          description: 'Check the overall health of your private git setup'
+          description: 'Check the overall health of your private git setup',
         });
         suggestions.push({
           action: 'Try system repair',
           command: 'private cleanup -v',
-          description: 'Attempt automatic repair of common issues'
+          description: 'Attempt automatic repair of common issues',
         });
         break;
     }
@@ -253,30 +259,33 @@ export class EnhancedErrorHandler {
   /**
    * Get generic recovery suggestions for non-BaseError instances
    */
-  private static getGenericRecoverySuggestions(error: Error, _context?: ErrorContext): RecoverySuggestion[] {
+  private static getGenericRecoverySuggestions(
+    error: Error,
+    _context?: ErrorContext,
+  ): RecoverySuggestion[] {
     const suggestions: RecoverySuggestion[] = [];
 
     // Check for common error patterns
     if (error.message.includes('ENOENT')) {
       suggestions.push({
         action: 'Check file or directory exists',
-        description: 'The specified path was not found'
+        description: 'The specified path was not found',
       });
     } else if (error.message.includes('EACCES') || error.message.includes('EPERM')) {
       suggestions.push({
         action: 'Check file permissions',
-        description: 'You may not have sufficient permissions to access this file/directory'
+        description: 'You may not have sufficient permissions to access this file/directory',
       });
     } else if (error.message.includes('ENOSPC')) {
       suggestions.push({
         action: 'Free up disk space',
-        description: 'The disk appears to be full'
+        description: 'The disk appears to be full',
       });
     } else if (error.message.includes('git')) {
       suggestions.push({
         action: 'Check git installation',
         command: 'git --version',
-        description: 'Verify git is properly installed and configured'
+        description: 'Verify git is properly installed and configured',
       });
     }
 
@@ -284,7 +293,7 @@ export class EnhancedErrorHandler {
     suggestions.push({
       action: 'Run system diagnostics',
       command: 'private status -v',
-      description: 'Check the health of your private git setup'
+      description: 'Check the health of your private git setup',
     });
 
     return suggestions;
@@ -299,13 +308,13 @@ export class EnhancedErrorHandler {
     console.log(`   • Run ${chalk.white('private status -v')} to check system health`);
     console.log(`   • Use ${chalk.white('private cleanup -v')} to repair common issues`);
     console.log(`   • Check ${chalk.white('private --help')} for command usage`);
-    console.log(`   • Ensure you're in a git repository directory`);
-    console.log(`   • Verify file paths are relative to the current directory`);
-    
+    console.log('   • Ensure you\'re in a git repository directory');
+    console.log('   • Verify file paths are relative to the current directory');
+
     if (process.platform === 'win32') {
-      console.log(`   • On Windows, ensure Developer Mode is enabled for symbolic links`);
+      console.log('   • On Windows, ensure Developer Mode is enabled for symbolic links');
     }
-    
+
     console.log();
     console.log(chalk.gray('For more help, visit the documentation or file an issue.'));
   }
@@ -313,7 +322,11 @@ export class EnhancedErrorHandler {
   /**
    * Create error context from command information
    */
-  public static createContext(command?: string, args?: string[], workingDir?: string): ErrorContext {
+  public static createContext(
+    command?: string,
+    args?: string[],
+    workingDir?: string,
+  ): ErrorContext {
     return {
       command,
       args,
@@ -332,16 +345,23 @@ export class EnhancedErrorHandler {
    */
   public static formatForLog(error: unknown, context?: ErrorContext): string {
     const timestamp = new Date().toISOString();
-    const errorInfo = error instanceof Error ? {
-      name: error.name,
-      message: error.message,
-      stack: error.stack,
-    } : { message: String(error) };
+    const errorInfo =
+      error instanceof Error
+        ? {
+            name: error.name,
+            message: error.message,
+            stack: error.stack,
+          }
+        : { message: String(error) };
 
-    return JSON.stringify({
-      timestamp,
-      context,
-      error: errorInfo,
-    }, null, 2);
+    return JSON.stringify(
+      {
+        timestamp,
+        context,
+        error: errorInfo,
+      },
+      null,
+      2,
+    );
   }
 }
