@@ -174,6 +174,7 @@ export class InputValidator {
     }
 
     // Check for dangerous characters
+    // eslint-disable-next-line no-control-regex
     if (/[\x00-\x08\x0E-\x1F\x7F]/.test(trimmed)) {
       throw new SecurityError('Commit message contains invalid control characters', 'commit');
     }
@@ -250,6 +251,7 @@ export class InputValidator {
     }
 
     // Remove control characters except newlines and tabs
+    // eslint-disable-next-line no-control-regex
     let sanitized = input.replace(/[\x00-\x08\x0E-\x1F\x7F]/g, '');
 
     // Trim and limit length

@@ -7,6 +7,7 @@ export abstract class BaseError extends Error {
 
   constructor(
     message: string,
+    // eslint-disable-next-line no-unused-vars
     public readonly details?: string,
   ) {
     super(message);

@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types';
 import { ConfigManager } from '../core/config.manager';
 import { FileSystemService } from '../core/filesystem.service';
-import { GitService } from '../core/git.service';
+import { GitService, GitLogEntry } from '../core/git.service';
 import { BaseError } from '../errors/base.error';
 
 /**
@@ -356,7 +356,7 @@ export class GitOpsCommand {
   /**
    * Display log entries in formatted output
    */
-  private displayLogEntries(logEntries: any[], oneline?: boolean): void {
+  private displayLogEntries(logEntries: GitLogEntry[], oneline?: boolean): void {
     console.log(chalk.bold('📜 Commit History (Private Repository):'));
     console.log();
 

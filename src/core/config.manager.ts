@@ -477,14 +477,19 @@ export class ConfigManager {
   /**
    * Transform configuration from JSON format
    */
-  private transformFromJson(jsonConfig: any): PrivateConfig {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private transformFromJson(jsonConfig: Record<string, any>): PrivateConfig {
     return {
-      ...jsonConfig,
-      initialized: new Date(jsonConfig.initialized),
-      lastCleanup: jsonConfig.lastCleanup ? new Date(jsonConfig.lastCleanup) : undefined,
+      version: jsonConfig['version'],
+      privateRepoPath: jsonConfig['privateRepoPath'],
+      storagePath: jsonConfig['storagePath'],
+      trackedPaths: jsonConfig['trackedPaths'],
+      initialized: new Date(jsonConfig['initialized']),
+      lastCleanup: jsonConfig['lastCleanup'] ? new Date(jsonConfig['lastCleanup']) : undefined,
+      settings: jsonConfig['settings'],
       metadata: {
-        ...jsonConfig.metadata,
-        lastModified: new Date(jsonConfig.metadata.lastModified),
+        ...jsonConfig['metadata'],
+        lastModified: new Date(jsonConfig['metadata']['lastModified']),
       },
     };
   }
@@ -492,7 +497,8 @@ export class ConfigManager {
   /**
    * Transform configuration to JSON format
    */
-  private transformToJson(config: PrivateConfig): any {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private transformToJson(config: PrivateConfig): Record<string, any> {
     return {
       ...config,
       initialized: config.initialized.toISOString(),
@@ -523,7 +529,7 @@ export class ConfigManager {
         id: 'update-version',
         description: `Update configuration version from ${fromVersion} to ${toVersion}`,
         destructive: false,
-        execute: async () => {
+        execute: async (): Promise<void> => {
           const config = await this.load();
           config.version = toVersion;
           await this.save(config);
