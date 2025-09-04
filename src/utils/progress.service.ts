@@ -23,7 +23,9 @@ export interface ProgressStep {
 export class ProgressService {
   private readonly steps: Map<string, ProgressStep> = new Map();
   private currentStep?: string;
+  // eslint-disable-next-line @typescript-eslint/prefer-readonly
   private verbose = false;
+
   private intervalId?: NodeJS.Timeout;
   private spinnerFrame = 0;
 

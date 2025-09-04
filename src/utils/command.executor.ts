@@ -1,7 +1,17 @@
 import { exec } from 'child_process';
-import { promisify } from 'util';
+import * as util from 'util';
 
-const execAsync = promisify(exec);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const execAsync = (util as any).promisify(exec);
+
+/**
+ * Command execution error with additional properties
+ */
+interface ExecutionError extends Error {
+  code?: number;
+  stdout?: string;
+  stderr?: string;
+}
 
 /**
  * Command execution result
@@ -39,10 +49,11 @@ export async function run_in_terminal(command: string): Promise<CommandResult> {
       'stdout' in error &&
       'stderr' in error
     ) {
+      const execError = error as ExecutionError;
       return {
-        exitCode: (error as any).code || 1,
-        stdout: (error as any).stdout?.trim() || '',
-        stderr: (error as any).stderr?.trim() || '',
+        exitCode: execError.code || 1,
+        stdout: execError.stdout?.trim() || '',
+        stderr: execError.stderr?.trim() || '',
         command,
       };
     }
