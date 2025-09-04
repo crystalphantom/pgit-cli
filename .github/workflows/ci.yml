@@ -57,13 +57,16 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
-      - name: Test CLI installation and basic functionality
-        run: |
-          npm pack
-          npm install -g ./pgit-cli-*.tgz
-          pgit --version
-          pgit --help
-        shell: bash
+       - name: Test CLI installation and basic functionality
+         run: |
+           npm pack
+           ls -la *.tgz
+           PACKED_FILE=$(ls pgit-cli-*.tgz)
+           echo "Installing $PACKED_FILE"
+           npm install -g "$PACKED_FILE"
+           pgit --version
+           pgit --help
+         shell: bash
 
       - name: Test symbolic link functionality (Unix)
         if: matrix.os != 'windows-latest'
