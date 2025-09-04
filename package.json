@@ -1,5 +1,5 @@
 {
-  "name": "@private-git/cli",
+  "name": "@pgit/cli",
   "version": "1.0.0",
   "description": "Private file tracking with dual git repositories",
   "main": "dist/index.js",
@@ -15,7 +15,14 @@
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
     "prepublishOnly": "npm run build && npm test",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "format:check": "prettier --check src/**/*.ts",
+    "test:coverage": "jest --coverage --watchAll=false",
+    "release": "release-it",
+    "release:patch": "release-it patch",
+    "release:minor": "release-it minor",
+    "release:major": "release-it major",
+    "changelog": "auto-changelog -p && git add CHANGELOG.md"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -23,7 +30,8 @@
   "files": [
     "dist/",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "CHANGELOG.md"
   ],
   "keywords": [
     "git",
@@ -34,26 +42,42 @@
     "symbolic-links",
     "dual-repository"
   ],
-  "author": "Private Git CLI Team",
+  "author": "Vaishnav Agrawal",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/pgit-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/pgit-cli/issues"
+  },
+  "homepage": "https://github.com/your-org/pgit-cli#readme",
   "dependencies": {
-    "commander": "^11.0.0",
     "chalk": "^4.1.2",
+    "commander": "^11.0.0",
     "fs-extra": "^11.1.0",
     "simple-git": "^3.19.0",
     "zod": "^3.22.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@release-it/conventional-changelog": "^10.0.1",
     "@types/fs-extra": "^11.0.0",
     "@types/jest": "^29.0.0",
-    "typescript": "^5.0.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "auto-changelog": "^2.5.0",
+    "eslint": "^8.0.0",
     "jest": "^29.0.0",
+    "prettier": "^3.0.0",
+    "release-it": "^19.0.4",
+    "semver": "^7.7.2",
     "ts-jest": "^29.0.0",
     "ts-node": "^10.9.0",
-    "eslint": "^8.0.0",
-    "@typescript-eslint/parser": "^6.0.0",
-    "@typescript-eslint/eslint-plugin": "^6.0.0",
-    "prettier": "^3.0.0"
+    "typescript": "^5.0.0"
   }
 }
