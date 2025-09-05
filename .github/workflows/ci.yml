@@ -75,6 +75,8 @@ jobs:
           cd test-repo
           git init
           echo "test content" > test.txt
+          git add test.txt
+          git commit -m "Initial commit"
           pgit init
           pgit add test.txt
           # Verify symbolic link was created
@@ -90,6 +92,8 @@ jobs:
           cd test-repo
           git init
           echo "test content" > test.txt
+          git add test.txt
+          git commit -m "Initial commit"
           pgit init
           pgit add test.txt
           # Verify file exists and content is accessible
