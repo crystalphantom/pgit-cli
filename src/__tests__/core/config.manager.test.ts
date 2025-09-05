@@ -14,6 +14,7 @@ describe('ConfigManager', () => {
 
   beforeEach(() => {
     // Create mock FileSystemService with minimal required methods
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockFileSystem = {
       pathExists: jest.fn(),
       readFile: jest.fn(),
@@ -140,6 +141,7 @@ describe('ConfigManager', () => {
     });
 
     it('should validate configuration before saving', async () => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const invalidConfig = { version: '1.0.0' } as any; // missing required fields
 
       await expect(configManager.save(invalidConfig)).rejects.toThrow(
