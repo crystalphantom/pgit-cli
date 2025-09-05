@@ -2,7 +2,8 @@ import { AddCommand } from '../../commands/add.command';
 import { ConfigManager } from '../../core/config.manager';
 import { FileSystemService } from '../../core/filesystem.service';
 import { SymlinkService } from '../../core/symlink.service';
-import { GitService } from '../../core/git.service';
+import { GitService, GitStatus } from '../../core/git.service';
+import { PrivateConfig } from '../../types/config.types';
 
 // Mock all dependencies
 jest.mock('../../core/config.manager');
@@ -33,8 +34,6 @@ describe('AddCommand', () => {
     MockedSymlinkService.mockImplementation(() => mockSymlinkService);
     MockedGitService.mockImplementation(() => mockGitServiceInstance);
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockConfigManager = {
       exists: jest.fn(),
       load: jest.fn(),
@@ -42,9 +41,18 @@ describe('AddCommand', () => {
       addMultipleTrackedPaths: jest.fn(),
       removeTrackedPath: jest.fn(),
       removeMultipleTrackedPaths: jest.fn(),
-    } as any;
+      save: jest.fn(),
+      create: jest.fn(),
+      updateSettings: jest.fn(),
+      validate: jest.fn(),
+      getHealth: jest.fn(),
+      getMigrationInfo: jest.fn(),
+      migrate: jest.fn(),
+      getCached: jest.fn(),
+      clearCache: jest.fn(),
+      getConfigPath: jest.fn(),
+    } as unknown as jest.Mocked<ConfigManager>;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockFileSystem = {
       pathExists: jest.fn(),
       moveFileAtomic: jest.fn(),
@@ -52,41 +60,54 @@ describe('AddCommand', () => {
       remove: jest.fn(),
       isDirectory: jest.fn(),
       getStats: jest.fn(),
-    } as any;
+      copyFileAtomic: jest.fn(),
+      createDirectory: jest.fn(),
+      writeFileAtomic: jest.fn(),
+      writeFile: jest.fn(),
+      readFile: jest.fn(),
+      getLinkStats: jest.fn(),
+      validatePath: jest.fn(),
+      validatePathString: jest.fn(),
+    } as unknown as jest.Mocked<FileSystemService>;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockSymlinkService = {
       create: jest.fn(),
       remove: jest.fn(),
       exists: jest.fn(),
       getTarget: jest.fn(),
-    } as any;
+      validate: jest.fn(),
+      repair: jest.fn(),
+    } as unknown as jest.Mocked<SymlinkService>;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockFileSystem = {
-      pathExists: jest.fn(),
-      moveFileAtomic: jest.fn(),
-      clearRollbackActions: jest.fn(),
-      remove: jest.fn(),
-      isDirectory: jest.fn(),
-      getStats: jest.fn(),
-    } as any;
+    // Duplicate assignment - removing this duplicate
+    // mockFileSystem is already assigned above
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockSymlinkService = {
-      create: jest.fn(),
-      remove: jest.fn(),
-      supportsSymlinks: jest.fn(),
-    } as any;
+    // Duplicate assignment - removing this duplicate
+    // mockSymlinkService is already assigned above
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockGitServiceInstance = {
       isRepository: jest.fn(),
       getStatus: jest.fn(),
       addFiles: jest.fn(),
       commit: jest.fn(),
       addFilesAndCommit: jest.fn(),
-    } as any;
+      initRepository: jest.fn(),
+      addAll: jest.fn(),
+      removeFromIndex: jest.fn(),
+      getLog: jest.fn(),
+      getDiff: jest.fn(),
+      getBranches: jest.fn(),
+      createBranch: jest.fn(),
+      checkout: jest.fn(),
+      merge: jest.fn(),
+      reset: jest.fn(),
+      hasUncommittedChanges: jest.fn(),
+      getRepositoryRoot: jest.fn(),
+      isTracked: jest.fn(),
+      getCurrentBranch: jest.fn(),
+      checkRepositoryHealth: jest.fn(),
+      getWorkingDirectory: jest.fn(),
+    } as unknown as jest.Mocked<GitService>;
 
     // Setup default mock behaviors
     mockConfigManager.exists.mockResolvedValue(true);
@@ -110,8 +131,7 @@ describe('AddCommand', () => {
         platform: 'test',
         lastModified: new Date(),
       },
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any);
+    } as PrivateConfig);
 
     mockFileSystem.pathExists.mockImplementation((path: string) => {
       // Mock file system paths that exist - include full paths
@@ -130,11 +150,19 @@ describe('AddCommand', () => {
 
     SymlinkService.supportsSymlinks = jest.fn().mockResolvedValue(true);
     mockGitServiceInstance.isRepository.mockResolvedValue(true);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockGitServiceInstance.getStatus.mockResolvedValue({
-      files: [],
+      current: null,
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      staged: [],
+      modified: [],
+      untracked: [],
+      deleted: [],
+      conflicted: [],
       isClean: true,
-    } as any);
+      files: [],
+    } as GitStatus);
 
     addCommand = new AddCommand(testWorkingDir);
 
@@ -153,8 +181,7 @@ describe('AddCommand', () => {
       mockFileSystem.moveFileAtomic.mockResolvedValue(undefined);
       mockFileSystem.isDirectory.mockResolvedValue(false);
       mockSymlinkService.create.mockResolvedValue(undefined);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mockConfigManager.addTrackedPath.mockResolvedValue({} as any);
+      mockConfigManager.addTrackedPath.mockResolvedValue({} as PrivateConfig);
       mockGitServiceInstance.addFiles.mockResolvedValue(undefined);
       mockGitServiceInstance.commit.mockResolvedValue('abc123');
 
@@ -180,8 +207,7 @@ describe('AddCommand', () => {
       mockFileSystem.moveFileAtomic.mockResolvedValue(undefined);
       mockFileSystem.isDirectory.mockResolvedValue(false);
       mockSymlinkService.create.mockResolvedValue(undefined);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as any);
+      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as PrivateConfig);
       mockGitServiceInstance.addFilesAndCommit.mockResolvedValue('def456');
 
       const result = await addCommand.execute(['file1.txt', 'file2.txt', 'dir1'], {
@@ -225,8 +251,22 @@ describe('AddCommand', () => {
         trackedPaths: ['already-tracked.txt'],
         storagePath: '.private-storage',
         privateRepoPath: '.git-private',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
+        initialized: new Date(),
+        settings: {
+          autoGitignore: true,
+          autoCleanup: true,
+          verboseOutput: false,
+          createBackups: true,
+          maxBackups: 5,
+        },
+        metadata: {
+          projectName: 'test-project',
+          mainRepoPath: '/test/workspace',
+          cliVersion: '1.0.0',
+          platform: 'test',
+          lastModified: new Date(),
+        },
+      } as PrivateConfig);
 
       mockFileSystem.pathExists.mockImplementation((path: string) => {
         return Promise.resolve(
@@ -255,8 +295,7 @@ describe('AddCommand', () => {
         );
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (addCommand as any).validateAndNormalizeMultiplePaths([
+      const result = await (addCommand as AddCommand)['validateAndNormalizeMultiplePaths']([
         'file1.txt',
         'file2.txt',
       ]);
@@ -272,8 +311,7 @@ describe('AddCommand', () => {
         return Promise.resolve(path === '/test/workspace/file1.txt');
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (addCommand as any).validateAndNormalizeMultiplePaths([
+      const result = await (addCommand as AddCommand)['validateAndNormalizeMultiplePaths']([
         'file1.txt',
         'file1.txt',
       ]);
@@ -289,8 +327,22 @@ describe('AddCommand', () => {
         trackedPaths: ['tracked-file.txt'],
         storagePath: '.private-storage',
         privateRepoPath: '.git-private',
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } as any);
+        initialized: new Date(),
+        settings: {
+          autoGitignore: true,
+          autoCleanup: true,
+          verboseOutput: false,
+          createBackups: true,
+          maxBackups: 5,
+        },
+        metadata: {
+          projectName: 'test-project',
+          mainRepoPath: '/test/workspace',
+          cliVersion: '1.0.0',
+          platform: 'test',
+          lastModified: new Date(),
+        },
+      } as PrivateConfig);
 
       mockFileSystem.pathExists.mockImplementation((path: string) => {
         return Promise.resolve(
@@ -298,8 +350,7 @@ describe('AddCommand', () => {
         );
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (addCommand as any).validateAndNormalizeMultiplePaths([
+      const result = await (addCommand as AddCommand)['validateAndNormalizeMultiplePaths']([
         'tracked-file.txt',
         'new-file.txt',
       ]);
@@ -313,8 +364,7 @@ describe('AddCommand', () => {
         return Promise.resolve(path === '/test/workspace/valid-file.txt');
       });
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const result = await (addCommand as any).validateAndNormalizeMultiplePaths([
+      const result = await (addCommand as AddCommand)['validateAndNormalizeMultiplePaths']([
         'valid-file.txt',
         'invalid-file.txt',
       ]);
@@ -332,11 +382,9 @@ describe('AddCommand', () => {
       mockFileSystem.isDirectory.mockResolvedValue(false);
       mockSymlinkService.create.mockResolvedValue(undefined);
       mockGitServiceInstance.addFilesAndCommit.mockResolvedValue('commit-hash');
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as any);
+      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as PrivateConfig);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (addCommand as any).executeMultipleAddOperation(['file1.txt', 'file2.txt'], {
+      await (addCommand as AddCommand)['executeMultipleAddOperation'](['file1.txt', 'file2.txt'], {
         verbose: false,
       });
 
@@ -363,8 +411,9 @@ describe('AddCommand', () => {
 
       // The method should either throw or handle the error gracefully
       try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        await (addCommand as any).executeMultipleAddOperation(['file1.txt'], { verbose: false });
+        await (addCommand as AddCommand)['executeMultipleAddOperation'](['file1.txt'], {
+          verbose: false,
+        });
         // If it doesn't throw, that's also acceptable as long as it handles the error
       } catch (error) {
         expect((error as Error).message).toContain('Git operation failed');
