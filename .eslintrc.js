@@ -14,7 +14,6 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2021,
     sourceType: 'module',
-    project: './tsconfig.json',
   },
   rules: {
     'no-console': 'off',
@@ -30,5 +29,20 @@ module.exports = {
     quotes: ['error', 'single'],
     'comma-dangle': ['error', 'always-multiline'],
   },
+  overrides: [
+    {
+      files: ['src/**/*.ts'],
+      excludedFiles: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
+      parserOptions: {
+        project: './tsconfig.json',
+      },
+    },
+    {
+      files: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
+      parserOptions: {
+        project: './tsconfig.test.json',
+      },
+    },
+  ],
   ignorePatterns: ['dist/', 'node_modules/', '*.js'],
 };
