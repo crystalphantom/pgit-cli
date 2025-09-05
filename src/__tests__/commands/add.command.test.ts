@@ -34,6 +34,7 @@ describe('AddCommand', () => {
     MockedGitService.mockImplementation(() => mockGitServiceInstance);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockConfigManager = {
       exists: jest.fn(),
       load: jest.fn(),
@@ -61,6 +62,7 @@ describe('AddCommand', () => {
       getTarget: jest.fn(),
     } as any;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockFileSystem = {
       pathExists: jest.fn(),
       moveFileAtomic: jest.fn(),
@@ -70,12 +72,14 @@ describe('AddCommand', () => {
       getStats: jest.fn(),
     } as any;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockSymlinkService = {
       create: jest.fn(),
       remove: jest.fn(),
       supportsSymlinks: jest.fn(),
     } as any;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockGitServiceInstance = {
       isRepository: jest.fn(),
       getStatus: jest.fn(),
@@ -106,6 +110,7 @@ describe('AddCommand', () => {
         platform: 'test',
         lastModified: new Date(),
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
 
     mockFileSystem.pathExists.mockImplementation((path: string) => {
@@ -125,6 +130,7 @@ describe('AddCommand', () => {
 
     SymlinkService.supportsSymlinks = jest.fn().mockResolvedValue(true);
     mockGitServiceInstance.isRepository.mockResolvedValue(true);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockGitServiceInstance.getStatus.mockResolvedValue({
       files: [],
       isClean: true,
@@ -214,12 +220,12 @@ describe('AddCommand', () => {
     });
 
     it('should handle already tracked paths', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockConfigManager.load.mockResolvedValue({
         version: '1.0.0',
         trackedPaths: ['already-tracked.txt'],
         storagePath: '.private-storage',
         privateRepoPath: '.git-private',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       mockFileSystem.pathExists.mockImplementation((path: string) => {
@@ -278,12 +284,12 @@ describe('AddCommand', () => {
     });
 
     it('should detect already tracked paths', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockConfigManager.load.mockResolvedValue({
         version: '1.0.0',
         trackedPaths: ['tracked-file.txt'],
         storagePath: '.private-storage',
         privateRepoPath: '.git-private',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       mockFileSystem.pathExists.mockImplementation((path: string) => {

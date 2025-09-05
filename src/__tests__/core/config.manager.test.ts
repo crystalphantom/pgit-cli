@@ -14,13 +14,13 @@ describe('ConfigManager', () => {
 
   beforeEach(() => {
     // Create mock FileSystemService with minimal required methods
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     mockFileSystem = {
       pathExists: jest.fn(),
       readFile: jest.fn(),
       writeFileAtomic: jest.fn(),
       validatePathString: jest.fn(),
       getStats: jest.fn(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 
     configManager = new ConfigManager(testWorkingDir, mockFileSystem);
