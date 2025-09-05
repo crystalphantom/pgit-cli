@@ -2,7 +2,12 @@
 import { FileSystemService } from '../../core/filesystem.service';
 import * as fs from 'fs-extra';
 import { PlatformDetector } from '../../utils/platform.detector';
-import { FileSystemError, InvalidPathError, FileNotFoundError, PermissionError } from '../../errors/filesystem.error';
+import {
+  FileSystemError,
+  InvalidPathError,
+  FileNotFoundError,
+  PermissionError,
+} from '../../errors/filesystem.error';
 
 // Mock fs-extra
 jest.mock('fs-extra');
@@ -54,12 +59,17 @@ describe('FileSystemService', () => {
 
     it('should throw FileNotFoundError when file does not exist', async () => {
       mockedFs.pathExists.mockResolvedValue(false);
-      await expect(fileSystemService.readFile('/nonexistent.txt')).rejects.toThrow(FileNotFoundError);
+      await expect(fileSystemService.readFile('/nonexistent.txt')).rejects.toThrow(
+        FileNotFoundError,
+      );
     });
 
     it('should throw PermissionError when file is not readable', async () => {
       mockedFs.pathExists.mockResolvedValue(true);
-      mockedPlatformDetector.checkPermissions.mockResolvedValue({ readable: false, writable: true });
+      mockedPlatformDetector.checkPermissions.mockResolvedValue({
+        readable: false,
+        writable: true,
+      });
       await expect(fileSystemService.readFile('/test/file.txt')).rejects.toThrow(PermissionError);
     });
   });
@@ -74,7 +84,9 @@ describe('FileSystemService', () => {
     it('should throw FileSystemError when write fails', async () => {
       const error = new Error('Permission denied');
       mockedFs.writeFile.mockRejectedValue(error);
-      await expect(fileSystemService.writeFile('/test/file.txt', 'content')).rejects.toThrow(FileSystemError);
+      await expect(fileSystemService.writeFile('/test/file.txt', 'content')).rejects.toThrow(
+        FileSystemError,
+      );
     });
   });
 
@@ -89,7 +101,9 @@ describe('FileSystemService', () => {
     it('should throw FileSystemError when directory creation fails', async () => {
       const error = new Error('Permission denied');
       mockedFs.ensureDir.mockRejectedValue(error);
-      await expect(fileSystemService.createDirectory('/test/newdir')).rejects.toThrow(FileSystemError);
+      await expect(fileSystemService.createDirectory('/test/newdir')).rejects.toThrow(
+        FileSystemError,
+      );
     });
   });
 
@@ -103,7 +117,9 @@ describe('FileSystemService', () => {
     });
 
     it('should throw InvalidPathError for paths with null bytes', () => {
-      expect(() => fileSystemService.validatePathString('path\0with\0null')).toThrow(InvalidPathError);
+      expect(() => fileSystemService.validatePathString('path\0with\0null')).toThrow(
+        InvalidPathError,
+      );
     });
 
     it('should throw InvalidPathError for excessively long paths', () => {

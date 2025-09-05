@@ -1,6 +1,6 @@
 /**
  * Private Git Tracking CLI
- * 
+ *
  * Main entry point for the private git tracking CLI tool.
  * This tool allows developers to version control private files
  * separately from the main team repository using symbolic links
