@@ -311,7 +311,7 @@ export class StatusCommand {
           });
         }
       }
-    } catch (error) {
+    } catch {
       // If we can't load config, we can't check symlinks
     }
 
@@ -527,7 +527,7 @@ export class StatusCommand {
 
         console.log(`   ${status} ${trackedPath}`);
       }
-    } catch (error) {
+    } catch {
       console.log(chalk.red('   Failed to load tracked files information'));
     }
   }

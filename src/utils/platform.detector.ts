@@ -89,7 +89,7 @@ export class PlatformDetector {
       await fs.promises.unlink(testSource);
 
       return true;
-    } catch (error) {
+    } catch {
       // Clean up on error
       try {
         await fs.promises.unlink(testSource);
