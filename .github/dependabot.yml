@@ -1,5 +1,4 @@
 version: 2
-
 updates:
   # Enable version updates for npm
   - package-ecosystem: "npm"
@@ -8,7 +7,7 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "09:00"
-      timezone: "UTC"
+      timezone: "Etc/UTC"
     
     # Dependency update settings
     open-pull-requests-limit: 10
@@ -18,10 +17,6 @@ updates:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
       include: "scope"
-    
-    # Reviewers and assignees
-    reviewers:
-      - "pgit-cli-team"
     
     # Pull request labels
     labels:
@@ -91,18 +86,14 @@ updates:
       interval: "weekly"
       day: "monday"
       time: "10:00"
-      timezone: "UTC"
+      timezone: "Etc/UTC"
     
     open-pull-requests-limit: 5
     
     commit-message:
       prefix: "chore(actions)"
-      include: "scope"
-    
+
     labels:
       - "github-actions"
       - "automated"
       - "security"
-    
-    reviewers:
-      - "pgit-cli-team"
