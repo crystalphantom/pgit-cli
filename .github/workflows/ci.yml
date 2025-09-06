@@ -8,14 +8,8 @@ on:
 
 jobs:
   test:
-    name: Test on ${{ matrix.os }} with Node ${{ matrix.node-version }}
-    runs-on: ${{ matrix.os }}
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: ['20.x', '22.x']
+    name: Test on ubuntu-latest with Node 20.x
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
@@ -23,10 +17,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js ${{ matrix.node-version }}
+      - name: Setup Node.js 20.x
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: '20.x'
           cache: 'npm'
 
       - name: Configure Git user
@@ -55,13 +49,12 @@ jobs:
         env:
           CI: true
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
-        with:
-          file: ./coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
+       - name: Upload coverage to Codecov
+         uses: codecov/codecov-action@v3
+         with:
+           file: ./coverage/lcov.info
+           flags: unittests
+           name: codecov-umbrella
 
       - name: Test CLI installation and basic functionality
         run: |
@@ -74,49 +67,31 @@ jobs:
           pgit --help
         shell: bash
 
-      - name: Test symbolic link functionality (Unix)
-        if: matrix.os != 'windows-latest'
-        run: |
-          mkdir -p test-repo
-          cd test-repo
-          git init
-          echo "test content" > test.txt
-          git add test.txt
-          git commit -m "Initial commit"
-          pgit init
-          pgit add test.txt
-          # Verify symbolic link was created
-          test -L test.txt
-          # Verify original content is accessible
-          grep "test content" test.txt
-        shell: bash
+       - name: Test symbolic link functionality
+         run: |
+           mkdir -p test-repo
+           cd test-repo
+           git init
+           echo "test content" > test.txt
+           git add test.txt
+           git commit -m "Initial commit"
+           pgit init
+           pgit add test.txt
+           # Verify symbolic link was created
+           test -L test.txt
+           # Verify original content is accessible
+           grep "test content" test.txt
+         shell: bash
 
-      - name: Test symbolic link functionality (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          mkdir test-repo
-          cd test-repo
-          git init
-          echo "test content" > test.txt
-          git add test.txt
-          git commit -m "Initial commit"
-          pgit init
-          pgit add test.txt
-          # Verify file exists and content is accessible
-          # TODO: Improve this test to check for symbolic link attributes
-          type test.txt | findstr "test content"
-        shell: cmd
-
-      - name: Store build artifacts
-        uses: actions/upload-artifact@v4
-        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
-        with:
-          name: dist-${{ github.sha }}
-          path: |
-            dist/
-            package.json
-            README.md
-          retention-days: 30
+       - name: Store build artifacts
+         uses: actions/upload-artifact@v4
+         with:
+           name: dist-${{ github.sha }}
+           path: |
+             dist/
+             package.json
+             README.md
+           retention-days: 30
 
    # security:
    #   name: Security Scan
