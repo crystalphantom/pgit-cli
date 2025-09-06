@@ -123,10 +123,10 @@ jobs:
           echo "✅ Package successfully published and available on NPM"
 
       - name: Notify success
-         run: |
-           echo "🎉 Release v${{ steps.verify_tag.outputs.version }} completed successfully!"
-           echo ""
-           echo "📦 Package: https://www.npmjs.com/package/pgit-cli"
-           echo "📋 Release: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.verify_tag.outputs.version }}"
-           echo ""
-           echo "Install with: npm install -g pgit-cli@${{ steps.verify_tag.outputs.version }}"
+        run: |
+          echo "🎉 Release v${{ steps.verify_tag.outputs.version }} completed successfully!"
+          echo ""
+          echo "📦 Package: https://www.npmjs.com/package/pgit-cli"
+          echo "📋 Release: https://github.com/${{ github.repository }}/releases/tag/v${{ steps.verify_tag.outputs.version }}"
+          echo ""
+          echo "Install with: npm install -g pgit-cli@${{ steps.verify_tag.outputs.version }}"
