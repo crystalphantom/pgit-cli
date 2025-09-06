@@ -624,6 +624,241 @@ export class GitService {
   }
 
   /**
+   * Add multiple file paths to .git/info/exclude in a single operation
+   */
+  public async addMultipleToGitExclude(relativePaths: string[]): Promise<void> {
+    await this.ensureRepository();
+
+    if (!relativePaths || relativePaths.length === 0) {
+      return; // Nothing to add
+    }
+
+    // Validate all paths
+    for (const relativePath of relativePaths) {
+      if (!relativePath || !relativePath.trim()) {
+        throw new GitOperationError('File path cannot be empty');
+      }
+    }
+
+    try {
+      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+      
+      // Ensure .git/info directory exists
+      const gitInfoDir = path.dirname(gitExcludePath);
+      await fs.ensureDir(gitInfoDir);
+      
+      // Read existing exclude file content
+      let excludeContent = '';
+      if (await fs.pathExists(gitExcludePath)) {
+        excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+      }
+      
+      // Parse existing lines
+      const lines = excludeContent.split('\n').map(line => line.trim());
+      const normalizedPaths = relativePaths.map(path => path.trim());
+      
+      // Remove duplicates within the input array and filter out paths already in exclude file
+      const uniquePaths = [...new Set(normalizedPaths)];
+      const pathsToAdd = uniquePaths.filter(path => !lines.includes(path));
+      
+      if (pathsToAdd.length === 0) {
+        // All paths already exist, no need to modify file
+        return;
+      }
+      
+      // Add pgit marker comment if not present
+      const pgitMarker = '# pgit-cli managed exclusions';
+      if (!lines.includes(pgitMarker)) {
+        if (excludeContent && !excludeContent.endsWith('\n')) {
+          excludeContent += '\n';
+        }
+        excludeContent += `${pgitMarker}\n`;
+      }
+      
+      // Add all new file paths
+      for (const pathToAdd of pathsToAdd) {
+        excludeContent += `${pathToAdd}\n`;
+      }
+      
+      // Write back to exclude file
+      await fs.writeFile(gitExcludePath, excludeContent, 'utf8');
+    } catch (error) {
+      throw new GitOperationError(
+        `Failed to add multiple paths to .git/info/exclude: ${relativePaths.join(', ')}`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  /**
+   * Remove multiple file paths from .git/info/exclude in a single operation
+   */
+  public async removeMultipleFromGitExclude(relativePaths: string[]): Promise<void> {
+    await this.ensureRepository();
+
+    if (!relativePaths || relativePaths.length === 0) {
+      return; // Nothing to remove
+    }
+
+    // Validate all paths
+    for (const relativePath of relativePaths) {
+      if (!relativePath || !relativePath.trim()) {
+        throw new GitOperationError('File path cannot be empty');
+      }
+    }
+
+    try {
+      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+      
+      if (!(await fs.pathExists(gitExcludePath))) {
+        // Nothing to remove if exclude file doesn't exist
+        return;
+      }
+      
+      // Read existing exclude file content
+      const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+      const lines = excludeContent.split('\n');
+      const normalizedPaths = relativePaths.map(path => path.trim());
+      
+      // Filter out all specified paths while preserving other entries
+      const filteredLines = lines.filter(line => !normalizedPaths.includes(line.trim()));
+      
+      // Check if any changes were made
+      if (filteredLines.length === lines.length) {
+        // No paths were found in exclude file
+        return;
+      }
+      
+      // Clean up empty pgit marker sections if no pgit-managed entries remain
+      const pgitMarker = '# pgit-cli managed exclusions';
+      const pgitMarkerIndex = filteredLines.findIndex(line => line.trim() === pgitMarker);
+      
+      if (pgitMarkerIndex !== -1) {
+        // Check if there are any non-comment, non-empty lines after the marker
+        const hasEntriesAfterMarker = filteredLines
+          .slice(pgitMarkerIndex + 1)
+          .some(line => line.trim() && !line.trim().startsWith('#'));
+        
+        if (!hasEntriesAfterMarker) {
+          // Remove the marker and any empty lines that follow
+          filteredLines.splice(pgitMarkerIndex, 1);
+          
+          // Remove trailing empty lines
+          while (filteredLines.length > 0 && !filteredLines[filteredLines.length - 1].trim()) {
+            filteredLines.pop();
+          }
+        }
+      }
+      
+      // Write back to exclude file
+      const newContent = filteredLines.join('\n');
+      if (newContent.trim()) {
+        await fs.writeFile(gitExcludePath, newContent + '\n', 'utf8');
+      } else {
+        // If file would be empty, remove it entirely
+        await fs.remove(gitExcludePath);
+      }
+    } catch (error) {
+      throw new GitOperationError(
+        `Failed to remove multiple paths from .git/info/exclude: ${relativePaths.join(', ')}`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  /**
+   * Read the entire .git/info/exclude file content
+   */
+  public async readGitExcludeFile(): Promise<string> {
+    await this.ensureRepository();
+
+    try {
+      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+      
+      if (!(await fs.pathExists(gitExcludePath))) {
+        return '';
+      }
+      
+      return await fs.readFile(gitExcludePath, 'utf8');
+    } catch (error) {
+      throw new GitOperationError(
+        'Failed to read .git/info/exclude file',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  /**
+   * Write content to .git/info/exclude file with proper permissions
+   */
+  public async writeGitExcludeFile(content: string): Promise<void> {
+    await this.ensureRepository();
+
+    try {
+      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+      
+      // Ensure .git/info directory exists
+      const gitInfoDir = path.dirname(gitExcludePath);
+      await fs.ensureDir(gitInfoDir);
+      
+      // Write content to exclude file
+      await fs.writeFile(gitExcludePath, content, 'utf8');
+    } catch (error) {
+      throw new GitOperationError(
+        'Failed to write .git/info/exclude file',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  /**
+   * Get all pgit-managed entries from .git/info/exclude
+   */
+  public async getPgitManagedExcludes(): Promise<string[]> {
+    await this.ensureRepository();
+
+    try {
+      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+      
+      if (!(await fs.pathExists(gitExcludePath))) {
+        return [];
+      }
+      
+      // Read exclude file content
+      const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+      const lines = excludeContent.split('\n');
+      
+      // Find pgit marker
+      const pgitMarker = '# pgit-cli managed exclusions';
+      const pgitMarkerIndex = lines.findIndex(line => line.trim() === pgitMarker);
+      
+      if (pgitMarkerIndex === -1) {
+        return []; // No pgit-managed entries
+      }
+      
+      // Extract entries after the marker until next comment or end of file
+      const pgitEntries: string[] = [];
+      for (let i = pgitMarkerIndex + 1; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) {
+          continue; // Skip empty lines
+        }
+        if (line.startsWith('#')) {
+          break; // Stop at next comment section
+        }
+        pgitEntries.push(line);
+      }
+      
+      return pgitEntries;
+    } catch (error) {
+      throw new GitOperationError(
+        'Failed to get pgit-managed excludes',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  /**
    * Remove file path from .git/info/exclude
    */
   public async removeFromGitExclude(relativePath: string): Promise<void> {
