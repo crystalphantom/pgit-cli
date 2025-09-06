@@ -51,7 +51,7 @@ describe('ConfigManager', () => {
 
   describe('load', () => {
     const validConfig: PrivateConfig = {
-      version: '1.0.0',
+      version: '1.0.0-beta.1',
       privateRepoPath: DEFAULT_PATHS.privateRepo,
       storagePath: DEFAULT_PATHS.storage,
       trackedPaths: ['file1.txt', 'dir/file2.txt'],
@@ -66,7 +66,7 @@ describe('ConfigManager', () => {
       metadata: {
         projectName: 'test-project',
         mainRepoPath: '/test/workspace',
-        cliVersion: '1.0.0',
+        cliVersion: '1.0.0-beta.1',
         platform: 'test',
         lastModified: new Date('2024-01-01T00:00:00Z'),
       },
@@ -91,7 +91,7 @@ describe('ConfigManager', () => {
 
     it('should throw error for missing required fields', async () => {
       (mockFileSystem.pathExists as jest.Mock).mockResolvedValue(true);
-      const invalidConfig = { version: '1.0.0' }; // missing required fields
+      const invalidConfig = { version: '1.0.0-beta.1' }; // missing required fields
       (mockFileSystem.readFile as jest.Mock).mockResolvedValue(JSON.stringify(invalidConfig));
 
       await expect(configManager.load()).rejects.toThrow('Configuration file format is invalid');
@@ -108,7 +108,7 @@ describe('ConfigManager', () => {
 
   describe('save', () => {
     const testConfig: PrivateConfig = {
-      version: '1.0.0',
+      version: '1.0.0-beta.1',
       privateRepoPath: DEFAULT_PATHS.privateRepo,
       storagePath: DEFAULT_PATHS.storage,
       trackedPaths: ['file1.txt'],
@@ -123,7 +123,7 @@ describe('ConfigManager', () => {
       metadata: {
         projectName: 'test-project',
         mainRepoPath: '/test/workspace',
-        cliVersion: '1.0.0',
+        cliVersion: '1.0.0-beta.1',
         platform: 'test',
         lastModified: new Date('2024-01-01T00:00:00Z'),
       },
@@ -136,13 +136,13 @@ describe('ConfigManager', () => {
 
       expect(mockFileSystem.writeFileAtomic).toHaveBeenCalledWith(
         configPath,
-        expect.stringContaining('"version": "1.0.0"'),
+        expect.stringContaining('"version": "1.0.0-beta.1"'),
       );
     });
 
     it('should validate configuration before saving', async () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const invalidConfig = { version: '1.0.0' } as any; // missing required fields
+      const invalidConfig = { version: '1.0.0-beta.1' } as any; // missing required fields
 
       await expect(configManager.save(invalidConfig)).rejects.toThrow(
         'Configuration data is invalid',
@@ -165,7 +165,7 @@ describe('ConfigManager', () => {
       const config = await configManager.create(testWorkingDir);
 
       expect(config).toEqual({
-        version: '1.0.0',
+        version: '1.0.0-beta.1',
         privateRepoPath: DEFAULT_PATHS.privateRepo,
         storagePath: DEFAULT_PATHS.storage,
         trackedPaths: [],
@@ -180,7 +180,7 @@ describe('ConfigManager', () => {
         metadata: {
           projectName: 'workspace',
           mainRepoPath: testWorkingDir,
-          cliVersion: '1.0.0',
+          cliVersion: '1.0.0-beta.1',
           platform: expect.any(String),
           lastModified: expect.any(Date),
         },
@@ -194,14 +194,14 @@ describe('ConfigManager', () => {
 
       const config = await configManager.create(testWorkingDir);
 
-      expect(config.version).toBe('1.0.0');
+      expect(config.version).toBe('1.0.0-beta.1');
       expect(mockFileSystem.writeFileAtomic).toHaveBeenCalled();
     });
   });
 
   describe('addTrackedPath', () => {
     const initialConfig: PrivateConfig = {
-      version: '1.0.0',
+      version: '1.0.0-beta.1',
       privateRepoPath: DEFAULT_PATHS.privateRepo,
       storagePath: DEFAULT_PATHS.storage,
       trackedPaths: ['existing.txt'],
@@ -216,7 +216,7 @@ describe('ConfigManager', () => {
       metadata: {
         projectName: 'test-project',
         mainRepoPath: '/test/workspace',
-        cliVersion: '1.0.0',
+        cliVersion: '1.0.0-beta.1',
         platform: 'test',
         lastModified: new Date('2024-01-01T00:00:00Z'),
       },
@@ -255,7 +255,7 @@ describe('ConfigManager', () => {
 
   describe('removeTrackedPath', () => {
     const initialConfig: PrivateConfig = {
-      version: '1.0.0',
+      version: '1.0.0-beta.1',
       privateRepoPath: DEFAULT_PATHS.privateRepo,
       storagePath: DEFAULT_PATHS.storage,
       trackedPaths: ['file1.txt', 'file2.txt', 'dir/file3.txt'],
@@ -270,7 +270,7 @@ describe('ConfigManager', () => {
       metadata: {
         projectName: 'test-project',
         mainRepoPath: '/test/workspace',
-        cliVersion: '1.0.0',
+        cliVersion: '1.0.0-beta.1',
         platform: 'test',
         lastModified: new Date('2024-01-01T00:00:00Z'),
       },
@@ -301,7 +301,7 @@ describe('ConfigManager', () => {
   describe('getHealth', () => {
     it('should return healthy status for valid config', async () => {
       const validConfig: PrivateConfig = {
-        version: '1.0.0',
+        version: '1.0.0-beta.1',
         privateRepoPath: DEFAULT_PATHS.privateRepo,
         storagePath: DEFAULT_PATHS.storage,
         trackedPaths: ['file1.txt'],
@@ -316,7 +316,7 @@ describe('ConfigManager', () => {
         metadata: {
           projectName: 'test-project',
           mainRepoPath: '/test/workspace',
-          cliVersion: '1.0.0',
+          cliVersion: '1.0.0-beta.1',
           platform: 'test',
           lastModified: new Date('2024-01-01T00:00:00Z'),
         },
@@ -331,7 +331,7 @@ describe('ConfigManager', () => {
 
       expect(health.valid).toBe(true);
       expect(health.exists).toBe(true);
-      expect(health.currentVersion).toBe('1.0.0');
+      expect(health.currentVersion).toBe('1.0.0-beta.1');
       expect(health.needsMigration).toBe(false);
     });
 
@@ -384,7 +384,7 @@ describe('ConfigManager', () => {
 
       expect(health.needsMigration).toBe(true);
       expect(health.currentVersion).toBe('0.9.0');
-      expect(health.targetVersion).toBe('1.0.0');
+      expect(health.targetVersion).toBe('1.0.0-beta.1');
     });
   });
 
@@ -395,7 +395,7 @@ describe('ConfigManager', () => {
       (mockFileSystem.writeFileAtomic as jest.Mock).mockRejectedValue(error);
 
       const config: PrivateConfig = {
-        version: '1.0.0',
+        version: '1.0.0-beta.1',
         privateRepoPath: DEFAULT_PATHS.privateRepo,
         storagePath: DEFAULT_PATHS.storage,
         trackedPaths: [],
@@ -410,7 +410,7 @@ describe('ConfigManager', () => {
         metadata: {
           projectName: 'test-project',
           mainRepoPath: '/test/workspace',
-          cliVersion: '1.0.0',
+          cliVersion: '1.0.0-beta.1',
           platform: 'test',
           lastModified: new Date(),
         },
@@ -432,7 +432,7 @@ describe('ConfigManager', () => {
   describe('concurrent operations', () => {
     it('should handle concurrent read operations', async () => {
       const validConfig: PrivateConfig = {
-        version: '1.0.0',
+        version: '1.0.0-beta.1',
         privateRepoPath: DEFAULT_PATHS.privateRepo,
         storagePath: DEFAULT_PATHS.storage,
         trackedPaths: [],
@@ -447,7 +447,7 @@ describe('ConfigManager', () => {
         metadata: {
           projectName: 'test-project',
           mainRepoPath: '/test/workspace',
-          cliVersion: '1.0.0',
+          cliVersion: '1.0.0-beta.1',
           platform: 'test',
           lastModified: new Date('2024-01-01T00:00:00Z'),
         },
@@ -462,7 +462,7 @@ describe('ConfigManager', () => {
 
     it('should handle concurrent write operations', async () => {
       const config: PrivateConfig = {
-        version: '1.0.0',
+        version: '1.0.0-beta.1',
         privateRepoPath: DEFAULT_PATHS.privateRepo,
         storagePath: DEFAULT_PATHS.storage,
         trackedPaths: [],
@@ -477,7 +477,7 @@ describe('ConfigManager', () => {
         metadata: {
           projectName: 'test-project',
           mainRepoPath: '/test/workspace',
-          cliVersion: '1.0.0',
+          cliVersion: '1.0.0-beta.1',
           platform: 'test',
           lastModified: new Date(),
         },
