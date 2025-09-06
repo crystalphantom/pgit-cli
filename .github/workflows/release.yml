@@ -110,19 +110,19 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-       - name: Post-release validation
-         run: |
-           echo "🔍 Validating published package..."
+      - name: Post-release validation
+        run: |
+          echo "🔍 Validating published package..."
 
-           # Wait a moment for NPM to propagate
-           sleep 30
+          # Wait a moment for NPM to propagate
+          sleep 30
 
-           # Verify the package can be installed
-           npm info pgit-cli@${{ steps.verify_tag.outputs.version }}
+          # Verify the package can be installed
+          npm info pgit-cli@${{ steps.verify_tag.outputs.version }}
 
-           echo "✅ Package successfully published and available on NPM"
+          echo "✅ Package successfully published and available on NPM"
 
-       - name: Notify success
+      - name: Notify success
          run: |
            echo "🎉 Release v${{ steps.verify_tag.outputs.version }} completed successfully!"
            echo ""
