@@ -638,27 +638,43 @@ export class AddCommand {
   }
 
   /**
-   * Remove file from main git index
+   * Remove file from main git index and add to git exclude
    */
   private async removeFromMainGitIndex(relativePath: string): Promise<void> {
     try {
       const gitService = new GitService(this.workingDir, this.fileSystem);
 
       if (await gitService.isRepository()) {
-        // Check if file is tracked in git
-        const status = await gitService.getStatus();
-        const isTracked = status.files.some(file => file.path === relativePath);
-
-        if (isTracked) {
-          // Remove from git index but keep working copy
+        // Always attempt to remove from git index regardless of current state
+        // This handles tracked, staged, and untracked files consistently
+        try {
           await gitService.removeFromIndex(relativePath, true);
+        } catch (removeError) {
+          // Log warning but continue - file might not be in index
+          console.warn(
+            chalk.yellow(
+              `   Warning: Could not remove ${relativePath} from git index: ${removeError instanceof Error ? removeError.message : String(removeError)}`,
+            ),
+          );
+        }
+
+        // Add to .git/info/exclude to prevent future git add operations
+        try {
+          await gitService.addToGitExclude(relativePath);
+        } catch (excludeError) {
+          // Log warning but continue - exclude operation failure shouldn't break pgit add
+          console.warn(
+            chalk.yellow(
+              `   Warning: Could not add ${relativePath} to .git/info/exclude: ${excludeError instanceof Error ? excludeError.message : String(excludeError)}`,
+            ),
+          );
         }
       }
     } catch (error) {
-      // If this fails, it's not critical since the file might not be in git
+      // If repository check fails, log warning but continue
       console.warn(
         chalk.yellow(
-          `   Warning: Could not remove from main git index: ${error instanceof Error ? error.message : String(error)}`,
+          `   Warning: Could not process git operations for ${relativePath}: ${error instanceof Error ? error.message : String(error)}`,
         ),
       );
     }
