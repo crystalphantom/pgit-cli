@@ -420,4 +420,12 @@ describe('AddCommand', () => {
       }
     });
   });
+
+  describe('Enhanced Git State Detection', () => {
+    it('should have enhanced git state detection methods available', () => {
+      // Verify that the enhanced methods exist on the AddCommand instance
+      expect(typeof (addCommand as any).getEnhancedFileGitState).toBe('function');
+      expect(typeof (addCommand as any).getFileGitState).toBe('function');
+    });
+  });
 });

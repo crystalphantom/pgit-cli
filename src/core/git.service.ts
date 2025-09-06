@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as fs from 'fs-extra';
 import { FileSystemService } from './filesystem.service';
 import { RepositoryNotFoundError, GitOperationError, GitIndexError } from '../errors/git.error';
+import { GitFileState } from '../types/git.types';
 
 /**
  * Git repository status information
@@ -718,6 +719,80 @@ export class GitService {
     } catch (error) {
       throw new GitOperationError(
         `Failed to check if ${relativePath} is in .git/info/exclude`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  /**
+   * Get comprehensive git state for a file including exclude status
+   */
+  public async getFileGitState(relativePath: string): Promise<GitFileState> {
+    if (!relativePath || !relativePath.trim()) {
+      throw new GitOperationError('File path cannot be empty');
+    }
+
+    const normalizedPath = relativePath.trim();
+    const timestamp = new Date();
+
+    // If not a git repository, return default state
+    if (!(await this.isRepository())) {
+      return {
+        isTracked: false,
+        isStaged: false,
+        isModified: false,
+        isUntracked: false,
+        isExcluded: false,
+        originalPath: normalizedPath,
+        timestamp,
+      };
+    }
+
+    try {
+      // Get git status to determine file state
+      const status = await this.getStatus();
+      const fileStatus = status.files.find(file => file.path === normalizedPath);
+
+      // Check if file is in .git/info/exclude
+      const isExcluded = await this.isInGitExclude(normalizedPath);
+
+      if (!fileStatus) {
+        // File not in git status - could be untracked, clean tracked, or excluded
+        const isTracked = await this.isTracked(normalizedPath);
+        
+        return {
+          isTracked,
+          isStaged: false,
+          isModified: false,
+          isUntracked: !isTracked && !isExcluded,
+          isExcluded,
+          originalPath: normalizedPath,
+          timestamp,
+        };
+      }
+
+      // Parse git status flags
+      const indexFlag = fileStatus.index || ' ';
+      const workingFlag = fileStatus.working_dir || ' ';
+
+      // Determine file states based on git status flags
+      const isUntracked = indexFlag === '?';
+      const isTracked = !isUntracked;
+      const isStaged = indexFlag !== ' ' && indexFlag !== '?' && indexFlag !== undefined;
+      const isModified = workingFlag !== ' ' && workingFlag !== '?' && workingFlag !== undefined;
+
+      return {
+        isTracked,
+        isStaged,
+        isModified,
+        isUntracked,
+        isExcluded,
+        originalPath: normalizedPath,
+        timestamp,
+      };
+    } catch (error) {
+      throw new GitOperationError(
+        `Failed to get git state for ${normalizedPath}`,
         error instanceof Error ? error.message : String(error),
       );
     }

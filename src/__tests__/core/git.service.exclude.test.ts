@@ -259,3 +259,370 @@ describe('GitService - Exclude File Management', () => {
     });
   });
 });
+describe
+('GitService - Enhanced Git State Detection', () => {
+  let gitService: GitService;
+  let fileSystemService: FileSystemService;
+  let tempDir: string;
+  let testFilePath: string;
+
+  beforeEach(async () => {
+    // Create temporary directory for testing
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pgit-git-state-test-'));
+    testFilePath = path.join(tempDir, 'test-file.txt');
+    
+    // Initialize git repository structure
+    await fs.ensureDir(path.join(tempDir, '.git', 'info'));
+    
+    fileSystemService = new FileSystemService();
+    gitService = new GitService(tempDir, fileSystemService);
+    
+    // Mock isRepository to return true for our test directory
+    jest.spyOn(gitService, 'isRepository').mockResolvedValue(true);
+  });
+
+  afterEach(async () => {
+    // Clean up temporary directory
+    await fs.remove(tempDir);
+    jest.restoreAllMocks();
+  });
+
+  describe('getFileGitState', () => {
+    it('should return default state for non-git repository', async () => {
+      jest.spyOn(gitService, 'isRepository').mockResolvedValue(false);
+      
+      const state = await gitService.getFileGitState('test-file.txt');
+      
+      expect(state).toEqual({
+        isTracked: false,
+        isStaged: false,
+        isModified: false,
+        isUntracked: false,
+        isExcluded: false,
+        originalPath: 'test-file.txt',
+        timestamp: expect.any(Date),
+      });
+    });
+
+    it('should throw error for empty file path', async () => {
+      await expect(gitService.getFileGitState('')).rejects.toThrow(GitOperationError);
+      await expect(gitService.getFileGitState('   ')).rejects.toThrow(GitOperationError);
+    });
+
+    it('should detect untracked file state', async () => {
+      // Create a test file
+      await fs.writeFile(testFilePath, 'test content');
+      
+      // Mock git status to show file as untracked
+      jest.spyOn(gitService, 'getStatus').mockResolvedValue({
+        current: 'main',
+        tracking: null,
+        ahead: 0,
+        behind: 0,
+        staged: [],
+        modified: [],
+        untracked: ['test-file.txt'],
+        deleted: [],
+        conflicted: [],
+        isClean: false,
+        files: [{ path: 'test-file.txt', index: '?', working_dir: '?' }],
+      });
+      
+      jest.spyOn(gitService, 'isInGitExclude').mockResolvedValue(false);
+      
+      const state = await gitService.getFileGitState('test-file.txt');
+      
+      expect(state.isUntracked).toBe(true);
+      expect(state.isTracked).toBe(false);
+      expect(state.isStaged).toBe(false);
+      expect(state.isModified).toBe(false);
+      expect(state.isExcluded).toBe(false);
+      expect(state.originalPath).toBe('test-file.txt');
+    });
+
+    it('should detect tracked and staged file state', async () => {
+      // Mock git status to show file as staged
+      jest.spyOn(gitService, 'getStatus').mockResolvedValue({
+        current: 'main',
+        tracking: null,
+        ahead: 0,
+        behind: 0,
+        staged: ['test-file.txt'],
+        modified: [],
+        untracked: [],
+        deleted: [],
+        conflicted: [],
+        isClean: false,
+        files: [{ path: 'test-file.txt', index: 'A', working_dir: ' ' }],
+      });
+      
+      jest.spyOn(gitService, 'isInGitExclude').mockResolvedValue(false);
+      
+      const state = await gitService.getFileGitState('test-file.txt');
+      
+      expect(state.isTracked).toBe(true);
+      expect(state.isStaged).toBe(true);
+      expect(state.isUntracked).toBe(false);
+      expect(state.isModified).toBe(false);
+      expect(state.isExcluded).toBe(false);
+    });
+
+    it('should detect tracked and modified file state', async () => {
+      // Mock git status to show file as modified
+      jest.spyOn(gitService, 'getStatus').mockResolvedValue({
+        current: 'main',
+        tracking: null,
+        ahead: 0,
+        behind: 0,
+        staged: [],
+        modified: ['test-file.txt'],
+        untracked: [],
+        deleted: [],
+        conflicted: [],
+        isClean: false,
+        files: [{ path: 'test-file.txt', index: ' ', working_dir: 'M' }],
+      });
+      
+      jest.spyOn(gitService, 'isInGitExclude').mockResolvedValue(false);
+      
+      const state = await gitService.getFileGitState('test-file.txt');
+      
+      expect(state.isTracked).toBe(true);
+      expect(state.isStaged).toBe(false);
+      expect(state.isUntracked).toBe(false);
+      expect(state.isModified).toBe(true);
+      expect(state.isExcluded).toBe(false);
+    });
+
+    it('should detect excluded file state', async () => {
+      // Mock git status to show no file status (clean or excluded)
+      jest.spyOn(gitService, 'getStatus').mockResolvedValue({
+        current: 'main',
+        tracking: null,
+        ahead: 0,
+        behind: 0,
+        staged: [],
+        modified: [],
+        untracked: [],
+        deleted: [],
+        conflicted: [],
+        isClean: true,
+        files: [],
+      });
+      
+      jest.spyOn(gitService, 'isTracked').mockResolvedValue(false);
+      jest.spyOn(gitService, 'isInGitExclude').mockResolvedValue(true);
+      
+      const state = await gitService.getFileGitState('test-file.txt');
+      
+      expect(state.isExcluded).toBe(true);
+      expect(state.isUntracked).toBe(false);
+      expect(state.isTracked).toBe(false);
+      expect(state.isStaged).toBe(false);
+      expect(state.isModified).toBe(false);
+    });
+
+    it('should detect clean tracked file state', async () => {
+      // Mock git status to show no file status (clean tracked file)
+      jest.spyOn(gitService, 'getStatus').mockResolvedValue({
+        current: 'main',
+        tracking: null,
+        ahead: 0,
+        behind: 0,
+        staged: [],
+        modified: [],
+        untracked: [],
+        deleted: [],
+        conflicted: [],
+        isClean: true,
+        files: [],
+      });
+      
+      jest.spyOn(gitService, 'isTracked').mockResolvedValue(true);
+      jest.spyOn(gitService, 'isInGitExclude').mockResolvedValue(false);
+      
+      const state = await gitService.getFileGitState('test-file.txt');
+      
+      expect(state.isTracked).toBe(true);
+      expect(state.isStaged).toBe(false);
+      expect(state.isUntracked).toBe(false);
+      expect(state.isModified).toBe(false);
+      expect(state.isExcluded).toBe(false);
+    });
+
+    it('should detect staged and modified file state', async () => {
+      // Mock git status to show file as both staged and modified
+      jest.spyOn(gitService, 'getStatus').mockResolvedValue({
+        current: 'main',
+        tracking: null,
+        ahead: 0,
+        behind: 0,
+        staged: ['test-file.txt'],
+        modified: ['test-file.txt'],
+        untracked: [],
+        deleted: [],
+        conflicted: [],
+        isClean: false,
+        files: [{ path: 'test-file.txt', index: 'M', working_dir: 'M' }],
+      });
+      
+      jest.spyOn(gitService, 'isInGitExclude').mockResolvedValue(false);
+      
+      const state = await gitService.getFileGitState('test-file.txt');
+      
+      expect(state.isTracked).toBe(true);
+      expect(state.isStaged).toBe(true);
+      expect(state.isUntracked).toBe(false);
+      expect(state.isModified).toBe(true);
+      expect(state.isExcluded).toBe(false);
+    });
+
+    it('should handle git status errors gracefully', async () => {
+      jest.spyOn(gitService, 'getStatus').mockRejectedValue(new Error('Git status failed'));
+      
+      await expect(gitService.getFileGitState('test-file.txt')).rejects.toThrow(GitOperationError);
+    });
+
+    it('should include timestamp in state', async () => {
+      const beforeTime = new Date();
+      
+      jest.spyOn(gitService, 'getStatus').mockResolvedValue({
+        current: 'main',
+        tracking: null,
+        ahead: 0,
+        behind: 0,
+        staged: [],
+        modified: [],
+        untracked: [],
+        deleted: [],
+        conflicted: [],
+        isClean: true,
+        files: [],
+      });
+      
+      jest.spyOn(gitService, 'isTracked').mockResolvedValue(false);
+      jest.spyOn(gitService, 'isInGitExclude').mockResolvedValue(false);
+      
+      const state = await gitService.getFileGitState('test-file.txt');
+      const afterTime = new Date();
+      
+      expect(state.timestamp).toBeInstanceOf(Date);
+      expect(state.timestamp.getTime()).toBeGreaterThanOrEqual(beforeTime.getTime());
+      expect(state.timestamp.getTime()).toBeLessThanOrEqual(afterTime.getTime());
+    });
+
+    it('should normalize file paths', async () => {
+      const pathWithSpaces = '  test-file.txt  ';
+      
+      jest.spyOn(gitService, 'getStatus').mockResolvedValue({
+        current: 'main',
+        tracking: null,
+        ahead: 0,
+        behind: 0,
+        staged: [],
+        modified: [],
+        untracked: [],
+        deleted: [],
+        conflicted: [],
+        isClean: true,
+        files: [],
+      });
+      
+      jest.spyOn(gitService, 'isTracked').mockResolvedValue(false);
+      jest.spyOn(gitService, 'isInGitExclude').mockResolvedValue(false);
+      
+      const state = await gitService.getFileGitState(pathWithSpaces);
+      
+      expect(state.originalPath).toBe('test-file.txt');
+    });
+  });
+
+  describe('integration with exclude functionality', () => {
+    it('should correctly detect state changes after adding to exclude', async () => {
+      const testPath = 'test-file.txt';
+      
+      // Initially file is untracked
+      jest.spyOn(gitService, 'getStatus').mockResolvedValue({
+        current: 'main',
+        tracking: null,
+        ahead: 0,
+        behind: 0,
+        staged: [],
+        modified: [],
+        untracked: [testPath],
+        deleted: [],
+        conflicted: [],
+        isClean: false,
+        files: [{ path: testPath, index: '?', working_dir: '?' }],
+      });
+      
+      // Mock exclude check to return false initially
+      const isInGitExcludeSpy = jest.spyOn(gitService, 'isInGitExclude').mockResolvedValue(false);
+      
+      let state = await gitService.getFileGitState(testPath);
+      expect(state.isUntracked).toBe(true);
+      expect(state.isExcluded).toBe(false);
+      
+      // Add to exclude file
+      isInGitExcludeSpy.mockResolvedValue(true);
+      
+      // After adding to exclude, file should show as excluded
+      state = await gitService.getFileGitState(testPath);
+      expect(state.isUntracked).toBe(true);
+      expect(state.isExcluded).toBe(true);
+    });
+
+    it('should handle multiple state combinations correctly', async () => {
+      const testCases = [
+        {
+          name: 'untracked and excluded',
+          gitStatus: { path: 'file.txt', index: '?', working_dir: '?' },
+          isTracked: false,
+          isExcluded: true,
+          expected: { isUntracked: true, isTracked: false, isExcluded: true },
+        },
+        {
+          name: 'tracked and excluded',
+          gitStatus: null, // Not in git status (clean)
+          isTracked: true,
+          isExcluded: true,
+          expected: { isUntracked: false, isTracked: true, isExcluded: true },
+        },
+        {
+          name: 'staged and excluded',
+          gitStatus: { path: 'file.txt', index: 'A', working_dir: ' ' },
+          isTracked: true,
+          isExcluded: true,
+          expected: { isUntracked: false, isTracked: true, isStaged: true, isExcluded: true },
+        },
+      ];
+
+      for (const testCase of testCases) {
+        const files = testCase.gitStatus ? [testCase.gitStatus] : [];
+        
+        jest.spyOn(gitService, 'getStatus').mockResolvedValue({
+          current: 'main',
+          tracking: null,
+          ahead: 0,
+          behind: 0,
+          staged: [],
+          modified: [],
+          untracked: [],
+          deleted: [],
+          conflicted: [],
+          isClean: files.length === 0,
+          files,
+        });
+        
+        jest.spyOn(gitService, 'isTracked').mockResolvedValue(testCase.isTracked);
+        jest.spyOn(gitService, 'isInGitExclude').mockResolvedValue(testCase.isExcluded);
+        
+        const state = await gitService.getFileGitState('file.txt');
+        
+        for (const [key, value] of Object.entries(testCase.expected)) {
+          expect(state[key as keyof typeof state]).toBe(value);
+        }
+      }
+    });
+  });
+});

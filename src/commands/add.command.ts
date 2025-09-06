@@ -8,6 +8,7 @@ import { SymlinkService } from '../core/symlink.service';
 import { BaseError } from '../errors/base.error';
 import { InputValidator } from '../utils/input.validator';
 import { PathNotFoundError, UnsafePathError, InvalidInputError } from '../errors/specific.errors';
+import { GitFileState, LegacyGitFileState } from '../types/git.types';
 
 /**
  * Multi-path validation result interface
@@ -282,32 +283,45 @@ export class AddCommand {
   }
 
   /**
-   * Get the current git state of a file
+   * Get the current git state of a file (legacy version for backward compatibility)
    */
   private async getFileGitState(
     relativePath: string,
-  ): Promise<{ isTracked: boolean; isStaged: boolean }> {
+  ): Promise<LegacyGitFileState> {
     try {
       const gitService = new GitService(this.workingDir, this.fileSystem);
-
-      if (!(await gitService.isRepository())) {
-        return { isTracked: false, isStaged: false };
-      }
-
-      const status = await gitService.getStatus();
-      const fileStatus = status.files.find(file => file.path === relativePath);
-
-      if (!fileStatus) {
-        return { isTracked: false, isStaged: false };
-      }
-
-      // Check if file is tracked (in index) and/or staged
-      const isTracked = !fileStatus.index || fileStatus.index !== '?';
-      const isStaged = !!(fileStatus.index && fileStatus.index !== ' ' && fileStatus.index !== '?');
-
-      return { isTracked, isStaged };
+      const enhancedState = await gitService.getFileGitState(relativePath);
+      
+      // Return legacy format for backward compatibility
+      return {
+        isTracked: enhancedState.isTracked,
+        isStaged: enhancedState.isStaged,
+      };
     } catch {
       return { isTracked: false, isStaged: false };
+    }
+  }
+
+  /**
+   * Get enhanced git state of a file including exclude status
+   * TODO: This method will be used in future tasks for enhanced git removal functionality
+   */
+  // @ts-ignore - Method will be used in future tasks
+  private async getEnhancedFileGitState(relativePath: string): Promise<GitFileState> {
+    try {
+      const gitService = new GitService(this.workingDir, this.fileSystem);
+      return await gitService.getFileGitState(relativePath);
+    } catch (error) {
+      // Return default state on error
+      return {
+        isTracked: false,
+        isStaged: false,
+        isModified: false,
+        isUntracked: false,
+        isExcluded: false,
+        originalPath: relativePath,
+        timestamp: new Date(),
+      };
     }
   }
 
