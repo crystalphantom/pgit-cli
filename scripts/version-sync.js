@@ -23,20 +23,20 @@ function syncVersions() {
         path: path.join(__dirname, '..', 'src', 'cli.ts'),
         pattern: /\.version\(['"][^'"]+['"]\)/,
         replacement: `.version('${version}')`,
-        description: 'CLI version declaration'
+        description: 'CLI version declaration',
       },
       {
         path: path.join(__dirname, '..', 'src', 'types', 'config.types.ts'),
         pattern: /CURRENT_CONFIG_VERSION = ['"][^'"]+['"]/,
         replacement: `CURRENT_CONFIG_VERSION = '${version}'`,
-        description: 'Config version constant'
+        description: 'Config version constant',
       },
       {
         path: path.join(__dirname, '..', 'README.md'),
-        pattern: /npm install -g @pgit\/cli@[^\s\)]+/g,
-        replacement: `npm install -g @pgit/cli@${version}`,
-        description: 'README installation examples'
-      }
+        pattern: /npm install -g pgit-cli@[^\s\)]+/g,
+        replacement: `npm install -g pgit-cli@${version}`,
+        description: 'README installation examples',
+      },
     ];
 
     let syncCount = 0;
@@ -79,7 +79,7 @@ function syncVersions() {
 
     console.log(chalk.blue(`\n📊 Synchronization Summary:`));
     console.log(chalk.green(`   ✅ Files updated: ${syncCount}`));
-    
+
     if (errors.length > 0) {
       console.log(chalk.red(`   ❌ Errors: ${errors.length}`));
       errors.forEach(error => console.log(chalk.red(`      • ${error}`)));
@@ -87,7 +87,6 @@ function syncVersions() {
     } else {
       console.log(chalk.green(`\n🎉 All versions synchronized successfully to v${version}!`));
     }
-
   } catch (error) {
     console.error(chalk.red(`💥 Fatal error: ${error.message}`));
     process.exit(1);

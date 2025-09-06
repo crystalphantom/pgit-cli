@@ -39,6 +39,6 @@ All notable changes to this project will be documented in this file. The format 
 - Complete local operation
 
 ### 📦 Distribution
-- NPM package available as `@pgit/cli`
+- NPM package available as `pgit-cli`
 - Global installation support
 - Cross-platform binary compatibility
