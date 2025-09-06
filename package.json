@@ -1,6 +1,6 @@
 {
   "name": "pgit-cli",
-  "version": "1.0.0-beta.1",
+  "version": "1.1.0",
   "description": "Private file tracking with dual git repositories",
   "main": "dist/index.js",
   "bin": {
@@ -17,7 +17,6 @@
     "format:check": "prettier --check src/**/*.ts",
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist",
-    "format:check": "prettier --check src/**/*.ts",
     "test:coverage": "jest --coverage",
     "test:ci": "echo \"Skipping tests for CI\" && exit 0",
     "release": "release-it",

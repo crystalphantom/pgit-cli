@@ -276,7 +276,7 @@ export const DEFAULT_PATHS = {
 /**
  * Current configuration version
  */
-export const CURRENT_CONFIG_VERSION = '1.0.0-beta.1';
+export const CURRENT_CONFIG_VERSION = '1.1.0';
 
 /**
  * Supported file extensions for tracking
