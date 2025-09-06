@@ -112,7 +112,7 @@ describe('AddCommand', () => {
     // Setup default mock behaviors
     mockConfigManager.exists.mockResolvedValue(true);
     mockConfigManager.load.mockResolvedValue({
-      version: '1.0.0',
+      version: '1.0.0-beta.1',
       trackedPaths: [],
       storagePath: '.private-storage',
       privateRepoPath: '.git-private',
@@ -127,7 +127,7 @@ describe('AddCommand', () => {
       metadata: {
         projectName: 'test-project',
         mainRepoPath: '/test/workspace',
-        cliVersion: '1.0.0',
+        cliVersion: '1.0.0-beta.1',
         platform: 'test',
         lastModified: new Date(),
       },
@@ -247,7 +247,7 @@ describe('AddCommand', () => {
 
     it('should handle already tracked paths', async () => {
       mockConfigManager.load.mockResolvedValue({
-        version: '1.0.0',
+        version: '1.0.0-beta.1',
         trackedPaths: ['already-tracked.txt'],
         storagePath: '.private-storage',
         privateRepoPath: '.git-private',
@@ -262,7 +262,7 @@ describe('AddCommand', () => {
         metadata: {
           projectName: 'test-project',
           mainRepoPath: '/test/workspace',
-          cliVersion: '1.0.0',
+          cliVersion: '1.0.0-beta.1',
           platform: 'test',
           lastModified: new Date(),
         },
@@ -323,7 +323,7 @@ describe('AddCommand', () => {
 
     it('should detect already tracked paths', async () => {
       mockConfigManager.load.mockResolvedValue({
-        version: '1.0.0',
+        version: '1.0.0-beta.1',
         trackedPaths: ['tracked-file.txt'],
         storagePath: '.private-storage',
         privateRepoPath: '.git-private',
@@ -338,7 +338,7 @@ describe('AddCommand', () => {
         metadata: {
           projectName: 'test-project',
           mainRepoPath: '/test/workspace',
-          cliVersion: '1.0.0',
+          cliVersion: '1.0.0-beta.1',
           platform: 'test',
           lastModified: new Date(),
         },

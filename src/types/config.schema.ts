@@ -17,7 +17,7 @@ export const ConfigSettingsSchema = z.object({
 export const ProjectMetadataSchema = z.object({
   projectName: z.string().min(1),
   mainRepoPath: z.string().min(1),
-  cliVersion: z.string().regex(/^\d+\.\d+\.\d+$/),
+  cliVersion: z.string().regex(/^\d+\.\d+\.\d+(-[\w\.\-]+)?$/),
   platform: z.string().min(1),
   lastModified: z.date(),
 });
@@ -26,7 +26,7 @@ export const ProjectMetadataSchema = z.object({
  * Zod schema for main private configuration
  */
 export const PrivateConfigSchema = z.object({
-  version: z.string().regex(/^\d+\.\d+\.\d+$/),
+  version: z.string().regex(/^\d+\.\d+\.\d+(-[\w\.\-]+)?$/),
   privateRepoPath: z.string().min(1),
   storagePath: z.string().min(1),
   trackedPaths: z.array(z.string()).default([]),
