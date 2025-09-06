@@ -28,7 +28,7 @@ We take the security of PGit CLI seriously. If you discover a security vulnerabi
 
 ### Alternative Method: Email
 
-Send an email to: **security@pgit-cli.org** (if available)
+Send an email to: **security@pgitcli.dev** (if available)
 
 Include the following information:
 
