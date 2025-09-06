@@ -322,7 +322,7 @@ export class SymlinkService {
     try {
       normalizedTarget = await fs.realpath(expectedTarget);
       normalizedActualTarget = await fs.realpath(info.targetPath);
-    } catch (err) {
+    } catch {
       // If realpath fails, fall back to path.resolve
       normalizedTarget = path.resolve(expectedTarget);
       normalizedActualTarget = path.resolve(info.targetPath);

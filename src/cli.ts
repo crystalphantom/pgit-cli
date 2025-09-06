@@ -22,7 +22,7 @@ async function main(): Promise<void> {
     const packageJsonPath = join(__dirname, '..', 'package.json');
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
     version = packageJson.version;
-  } catch (error) {
+  } catch {
     // If package.json can't be read, use fallback version
     console.warn('Could not read package.json for version, using fallback');
   }

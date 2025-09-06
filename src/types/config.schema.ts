@@ -146,7 +146,7 @@ export const MigrationStepSchema = z.object({
   id: z.string().min(1),
   description: z.string().min(1),
   destructive: z.boolean(),
-  execute: z.function().returns(z.promise(z.void())),
+  execute: z.function(),
 });
 
 /**
