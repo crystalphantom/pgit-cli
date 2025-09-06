@@ -140,15 +140,15 @@ jobs:
          run: npm audit --audit-level=moderate
 
        - name: Run CodeQL Analysis
-         uses: github/codeql-action/init@v3
+         uses: github/codeql-action/init@v2
          with:
            languages: javascript
 
        - name: Autobuild
-         uses: github/codeql-action/autobuild@v3
+         uses: github/codeql-action/autobuild@v2
 
        - name: Perform CodeQL Analysis
-         uses: github/codeql-action/analyze@v3
+         uses: github/codeql-action/analyze@v2
 
   quality:
     name: Quality Gate
