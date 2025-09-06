@@ -205,6 +205,276 @@ describe('GitService - Exclude File Management', () => {
     });
   });
 
+  describe('addMultipleToGitExclude', () => {
+    it('should add multiple paths in a single operation', async () => {
+      const testPaths = ['file1.txt', 'file2.txt', 'file3.txt'];
+      
+      await gitService.addMultipleToGitExclude(testPaths);
+      
+      expect(await fs.pathExists(gitExcludePath)).toBe(true);
+      const content = await fs.readFile(gitExcludePath, 'utf8');
+      
+      expect(content).toContain('# pgit-cli managed exclusions');
+      for (const path of testPaths) {
+        expect(content).toContain(path);
+      }
+      
+      // Should only have one marker
+      const markerOccurrences = (content.match(/# pgit-cli managed exclusions/g) || []).length;
+      expect(markerOccurrences).toBe(1);
+    });
+
+    it('should handle empty array gracefully', async () => {
+      await expect(gitService.addMultipleToGitExclude([])).resolves.not.toThrow();
+      expect(await fs.pathExists(gitExcludePath)).toBe(false);
+    });
+
+    it('should not add duplicate paths in batch operation', async () => {
+      const testPaths = ['file1.txt', 'file2.txt', 'file1.txt']; // file1.txt is duplicate
+      
+      await gitService.addMultipleToGitExclude(testPaths);
+      
+      const content = await fs.readFile(gitExcludePath, 'utf8');
+      const file1Occurrences = (content.match(/file1\.txt/g) || []).length;
+      expect(file1Occurrences).toBe(1);
+    });
+
+    it('should preserve existing entries when adding multiple paths', async () => {
+      const existingContent = '# Existing exclusions\n*.log\n';
+      await fs.writeFile(gitExcludePath, existingContent);
+      
+      const testPaths = ['file1.txt', 'file2.txt'];
+      await gitService.addMultipleToGitExclude(testPaths);
+      
+      const content = await fs.readFile(gitExcludePath, 'utf8');
+      expect(content).toContain('*.log'); // Preserve existing content
+      expect(content).toContain('# pgit-cli managed exclusions');
+      for (const path of testPaths) {
+        expect(content).toContain(path);
+      }
+    });
+
+    it('should throw error for empty paths in array', async () => {
+      const testPaths = ['file1.txt', '', 'file2.txt'];
+      
+      await expect(gitService.addMultipleToGitExclude(testPaths)).rejects.toThrow(GitOperationError);
+    });
+
+    it('should skip paths that already exist', async () => {
+      // First add some paths
+      await gitService.addToGitExclude('file1.txt');
+      await gitService.addToGitExclude('file2.txt');
+      
+      // Try to add overlapping paths
+      const testPaths = ['file1.txt', 'file3.txt', 'file2.txt']; // file1 and file2 already exist
+      await gitService.addMultipleToGitExclude(testPaths);
+      
+      const content = await fs.readFile(gitExcludePath, 'utf8');
+      
+      // Should only have one occurrence of each file
+      expect((content.match(/file1\.txt/g) || []).length).toBe(1);
+      expect((content.match(/file2\.txt/g) || []).length).toBe(1);
+      expect((content.match(/file3\.txt/g) || []).length).toBe(1);
+    });
+  });
+
+  describe('removeMultipleFromGitExclude', () => {
+    it('should remove multiple paths in a single operation', async () => {
+      const testPaths = ['file1.txt', 'file2.txt', 'file3.txt'];
+      
+      // First add the paths
+      await gitService.addMultipleToGitExclude(testPaths);
+      
+      // Verify they exist
+      for (const path of testPaths) {
+        expect(await gitService.isInGitExclude(path)).toBe(true);
+      }
+      
+      // Remove first two paths
+      await gitService.removeMultipleFromGitExclude(['file1.txt', 'file2.txt']);
+      
+      // Verify removal
+      expect(await gitService.isInGitExclude('file1.txt')).toBe(false);
+      expect(await gitService.isInGitExclude('file2.txt')).toBe(false);
+      expect(await gitService.isInGitExclude('file3.txt')).toBe(true);
+    });
+
+    it('should handle empty array gracefully', async () => {
+      await gitService.addToGitExclude('file1.txt');
+      
+      await expect(gitService.removeMultipleFromGitExclude([])).resolves.not.toThrow();
+      expect(await gitService.isInGitExclude('file1.txt')).toBe(true);
+    });
+
+    it('should preserve existing entries when removing multiple paths', async () => {
+      const existingContent = '# Existing exclusions\n*.log\n';
+      await fs.writeFile(gitExcludePath, existingContent);
+      
+      const testPaths = ['file1.txt', 'file2.txt'];
+      await gitService.addMultipleToGitExclude(testPaths);
+      await gitService.removeMultipleFromGitExclude(testPaths);
+      
+      const content = await fs.readFile(gitExcludePath, 'utf8');
+      expect(content).toContain('*.log'); // Should preserve existing content
+      expect(content).not.toContain('file1.txt');
+      expect(content).not.toContain('file2.txt');
+      expect(content).not.toContain('# pgit-cli managed exclusions');
+    });
+
+    it('should handle non-existent paths gracefully', async () => {
+      await gitService.addToGitExclude('existing-file.txt');
+      
+      const pathsToRemove = ['non-existent1.txt', 'non-existent2.txt'];
+      await expect(gitService.removeMultipleFromGitExclude(pathsToRemove)).resolves.not.toThrow();
+      
+      // Should still contain the existing file
+      expect(await gitService.isInGitExclude('existing-file.txt')).toBe(true);
+    });
+
+    it('should remove pgit marker when all pgit entries are removed', async () => {
+      const existingContent = '# Existing exclusions\n*.log\n';
+      await fs.writeFile(gitExcludePath, existingContent);
+      
+      const testPaths = ['file1.txt', 'file2.txt'];
+      await gitService.addMultipleToGitExclude(testPaths);
+      await gitService.removeMultipleFromGitExclude(testPaths);
+      
+      const content = await fs.readFile(gitExcludePath, 'utf8');
+      expect(content).toContain('*.log');
+      expect(content).not.toContain('# pgit-cli managed exclusions');
+    });
+
+    it('should throw error for empty paths in array', async () => {
+      const testPaths = ['file1.txt', '', 'file2.txt'];
+      
+      await expect(gitService.removeMultipleFromGitExclude(testPaths)).rejects.toThrow(GitOperationError);
+    });
+  });
+
+  describe('readGitExcludeFile', () => {
+    it('should return empty string when exclude file does not exist', async () => {
+      const result = await gitService.readGitExcludeFile();
+      expect(result).toBe('');
+    });
+
+    it('should return file content when exclude file exists', async () => {
+      const testContent = '# Test exclusions\n*.log\n*.tmp\n';
+      await fs.writeFile(gitExcludePath, testContent);
+      
+      const result = await gitService.readGitExcludeFile();
+      expect(result).toBe(testContent);
+    });
+
+    it('should throw error when not in git repository', async () => {
+      jest.spyOn(gitService, 'isRepository').mockResolvedValue(false);
+      
+      await expect(gitService.readGitExcludeFile()).rejects.toThrow();
+    });
+  });
+
+  describe('writeGitExcludeFile', () => {
+    it('should create exclude file with provided content', async () => {
+      const testContent = '# Test exclusions\n*.log\n*.tmp\n';
+      
+      await gitService.writeGitExcludeFile(testContent);
+      
+      expect(await fs.pathExists(gitExcludePath)).toBe(true);
+      const writtenContent = await fs.readFile(gitExcludePath, 'utf8');
+      expect(writtenContent).toBe(testContent);
+    });
+
+    it('should overwrite existing exclude file', async () => {
+      const initialContent = '# Initial content\n*.old\n';
+      const newContent = '# New content\n*.new\n';
+      
+      await fs.writeFile(gitExcludePath, initialContent);
+      await gitService.writeGitExcludeFile(newContent);
+      
+      const writtenContent = await fs.readFile(gitExcludePath, 'utf8');
+      expect(writtenContent).toBe(newContent);
+      expect(writtenContent).not.toContain('*.old');
+    });
+
+    it('should create .git/info directory if it does not exist', async () => {
+      // Remove the .git/info directory
+      await fs.remove(path.dirname(gitExcludePath));
+      
+      const testContent = '# Test content\n';
+      await gitService.writeGitExcludeFile(testContent);
+      
+      expect(await fs.pathExists(gitExcludePath)).toBe(true);
+      const writtenContent = await fs.readFile(gitExcludePath, 'utf8');
+      expect(writtenContent).toBe(testContent);
+    });
+
+    it('should throw error when not in git repository', async () => {
+      jest.spyOn(gitService, 'isRepository').mockResolvedValue(false);
+      
+      await expect(gitService.writeGitExcludeFile('test')).rejects.toThrow();
+    });
+  });
+
+  describe('getPgitManagedExcludes', () => {
+    it('should return empty array when exclude file does not exist', async () => {
+      const result = await gitService.getPgitManagedExcludes();
+      expect(result).toEqual([]);
+    });
+
+    it('should return empty array when no pgit marker exists', async () => {
+      const existingContent = '# Other exclusions\n*.log\n*.tmp\n';
+      await fs.writeFile(gitExcludePath, existingContent);
+      
+      const result = await gitService.getPgitManagedExcludes();
+      expect(result).toEqual([]);
+    });
+
+    it('should return pgit-managed entries only', async () => {
+      const existingContent = '# Other exclusions\n*.log\n';
+      await fs.writeFile(gitExcludePath, existingContent);
+      
+      const testPaths = ['file1.txt', 'file2.txt'];
+      await gitService.addMultipleToGitExclude(testPaths);
+      
+      const result = await gitService.getPgitManagedExcludes();
+      expect(result).toEqual(expect.arrayContaining(testPaths));
+      expect(result).toHaveLength(2);
+    });
+
+    it('should stop at next comment section', async () => {
+      // Create exclude file with multiple sections
+      const content = [
+        '# Other exclusions',
+        '*.log',
+        '# pgit-cli managed exclusions',
+        'file1.txt',
+        'file2.txt',
+        '# Another section',
+        'other-file.txt'
+      ].join('\n');
+      
+      await fs.writeFile(gitExcludePath, content);
+      
+      const result = await gitService.getPgitManagedExcludes();
+      expect(result).toEqual(['file1.txt', 'file2.txt']);
+      expect(result).not.toContain('other-file.txt');
+    });
+
+    it('should handle empty lines in pgit section', async () => {
+      const content = [
+        '# pgit-cli managed exclusions',
+        'file1.txt',
+        '',
+        'file2.txt',
+        ''
+      ].join('\n');
+      
+      await fs.writeFile(gitExcludePath, content);
+      
+      const result = await gitService.getPgitManagedExcludes();
+      expect(result).toEqual(['file1.txt', 'file2.txt']);
+    });
+  });
+
   describe('integration tests', () => {
     it('should handle multiple files correctly', async () => {
       const files = ['file1.txt', 'file2.txt', 'file3.txt'];
@@ -256,6 +526,81 @@ describe('GitService - Exclude File Management', () => {
       }
       expect(finalContent).not.toContain(pgitEntry);
       expect(finalContent).not.toContain('# pgit-cli managed exclusions');
+    });
+
+    it('should handle batch operations efficiently', async () => {
+      const existingEntries = ['*.log', '*.tmp'];
+      const batchFiles = ['batch1.txt', 'batch2.txt', 'batch3.txt'];
+      
+      // Create exclude file with existing entries
+      const existingContent = existingEntries.join('\n') + '\n';
+      await fs.writeFile(gitExcludePath, existingContent);
+      
+      // Add batch files
+      await gitService.addMultipleToGitExclude(batchFiles);
+      
+      // Verify all entries exist
+      const content = await fs.readFile(gitExcludePath, 'utf8');
+      for (const entry of existingEntries) {
+        expect(content).toContain(entry);
+      }
+      for (const file of batchFiles) {
+        expect(content).toContain(file);
+      }
+      expect(content).toContain('# pgit-cli managed exclusions');
+      
+      // Get pgit-managed entries
+      const pgitEntries = await gitService.getPgitManagedExcludes();
+      expect(pgitEntries).toEqual(expect.arrayContaining(batchFiles));
+      expect(pgitEntries).toHaveLength(3);
+      
+      // Remove batch files
+      await gitService.removeMultipleFromGitExclude(batchFiles);
+      
+      // Verify existing entries are preserved and pgit entries are removed
+      const finalContent = await fs.readFile(gitExcludePath, 'utf8');
+      for (const entry of existingEntries) {
+        expect(finalContent).toContain(entry);
+      }
+      for (const file of batchFiles) {
+        expect(finalContent).not.toContain(file);
+      }
+      expect(finalContent).not.toContain('# pgit-cli managed exclusions');
+    });
+
+    it('should handle mixed single and batch operations', async () => {
+      const singleFile = 'single-file.txt';
+      const batchFiles = ['batch1.txt', 'batch2.txt'];
+      
+      // Add single file first
+      await gitService.addToGitExclude(singleFile);
+      
+      // Add batch files
+      await gitService.addMultipleToGitExclude(batchFiles);
+      
+      // Verify all files are present
+      expect(await gitService.isInGitExclude(singleFile)).toBe(true);
+      for (const file of batchFiles) {
+        expect(await gitService.isInGitExclude(file)).toBe(true);
+      }
+      
+      // Get all pgit-managed entries
+      const pgitEntries = await gitService.getPgitManagedExcludes();
+      expect(pgitEntries).toEqual(expect.arrayContaining([singleFile, ...batchFiles]));
+      expect(pgitEntries).toHaveLength(3);
+      
+      // Remove batch files only
+      await gitService.removeMultipleFromGitExclude(batchFiles);
+      
+      // Verify single file remains
+      expect(await gitService.isInGitExclude(singleFile)).toBe(true);
+      for (const file of batchFiles) {
+        expect(await gitService.isInGitExclude(file)).toBe(false);
+      }
+      
+      // Pgit marker should still exist since single file remains
+      const content = await fs.readFile(gitExcludePath, 'utf8');
+      expect(content).toContain('# pgit-cli managed exclusions');
     });
   });
 });
