@@ -11,20 +11,27 @@
 
 ## Testing Commands
 - **Single Test**: `npx jest src/__tests__/commands/add.command.test.ts`
+- **Single Test File**: `npx jest src/__tests__/core/config.manager.test.ts`
 - **Module Tests**: `npx jest --testPathPattern=commands`
-- **Coverage**: `npx jest --coverage --testPathPattern=add.command.test.ts`
+- **Coverage**: `npm run test:coverage` or `npx jest --coverage`
+- **Watch Mode**: `npm run test:watch`
 - **Framework**: Jest with ts-jest preset, 90% coverage threshold
 
 ## Code Style Guidelines
 - **TypeScript**: ES2020 target, CommonJS modules, strict mode enabled
-- **Imports**: External libraries first, then internal modules grouped by type
-- **Formatting**: Single quotes, semicolons, trailing commas, 100 char width, 2 space tabs
-- **Naming**: PascalCase (classes/interfaces), camelCase (variables/functions), UPPER_CASE (constants)
-- **Error Handling**: Custom error classes extending BaseError with type guards
+- **Imports**: External libs first, then internal modules (types, core, utils, errors)
+- **Formatting**: Single quotes, semicolons, trailing commas, 100 char width, 2 spaces
+- **Naming**: PascalCase (classes/interfaces), camelCase (methods/vars), UPPER_CASE (constants)
+- **Error Handling**: Custom error classes extending BaseError with readonly properties
 - **File Structure**: commands/*.command.ts, core/*.service.ts, types/*.types.ts, utils/*.utils.ts
+- **Documentation**: JSDoc comments for public methods, interfaces with descriptions
+- **Async**: Use async/await consistently, avoid Promises directly
+- **ESLint**: No console, prefer const, no var, explicit return types, no any, prefer readonly
 
 ## Key Patterns
-- Use Zod schemas for runtime validation
-- Implement command pattern with async execute() methods
-- Mock all external dependencies in tests
-- Prefer readonly properties and explicit return types
+- Use Zod schemas for runtime validation with parse() method
+- Implement command pattern with async execute() returning CommandResult
+- Mock all external dependencies in tests with jest.mock()
+- Prefer readonly properties, explicit return types, and type guards
+- Use path.join() for cross-platform path handling
+- Implement atomic operations with rollback support for multi-step processes
