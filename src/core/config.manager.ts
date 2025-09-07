@@ -170,7 +170,9 @@ export class ConfigManager {
   /**
    * Update git exclude settings
    */
-  public async updateGitExcludeSettings(newExcludeSettings: Partial<GitExcludeSettings>): Promise<PrivateConfig> {
+  public async updateGitExcludeSettings(
+    newExcludeSettings: Partial<GitExcludeSettings>,
+  ): Promise<PrivateConfig> {
     const config = await this.load();
     config.settings.gitExclude = { ...config.settings.gitExclude, ...newExcludeSettings };
     await this.save(config);

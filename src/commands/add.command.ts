@@ -89,7 +89,11 @@ export class AddCommand {
   private async createGitService(workingDir?: string): Promise<GitService> {
     try {
       const config = await this.configManager.load();
-      return new GitService(workingDir || this.workingDir, this.fileSystem, config.settings.gitExclude);
+      return new GitService(
+        workingDir || this.workingDir,
+        this.fileSystem,
+        config.settings.gitExclude,
+      );
     } catch (error) {
       // If config loading fails, use default settings
       return new GitService(workingDir || this.workingDir, this.fileSystem);
@@ -300,13 +304,11 @@ export class AddCommand {
    * @deprecated Use getEnhancedFileGitState instead
    */
   // @ts-ignore - Method kept for backward compatibility
-  private async getFileGitState(
-    relativePath: string,
-  ): Promise<LegacyGitFileState> {
+  private async getFileGitState(relativePath: string): Promise<LegacyGitFileState> {
     try {
       const gitService = await this.createGitService();
       const enhancedState = await gitService.getFileGitState(relativePath);
-      
+
       // Return legacy format for backward compatibility
       return {
         isTracked: enhancedState.isTracked,
@@ -359,24 +361,34 @@ export class AddCommand {
     // For multiple files, implement atomic batch operation with enhanced git removal
     // Performance optimization: chunk large batches to prevent memory issues and improve performance
     const OPTIMAL_BATCH_SIZE = 50; // Optimal batch size for git operations
-    
+
     if (relativePaths.length > OPTIMAL_BATCH_SIZE) {
       if (options.verbose) {
-        console.log(chalk.gray(`   Large batch detected (${relativePaths.length} files), processing in chunks for optimal performance...`));
+        console.log(
+          chalk.gray(
+            `   Large batch detected (${relativePaths.length} files), processing in chunks for optimal performance...`,
+          ),
+        );
       }
-      
+
       // Process in chunks for better performance
       const chunks = this.chunkArray(relativePaths, OPTIMAL_BATCH_SIZE);
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i];
         if (options.verbose) {
-          console.log(chalk.gray(`   Processing chunk ${i + 1}/${chunks.length} (${chunk.length} files)...`));
+          console.log(
+            chalk.gray(`   Processing chunk ${i + 1}/${chunks.length} (${chunk.length} files)...`),
+          );
         }
         await this.executeMultipleAddOperation(chunk, { ...options, verbose: false }); // Reduce verbosity for chunks
       }
-      
+
       if (options.verbose) {
-        console.log(chalk.green(`   ✓ Successfully processed all ${relativePaths.length} files in ${chunks.length} chunks`));
+        console.log(
+          chalk.green(
+            `   ✓ Successfully processed all ${relativePaths.length} files in ${chunks.length} chunks`,
+          ),
+        );
       }
       return;
     }
@@ -424,13 +436,15 @@ export class AddCommand {
 
       if (isGitRepo) {
         // Use optimized batch git removal
-        batchGitResult = await this.batchRemoveFromMainGitIndex(relativePaths, { verbose: options.verbose });
+        batchGitResult = await this.batchRemoveFromMainGitIndex(relativePaths, {
+          verbose: options.verbose,
+        });
 
         // Check for any failures in git operations
         if (batchGitResult.failed.length > 0) {
           const failedPaths = batchGitResult.failed.map(f => f.path);
           const errorMessages = batchGitResult.failed.map(f => `${f.path}: ${f.error}`).join('\n');
-          
+
           console.warn(
             chalk.yellow(
               `   Warning: Some git operations failed for ${failedPaths.length} files:\n${errorMessages}`,
@@ -441,7 +455,11 @@ export class AddCommand {
         if (batchGitResult.successful.length > 0) {
           processedPaths.push(...batchGitResult.successful);
           if (options.verbose) {
-            console.log(chalk.gray(`     Successfully processed ${batchGitResult.successful.length} files for git operations`));
+            console.log(
+              chalk.gray(
+                `     Successfully processed ${batchGitResult.successful.length} files for git operations`,
+              ),
+            );
           }
         }
 
@@ -617,8 +635,10 @@ export class AddCommand {
 
       // Step 1: Use enhanced batch git removal logic for consistency (Requirements 7.1, 7.2)
       // This ensures single file operations follow the same logic as batch operations
-      const batchGitResult = await this.batchRemoveFromMainGitIndex([relativePath], { verbose: options.verbose });
-      
+      const batchGitResult = await this.batchRemoveFromMainGitIndex([relativePath], {
+        verbose: options.verbose,
+      });
+
       // Record original exclude file content for rollback
       const gitService = await this.createGitService();
       let originalExcludeContent = '';
@@ -878,11 +898,13 @@ export class AddCommand {
 
       // Step 3: Batch add to .git/info/exclude with enhanced error handling
       if (options.verbose) {
-        console.log(chalk.gray(`     Adding ${relativePaths.length} files to .git/info/exclude...`));
+        console.log(
+          chalk.gray(`     Adding ${relativePaths.length} files to .git/info/exclude...`),
+        );
       }
 
       const excludeResult = await gitService.addMultipleToGitExclude(relativePaths);
-      
+
       // Mark successful exclude operations
       for (const successfulPath of excludeResult.successful) {
         if (!result.successful.includes(successfulPath)) {
@@ -893,7 +915,11 @@ export class AddCommand {
       // Handle exclude operation failures gracefully
       if (excludeResult.failed.length > 0) {
         if (options.verbose) {
-          console.log(chalk.gray(`     ${excludeResult.failed.length} exclude operations failed, handling gracefully...`));
+          console.log(
+            chalk.gray(
+              `     ${excludeResult.failed.length} exclude operations failed, handling gracefully...`,
+            ),
+          );
         }
 
         for (const failedExclude of excludeResult.failed) {
@@ -1031,7 +1057,9 @@ export class AddCommand {
         }
         // If originalState.isTracked is false, file was untracked - do nothing (leave it untracked)
       } catch (gitError) {
-        rollbackErrors.push(`Git index restoration failed: ${gitError instanceof Error ? gitError.message : String(gitError)}`);
+        rollbackErrors.push(
+          `Git index restoration failed: ${gitError instanceof Error ? gitError.message : String(gitError)}`,
+        );
       }
 
       // Step 2: Restore exclude file state
@@ -1045,7 +1073,10 @@ export class AddCommand {
       }
 
       // Step 3: If we have original exclude content and there were exclude errors, try full restore
-      if (rollbackErrors.some(error => error.includes('Exclude file')) && originalExcludeContent !== undefined) {
+      if (
+        rollbackErrors.some(error => error.includes('Exclude file')) &&
+        originalExcludeContent !== undefined
+      ) {
         try {
           if (originalExcludeContent.trim()) {
             await gitService.writeGitExcludeFile(originalExcludeContent);
@@ -1061,7 +1092,9 @@ export class AddCommand {
           rollbackErrors.length = 0;
           rollbackErrors.push(...nonExcludeErrors);
         } catch (fullRestoreError) {
-          rollbackErrors.push(`Full exclude file restoration failed: ${fullRestoreError instanceof Error ? fullRestoreError.message : String(fullRestoreError)}`);
+          rollbackErrors.push(
+            `Full exclude file restoration failed: ${fullRestoreError instanceof Error ? fullRestoreError.message : String(fullRestoreError)}`,
+          );
         }
       }
 
@@ -1082,8 +1115,6 @@ export class AddCommand {
       );
     }
   }
-
-
 
   /**
    * Utility method to chunk an array into smaller arrays of specified size
@@ -1148,16 +1179,20 @@ export class AddCommand {
           console.log(chalk.gray('     Restored original .git/info/exclude content'));
         }
       } catch (excludeError) {
-        rollbackErrors.push(`Exclude file restoration failed: ${excludeError instanceof Error ? excludeError.message : String(excludeError)}`);
-        
+        rollbackErrors.push(
+          `Exclude file restoration failed: ${excludeError instanceof Error ? excludeError.message : String(excludeError)}`,
+        );
+
         // If full restore failed, try individual exclude operations as fallback
         if (options.verbose) {
-          console.log(chalk.gray('     Full exclude restore failed, trying individual exclude operations...'));
+          console.log(
+            chalk.gray('     Full exclude restore failed, trying individual exclude operations...'),
+          );
         }
-        
+
         const originallyExcluded: string[] = [];
         const originallyNotExcluded: string[] = [];
-        
+
         for (const [relativePath, originalState] of originalStates) {
           if (originalState.isExcluded) {
             originallyExcluded.push(relativePath);
@@ -1165,22 +1200,26 @@ export class AddCommand {
             originallyNotExcluded.push(relativePath);
           }
         }
-        
+
         // Try to restore exclude states individually
         if (originallyExcluded.length > 0) {
           const addResult = await gitService.addMultipleToGitExclude(originallyExcluded);
           if (addResult.failed.length > 0) {
-            rollbackErrors.push(`Failed to restore ${addResult.failed.length} excluded paths: ${addResult.failed.map(f => f.path).join(', ')}`);
+            rollbackErrors.push(
+              `Failed to restore ${addResult.failed.length} excluded paths: ${addResult.failed.map(f => f.path).join(', ')}`,
+            );
           }
         }
-        
+
         if (originallyNotExcluded.length > 0) {
           const removeResult = await gitService.removeMultipleFromGitExclude(originallyNotExcluded);
           if (removeResult.failed.length > 0) {
-            rollbackErrors.push(`Failed to remove ${removeResult.failed.length} paths from exclude: ${removeResult.failed.map(f => f.path).join(', ')}`);
+            rollbackErrors.push(
+              `Failed to remove ${removeResult.failed.length} paths from exclude: ${removeResult.failed.map(f => f.path).join(', ')}`,
+            );
           }
         }
-        
+
         if (options.verbose) {
           console.log(chalk.gray('     Individual exclude operations completed'));
         }
@@ -1211,13 +1250,15 @@ export class AddCommand {
             console.log(chalk.gray(`     Restored ${filesToStage.length} files to staged state`));
           }
         } catch (stageError) {
-          rollbackErrors.push(`Batch staging failed: ${stageError instanceof Error ? stageError.message : String(stageError)}`);
-          
+          rollbackErrors.push(
+            `Batch staging failed: ${stageError instanceof Error ? stageError.message : String(stageError)}`,
+          );
+
           // If batch staging fails, try individual staging
           if (options.verbose) {
             console.log(chalk.gray('     Batch staging failed, trying individual staging...'));
           }
-          
+
           for (const relativePath of filesToStage) {
             try {
               await gitService.addFiles([relativePath]);
@@ -1243,13 +1284,15 @@ export class AddCommand {
             console.log(chalk.gray(`     Restored ${filesToTrack.length} files to tracked state`));
           }
         } catch (trackError) {
-          rollbackErrors.push(`Batch tracking failed: ${trackError instanceof Error ? trackError.message : String(trackError)}`);
-          
+          rollbackErrors.push(
+            `Batch tracking failed: ${trackError instanceof Error ? trackError.message : String(trackError)}`,
+          );
+
           // If batch tracking fails, try individual tracking
           if (options.verbose) {
             console.log(chalk.gray('     Batch tracking failed, trying individual tracking...'));
           }
-          
+
           for (const relativePath of filesToTrack) {
             try {
               await gitService.addFiles([relativePath]);
@@ -1268,7 +1311,9 @@ export class AddCommand {
       // Step 5: Mark untracked files as successful (no git index action needed)
       result.successful.push(...filesToLeaveUntracked);
       if (options.verbose && filesToLeaveUntracked.length > 0) {
-        console.log(chalk.gray(`     Left ${filesToLeaveUntracked.length} files in untracked state`));
+        console.log(
+          chalk.gray(`     Left ${filesToLeaveUntracked.length} files in untracked state`),
+        );
       }
 
       // Step 6: Log rollback warnings without failing the operation
@@ -1287,12 +1332,11 @@ export class AddCommand {
           result.successful.push(relativePath);
         }
       }
-
     } catch (error) {
       // Repository-level error, mark remaining files as failed but don't throw
       const errorMessage = `Git repository error during rollback: ${error instanceof Error ? error.message : String(error)}`;
       const processedFiles = new Set([...result.successful, ...result.failed.map(f => f.path)]);
-      
+
       for (const relativePath of originalStates.keys()) {
         if (!processedFiles.has(relativePath)) {
           result.failed.push({
@@ -1301,13 +1345,9 @@ export class AddCommand {
           });
         }
       }
-      
+
       // Log the error but don't throw to avoid masking the original error
-      console.warn(
-        chalk.yellow(
-          `   Warning: Repository-level rollback error: ${errorMessage}`,
-        ),
-      );
+      console.warn(chalk.yellow(`   Warning: Repository-level rollback error: ${errorMessage}`));
     }
 
     return result;

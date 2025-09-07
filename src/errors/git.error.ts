@@ -49,7 +49,14 @@ export class GitExcludeError extends BaseError {
   public readonly affectedPaths: string[];
   public readonly operation: 'add' | 'remove' | 'read' | 'write';
 
-  constructor(message: string, operation: 'add' | 'remove' | 'read' | 'write', affectedPaths: string[] = [], cause?: string, code = 'GIT_EXCLUDE_ERROR', recoverable = true) {
+  constructor(
+    message: string,
+    operation: 'add' | 'remove' | 'read' | 'write',
+    affectedPaths: string[] = [],
+    cause?: string,
+    code = 'GIT_EXCLUDE_ERROR',
+    recoverable = true,
+  ) {
     super(message, cause);
     this.operation = operation;
     this.affectedPaths = affectedPaths;
@@ -62,7 +69,12 @@ export class GitExcludeError extends BaseError {
  * Git exclude file access errors (permissions, file system issues)
  */
 export class GitExcludeAccessError extends GitExcludeError {
-  constructor(message: string, operation: 'add' | 'remove' | 'read' | 'write', affectedPaths: string[] = [], cause?: string) {
+  constructor(
+    message: string,
+    operation: 'add' | 'remove' | 'read' | 'write',
+    affectedPaths: string[] = [],
+    cause?: string,
+  ) {
     super(message, operation, affectedPaths, cause, 'GIT_EXCLUDE_ACCESS_ERROR', false);
   }
 }
@@ -71,7 +83,12 @@ export class GitExcludeAccessError extends GitExcludeError {
  * Git exclude file corruption errors
  */
 export class GitExcludeCorruptionError extends GitExcludeError {
-  constructor(message: string, operation: 'add' | 'remove' | 'read' | 'write', affectedPaths: string[] = [], cause?: string) {
+  constructor(
+    message: string,
+    operation: 'add' | 'remove' | 'read' | 'write',
+    affectedPaths: string[] = [],
+    cause?: string,
+  ) {
     super(message, operation, affectedPaths, cause, 'GIT_EXCLUDE_CORRUPTION_ERROR', true);
   }
 }
@@ -80,7 +97,12 @@ export class GitExcludeCorruptionError extends GitExcludeError {
  * Git exclude validation errors (invalid paths, duplicate entries)
  */
 export class GitExcludeValidationError extends GitExcludeError {
-  constructor(message: string, operation: 'add' | 'remove' | 'read' | 'write', affectedPaths: string[] = [], cause?: string) {
+  constructor(
+    message: string,
+    operation: 'add' | 'remove' | 'read' | 'write',
+    affectedPaths: string[] = [],
+    cause?: string,
+  ) {
     super(message, operation, affectedPaths, cause, 'GIT_EXCLUDE_VALIDATION_ERROR', true);
   }
 }
