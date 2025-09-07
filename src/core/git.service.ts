@@ -2,14 +2,14 @@ import { simpleGit, SimpleGit, StatusResult, LogResult } from 'simple-git';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import { FileSystemService } from './filesystem.service';
-import { 
-  RepositoryNotFoundError, 
-  GitOperationError, 
+import {
+  RepositoryNotFoundError,
+  GitOperationError,
   GitIndexError,
   GitExcludeError,
   GitExcludeAccessError,
   GitExcludeCorruptionError,
-  GitExcludeValidationError
+  GitExcludeValidationError,
 } from '../errors/git.error';
 import { GitFileState } from '../types/git.types';
 import { GitExcludeSettings, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../types/config.types';
@@ -51,11 +51,17 @@ export class GitService {
   private readonly fileSystem: FileSystemService;
   private readonly excludeSettings: GitExcludeSettings;
 
-  constructor(workingDir: string, fileSystem?: FileSystemService, excludeSettings?: GitExcludeSettings) {
+  constructor(
+    workingDir: string,
+    fileSystem?: FileSystemService,
+    excludeSettings?: GitExcludeSettings,
+  ) {
     this.workingDir = path.resolve(workingDir);
     this.git = simpleGit(this.workingDir);
     this.fileSystem = fileSystem || new FileSystemService();
-    this.excludeSettings = excludeSettings ? { ...excludeSettings } : { ...DEFAULT_GIT_EXCLUDE_SETTINGS };
+    this.excludeSettings = excludeSettings
+      ? { ...excludeSettings }
+      : { ...DEFAULT_GIT_EXCLUDE_SETTINGS };
   }
 
   /**
@@ -587,7 +593,7 @@ export class GitService {
     operation: () => Promise<T>,
     operationType: 'add' | 'remove' | 'read' | 'write',
     affectedPaths: string[] = [],
-    allowGracefulFailure = true
+    allowGracefulFailure = true,
   ): Promise<T | null> {
     try {
       return await operation();
@@ -596,41 +602,59 @@ export class GitService {
       const errorLower = errorMessage.toLowerCase();
 
       // Classify the error type
-      let excludeError: GitExcludeError | GitExcludeAccessError | GitExcludeCorruptionError | GitExcludeValidationError;
+      let excludeError:
+        | GitExcludeError
+        | GitExcludeAccessError
+        | GitExcludeCorruptionError
+        | GitExcludeValidationError;
 
-      if (errorLower.includes('permission') || errorLower.includes('access') || errorLower.includes('eacces') || errorLower.includes('eperm')) {
+      if (
+        errorLower.includes('permission') ||
+        errorLower.includes('access') ||
+        errorLower.includes('eacces') ||
+        errorLower.includes('eperm')
+      ) {
         excludeError = new GitExcludeAccessError(
           `Permission denied during ${operationType} operation on .git/info/exclude`,
           operationType,
           affectedPaths,
-          errorMessage
+          errorMessage,
         );
-      } else if (errorLower.includes('corrupt') || errorLower.includes('invalid') || errorLower.includes('malformed')) {
+      } else if (
+        errorLower.includes('corrupt') ||
+        errorLower.includes('invalid') ||
+        errorLower.includes('malformed')
+      ) {
         excludeError = new GitExcludeCorruptionError(
           `Exclude file corruption detected during ${operationType} operation`,
           operationType,
           affectedPaths,
-          errorMessage
+          errorMessage,
         );
-      } else if (errorLower.includes('path') && (errorLower.includes('invalid') || errorLower.includes('illegal'))) {
+      } else if (
+        errorLower.includes('path') &&
+        (errorLower.includes('invalid') || errorLower.includes('illegal'))
+      ) {
         excludeError = new GitExcludeValidationError(
           `Invalid path detected during ${operationType} operation`,
           operationType,
           affectedPaths,
-          errorMessage
+          errorMessage,
         );
       } else {
         excludeError = new GitExcludeError(
           `Exclude ${operationType} operation failed`,
           operationType,
           affectedPaths,
-          errorMessage
+          errorMessage,
         );
       }
 
       if (allowGracefulFailure) {
         // Log warning and return null to indicate graceful failure
-        console.warn(`Warning: ${excludeError.message}${affectedPaths.length > 0 ? ` (paths: ${affectedPaths.join(', ')})` : ''}`);
+        console.warn(
+          `Warning: ${excludeError.message}${affectedPaths.length > 0 ? ` (paths: ${affectedPaths.join(', ')})` : ''}`,
+        );
         return null;
       } else {
         throw excludeError;
@@ -657,7 +681,9 @@ export class GitService {
       try {
         await fs.access(gitInfoDir, fs.constants.R_OK | fs.constants.W_OK);
       } catch (error) {
-        issues.push(`Cannot access .git/info directory: ${error instanceof Error ? error.message : String(error)}`);
+        issues.push(
+          `Cannot access .git/info directory: ${error instanceof Error ? error.message : String(error)}`,
+        );
         return { isValid: false, issues };
       }
 
@@ -667,20 +693,23 @@ export class GitService {
           // Check file permissions
           await fs.access(gitExcludePath, fs.constants.R_OK | fs.constants.W_OK);
         } catch (error) {
-          issues.push(`Cannot access exclude file: ${error instanceof Error ? error.message : String(error)}`);
+          issues.push(
+            `Cannot access exclude file: ${error instanceof Error ? error.message : String(error)}`,
+          );
           return { isValid: false, issues };
         }
 
         // Check file size (reasonable limit to prevent abuse)
         const stats = await fs.stat(gitExcludePath);
-        if (stats.size > 1024 * 1024) { // 1MB limit
+        if (stats.size > 1024 * 1024) {
+          // 1MB limit
           issues.push('Exclude file is too large (>1MB)');
         }
 
         // Validate file content integrity
         try {
           const content = await fs.readFile(gitExcludePath, 'utf8');
-          
+
           // Check for binary content (should be text only)
           if (content.includes('\0')) {
             issues.push('Exclude file contains binary data');
@@ -695,7 +724,7 @@ export class GitService {
           // Validate each line for potential issues
           for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
-            
+
             // Skip empty lines and comments
             if (!line.trim() || line.trim().startsWith('#')) {
               continue;
@@ -707,18 +736,22 @@ export class GitService {
             }
 
             // Check for control characters
-            if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(line)) {
+            if (this.containsControlCharacters(line)) {
               issues.push(`Line ${i + 1} contains control characters`);
             }
           }
         } catch (error) {
-          issues.push(`Cannot read exclude file content: ${error instanceof Error ? error.message : String(error)}`);
+          issues.push(
+            `Cannot read exclude file content: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
       }
 
       return { isValid: issues.length === 0, issues };
     } catch (error) {
-      issues.push(`Exclude file validation failed: ${error instanceof Error ? error.message : String(error)}`);
+      issues.push(
+        `Exclude file validation failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return { isValid: false, issues };
     }
   }
@@ -726,8 +759,14 @@ export class GitService {
   /**
    * Validate exclude file paths with comprehensive safety checks
    */
-  private validateExcludePaths(paths: string[]): { valid: string[]; invalid: Array<{ path: string; reason: string }> } {
-    const result = { valid: [] as string[], invalid: [] as Array<{ path: string; reason: string }> };
+  private validateExcludePaths(paths: string[]): {
+    valid: string[];
+    invalid: Array<{ path: string; reason: string }>;
+  } {
+    const result = {
+      valid: [] as string[],
+      invalid: [] as Array<{ path: string; reason: string }>,
+    };
 
     for (const filePath of paths) {
       if (!filePath || typeof filePath !== 'string') {
@@ -737,12 +776,15 @@ export class GitService {
 
       // Check for paths with trailing spaces or dots BEFORE trimming (problematic on Windows)
       if (filePath.endsWith(' ') || filePath.endsWith('.')) {
-        result.invalid.push({ path: filePath, reason: 'Path ends with space or dot (problematic on Windows)' });
+        result.invalid.push({
+          path: filePath,
+          reason: 'Path ends with space or dot (problematic on Windows)',
+        });
         continue;
       }
 
       const trimmedPath = filePath.trim();
-      
+
       if (!trimmedPath) {
         result.invalid.push({ path: filePath, reason: 'Empty or whitespace-only path' });
         continue;
@@ -755,7 +797,7 @@ export class GitService {
       }
 
       // Check for control characters that could cause issues
-      if (/[\x00-\x1f\x7f]/.test(trimmedPath)) {
+      if (this.containsControlCharacters(trimmedPath)) {
         result.invalid.push({ path: filePath, reason: 'Path contains control characters' });
         continue;
       }
@@ -768,31 +810,61 @@ export class GitService {
 
       // Check for dangerous path patterns
       if (trimmedPath.includes('..')) {
-        result.invalid.push({ path: filePath, reason: 'Path contains directory traversal sequence (..)' });
+        result.invalid.push({
+          path: filePath,
+          reason: 'Path contains directory traversal sequence (..)',
+        });
         continue;
       }
 
       // Check for absolute paths (exclude files should use relative paths)
       if (path.isAbsolute(trimmedPath)) {
-        result.invalid.push({ path: filePath, reason: 'Absolute paths are not allowed in exclude files' });
+        result.invalid.push({
+          path: filePath,
+          reason: 'Absolute paths are not allowed in exclude files',
+        });
         continue;
       }
 
       // Check for paths that could interfere with git operations
       if (trimmedPath.startsWith('.git/')) {
-        result.invalid.push({ path: filePath, reason: 'Paths starting with .git/ are not allowed' });
+        result.invalid.push({
+          path: filePath,
+          reason: 'Paths starting with .git/ are not allowed',
+        });
         continue;
       }
 
       // Check for reserved names on Windows
       const basename = path.basename(trimmedPath).toLowerCase();
-      const windowsReserved = ['con', 'prn', 'aux', 'nul', 'com1', 'com2', 'com3', 'com4', 'com5', 'com6', 'com7', 'com8', 'com9', 'lpt1', 'lpt2', 'lpt3', 'lpt4', 'lpt5', 'lpt6', 'lpt7', 'lpt8', 'lpt9'];
+      const windowsReserved = [
+        'con',
+        'prn',
+        'aux',
+        'nul',
+        'com1',
+        'com2',
+        'com3',
+        'com4',
+        'com5',
+        'com6',
+        'com7',
+        'com8',
+        'com9',
+        'lpt1',
+        'lpt2',
+        'lpt3',
+        'lpt4',
+        'lpt5',
+        'lpt6',
+        'lpt7',
+        'lpt8',
+        'lpt9',
+      ];
       if (windowsReserved.includes(basename) || windowsReserved.includes(basename.split('.')[0])) {
         result.invalid.push({ path: filePath, reason: 'Path uses reserved Windows filename' });
         continue;
       }
-
-
 
       // Check for excessive nesting (could indicate malicious input)
       const pathDepth = trimmedPath.split('/').length;
@@ -810,30 +882,33 @@ export class GitService {
   /**
    * Check for duplicate entries and validate exclude file content safety
    */
-  private async validateExcludeFileContent(newPaths: string[]): Promise<{ 
-    duplicates: string[]; 
-    conflicts: Array<{ path: string; conflictsWith: string; reason: string }>; 
-    safeToAdd: string[] 
+  private async validateExcludeFileContent(newPaths: string[]): Promise<{
+    duplicates: string[];
+    conflicts: Array<{ path: string; conflictsWith: string; reason: string }>;
+    safeToAdd: string[];
   }> {
     const result = {
       duplicates: [] as string[],
       conflicts: [] as Array<{ path: string; conflictsWith: string; reason: string }>,
-      safeToAdd: [] as string[]
+      safeToAdd: [] as string[],
     };
 
     try {
       const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-      
+
       let existingContent = '';
       if (await fs.pathExists(gitExcludePath)) {
         existingContent = await fs.readFile(gitExcludePath, 'utf8');
       }
 
-      const existingLines = existingContent.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'));
-      
+      const existingLines = existingContent
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line && !line.startsWith('#'));
+
       for (const newPath of newPaths) {
         const trimmedPath = newPath.trim();
-        
+
         // Check for exact duplicates
         if (existingLines.includes(trimmedPath)) {
           result.duplicates.push(trimmedPath);
@@ -847,7 +922,7 @@ export class GitService {
             result.conflicts.push({
               path: trimmedPath,
               conflictsWith: conflict.pattern,
-              reason: conflict.reason
+              reason: conflict.reason,
             });
           }
           continue;
@@ -860,7 +935,7 @@ export class GitService {
             result.conflicts.push({
               path: trimmedPath,
               conflictsWith: redundancy.pattern,
-              reason: redundancy.reason
+              reason: redundancy.reason,
             });
           }
           continue;
@@ -872,11 +947,13 @@ export class GitService {
       return result;
     } catch (error) {
       // If validation fails, assume all paths are safe to add (graceful degradation)
-      console.warn(`Warning: Could not validate exclude file content: ${error instanceof Error ? error.message : String(error)}`);
+      console.warn(
+        `Warning: Could not validate exclude file content: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return {
         duplicates: [],
         conflicts: [],
-        safeToAdd: newPaths
+        safeToAdd: newPaths,
       };
     }
   }
@@ -884,7 +961,10 @@ export class GitService {
   /**
    * Find pattern conflicts between new path and existing patterns
    */
-  private findPatternConflicts(newPath: string, existingPatterns: string[]): Array<{ pattern: string; reason: string }> {
+  private findPatternConflicts(
+    newPath: string,
+    existingPatterns: string[],
+  ): Array<{ pattern: string; reason: string }> {
     const conflicts: Array<{ pattern: string; reason: string }> = [];
 
     for (const pattern of existingPatterns) {
@@ -892,7 +972,7 @@ export class GitService {
       if (this.matchesGitPattern(newPath, pattern)) {
         conflicts.push({
           pattern,
-          reason: `Path would be matched by existing pattern '${pattern}'`
+          reason: `Path would be matched by existing pattern '${pattern}'`,
         });
       }
     }
@@ -903,7 +983,10 @@ export class GitService {
   /**
    * Find redundant patterns (new pattern would make existing entries redundant)
    */
-  private findRedundantPatterns(newPattern: string, existingPatterns: string[]): Array<{ pattern: string; reason: string }> {
+  private findRedundantPatterns(
+    newPattern: string,
+    existingPatterns: string[],
+  ): Array<{ pattern: string; reason: string }> {
     const redundancies: Array<{ pattern: string; reason: string }> = [];
 
     // Only check if new pattern contains wildcards
@@ -916,7 +999,7 @@ export class GitService {
       if (this.matchesGitPattern(existing, newPattern)) {
         redundancies.push({
           pattern: existing,
-          reason: `New pattern '${newPattern}' would make existing entry '${existing}' redundant`
+          reason: `New pattern '${newPattern}' would make existing entry '${existing}' redundant`,
         });
       }
     }
@@ -930,16 +1013,16 @@ export class GitService {
   private matchesGitPattern(filePath: string, pattern: string): boolean {
     // Handle simple cases - this is a basic implementation
     // Git patterns are more complex, but this covers common scenarios
-    
+
     if (pattern === filePath) {
       return true;
     }
 
     // Convert git pattern to regex (simplified)
     let regexPattern = pattern
-      .replace(/\./g, '\\.')  // Escape dots
-      .replace(/\*/g, '.*')   // * matches any characters
-      .replace(/\?/g, '.')    // ? matches single character
+      .replace(/\./g, '\\.') // Escape dots
+      .replace(/\*/g, '.*') // * matches any characters
+      .replace(/\?/g, '.') // ? matches single character
       .replace(/\[([^\]]+)\]/g, '[$1]'); // Character classes
 
     // Add anchors
@@ -971,7 +1054,7 @@ export class GitService {
       throw new GitExcludeValidationError(
         `Invalid path for exclude operation: ${validation.invalid[0].reason}`,
         'add',
-        [relativePath]
+        [relativePath],
       );
     }
 
@@ -985,13 +1068,13 @@ export class GitService {
           throw new GitExcludeCorruptionError(
             `Exclude file integrity check failed: ${integrityCheck.issues.join(', ')}`,
             'add',
-            [normalizedPath]
+            [normalizedPath],
           );
         }
 
         // Check for duplicates and conflicts
         const contentValidation = await this.validateExcludeFileContent([normalizedPath]);
-        
+
         if (contentValidation.duplicates.length > 0) {
           // Path already exists, no need to add (not an error)
           console.log(`Path '${normalizedPath}' is already in exclude file`);
@@ -1000,53 +1083,59 @@ export class GitService {
 
         if (contentValidation.conflicts.length > 0) {
           const conflict = contentValidation.conflicts[0];
-          console.warn(`Warning: Adding '${normalizedPath}' may conflict with existing pattern '${conflict.conflictsWith}': ${conflict.reason}`);
+          console.warn(
+            `Warning: Adding '${normalizedPath}' may conflict with existing pattern '${conflict.conflictsWith}': ${conflict.reason}`,
+          );
           // Continue anyway but log the warning
         }
 
         const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-        
+
         // Ensure .git/info directory exists with proper permissions
         const gitInfoDir = path.dirname(gitExcludePath);
         await fs.ensureDir(gitInfoDir);
-        
+
         // Set directory permissions (readable/writable by owner, readable by group)
         try {
           await fs.chmod(gitInfoDir, 0o755);
         } catch (error) {
           // Permission setting might fail on some systems, continue anyway
-          console.warn(`Warning: Could not set directory permissions: ${error instanceof Error ? error.message : String(error)}`);
+          console.warn(
+            `Warning: Could not set directory permissions: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
-        
+
         // Read existing exclude file content
         let excludeContent = '';
         if (await fs.pathExists(gitExcludePath)) {
           excludeContent = await fs.readFile(gitExcludePath, 'utf8');
         }
-        
+
         // Add pgit marker comment if not present
         const pgitMarker = this.excludeSettings.markerComment;
         const lines = excludeContent.split('\n').map(line => line.trim());
-        
+
         if (!lines.includes(pgitMarker)) {
           if (excludeContent && !excludeContent.endsWith('\n')) {
             excludeContent += '\n';
           }
           excludeContent += `${pgitMarker}\n`;
         }
-        
+
         // Add the file path
         excludeContent += `${normalizedPath}\n`;
-        
+
         // Write back to exclude file with proper permissions
         await fs.writeFile(gitExcludePath, excludeContent, 'utf8');
-        
+
         // Set file permissions (readable/writable by owner, readable by group)
         try {
           await fs.chmod(gitExcludePath, 0o644);
         } catch (error) {
           // Permission setting might fail on some systems, continue anyway
-          console.warn(`Warning: Could not set file permissions: ${error instanceof Error ? error.message : String(error)}`);
+          console.warn(
+            `Warning: Could not set file permissions: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
 
         // Validate the file after writing to ensure it wasn't corrupted
@@ -1055,13 +1144,13 @@ export class GitService {
           throw new GitExcludeCorruptionError(
             `Exclude file became corrupted after write: ${postWriteCheck.issues.join(', ')}`,
             'add',
-            [normalizedPath]
+            [normalizedPath],
           );
         }
       },
       'add',
       [normalizedPath],
-      true // Allow graceful failure
+      true, // Allow graceful failure
     );
 
     // If operation failed gracefully, we don't throw but the warning was already logged
@@ -1074,10 +1163,15 @@ export class GitService {
   /**
    * Add multiple file paths to .git/info/exclude in a single operation with comprehensive error handling
    */
-  public async addMultipleToGitExclude(relativePaths: string[]): Promise<{ successful: string[]; failed: Array<{ path: string; error: string }> }> {
+  public async addMultipleToGitExclude(
+    relativePaths: string[],
+  ): Promise<{ successful: string[]; failed: Array<{ path: string; error: string }> }> {
     await this.ensureRepository();
 
-    const result = { successful: [] as string[], failed: [] as Array<{ path: string; error: string }> };
+    const result = {
+      successful: [] as string[],
+      failed: [] as Array<{ path: string; error: string }>,
+    };
 
     if (!relativePaths || relativePaths.length === 0) {
       return result; // Nothing to add
@@ -1085,7 +1179,7 @@ export class GitService {
 
     // Validate all paths
     const validation = this.validateExcludePaths(relativePaths);
-    
+
     // Add validation failures to result
     for (const invalid of validation.invalid) {
       result.failed.push({ path: invalid.path, error: invalid.reason });
@@ -1103,13 +1197,13 @@ export class GitService {
           throw new GitExcludeCorruptionError(
             `Exclude file integrity check failed: ${integrityCheck.issues.join(', ')}`,
             'add',
-            validation.valid
+            validation.valid,
           );
         }
 
         // Check for duplicates and conflicts
         const contentValidation = await this.validateExcludeFileContent(validation.valid);
-        
+
         // Log duplicates (not errors, just informational)
         if (contentValidation.duplicates.length > 0) {
           console.log(`Paths already in exclude file: ${contentValidation.duplicates.join(', ')}`);
@@ -1118,41 +1212,45 @@ export class GitService {
         // Log conflicts as warnings
         if (contentValidation.conflicts.length > 0) {
           for (const conflict of contentValidation.conflicts) {
-            console.warn(`Warning: Adding '${conflict.path}' may conflict with existing pattern '${conflict.conflictsWith}': ${conflict.reason}`);
+            console.warn(
+              `Warning: Adding '${conflict.path}' may conflict with existing pattern '${conflict.conflictsWith}': ${conflict.reason}`,
+            );
           }
         }
 
         const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-        
+
         // Ensure .git/info directory exists with proper permissions
         const gitInfoDir = path.dirname(gitExcludePath);
         await fs.ensureDir(gitInfoDir);
-        
+
         // Set directory permissions
         try {
           await fs.chmod(gitInfoDir, 0o755);
         } catch (error) {
-          console.warn(`Warning: Could not set directory permissions: ${error instanceof Error ? error.message : String(error)}`);
+          console.warn(
+            `Warning: Could not set directory permissions: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
-        
+
         // Read existing exclude file content
         let excludeContent = '';
         if (await fs.pathExists(gitExcludePath)) {
           excludeContent = await fs.readFile(gitExcludePath, 'utf8');
         }
-        
+
         // Parse existing lines
         const lines = excludeContent.split('\n').map(line => line.trim());
-        
+
         // Remove duplicates within the input array and filter out paths already in exclude file
         const uniquePaths = [...new Set(contentValidation.safeToAdd)];
         const pathsToAdd = uniquePaths.filter(path => !lines.includes(path));
-        
+
         if (pathsToAdd.length === 0) {
           // Nothing new to add, but return all valid paths (including existing ones)
           return validation.valid;
         }
-        
+
         // Add pgit marker comment if not present and we have paths to add
         const pgitMarker = '# pgit-cli managed exclusions';
         if (pathsToAdd.length > 0 && !lines.includes(pgitMarker)) {
@@ -1161,21 +1259,23 @@ export class GitService {
           }
           excludeContent += `${pgitMarker}\n`;
         }
-        
+
         // Add all new file paths
         for (const pathToAdd of pathsToAdd) {
           excludeContent += `${pathToAdd}\n`;
         }
-        
+
         // Write back to exclude file with proper permissions
         if (pathsToAdd.length > 0) {
           await fs.writeFile(gitExcludePath, excludeContent, 'utf8');
-          
+
           // Set file permissions
           try {
             await fs.chmod(gitExcludePath, 0o644);
           } catch (error) {
-            console.warn(`Warning: Could not set file permissions: ${error instanceof Error ? error.message : String(error)}`);
+            console.warn(
+              `Warning: Could not set file permissions: ${error instanceof Error ? error.message : String(error)}`,
+            );
           }
 
           // Validate the file after writing
@@ -1184,16 +1284,16 @@ export class GitService {
             throw new GitExcludeCorruptionError(
               `Exclude file became corrupted after write: ${postWriteCheck.issues.join(', ')}`,
               'add',
-              validation.valid
+              validation.valid,
             );
           }
         }
-        
+
         return validation.valid;
       },
       'add',
       validation.valid,
-      true // Allow graceful failure
+      true, // Allow graceful failure
     );
 
     if (operationResult === null) {
@@ -1212,10 +1312,15 @@ export class GitService {
   /**
    * Remove multiple file paths from .git/info/exclude in a single operation with comprehensive error handling
    */
-  public async removeMultipleFromGitExclude(relativePaths: string[]): Promise<{ successful: string[]; failed: Array<{ path: string; error: string }> }> {
+  public async removeMultipleFromGitExclude(
+    relativePaths: string[],
+  ): Promise<{ successful: string[]; failed: Array<{ path: string; error: string }> }> {
     await this.ensureRepository();
 
-    const result = { successful: [] as string[], failed: [] as Array<{ path: string; error: string }> };
+    const result = {
+      successful: [] as string[],
+      failed: [] as Array<{ path: string; error: string }>,
+    };
 
     if (!relativePaths || relativePaths.length === 0) {
       return result; // Nothing to remove
@@ -1223,7 +1328,7 @@ export class GitService {
 
     // Validate all paths
     const validation = this.validateExcludePaths(relativePaths);
-    
+
     // Add validation failures to result
     for (const invalid of validation.invalid) {
       result.failed.push({ path: invalid.path, error: invalid.reason });
@@ -1236,46 +1341,46 @@ export class GitService {
     const operationResult = await this.executeExcludeOperation(
       async () => {
         const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-        
+
         if (!(await fs.pathExists(gitExcludePath))) {
           // Nothing to remove if exclude file doesn't exist, but mark as successful
           return validation.valid;
         }
-        
+
         // Read existing exclude file content
         const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
         const lines = excludeContent.split('\n');
-        
+
         // Filter out all specified paths while preserving other entries
         const filteredLines = lines.filter(line => !validation.valid.includes(line.trim()));
-        
+
         // Check if any changes were made
         if (filteredLines.length === lines.length) {
           // No paths were found in exclude file, but mark as successful
           return validation.valid;
         }
-        
+
         // Clean up empty pgit marker sections if no pgit-managed entries remain
         const pgitMarker = '# pgit-cli managed exclusions';
         const pgitMarkerIndex = filteredLines.findIndex(line => line.trim() === pgitMarker);
-        
+
         if (pgitMarkerIndex !== -1) {
           // Check if there are any non-comment, non-empty lines after the marker
           const hasEntriesAfterMarker = filteredLines
             .slice(pgitMarkerIndex + 1)
             .some(line => line.trim() && !line.trim().startsWith('#'));
-          
+
           if (!hasEntriesAfterMarker) {
             // Remove the marker and any empty lines that follow
             filteredLines.splice(pgitMarkerIndex, 1);
-            
+
             // Remove trailing empty lines
             while (filteredLines.length > 0 && !filteredLines[filteredLines.length - 1].trim()) {
               filteredLines.pop();
             }
           }
         }
-        
+
         // Write back to exclude file
         const newContent = filteredLines.join('\n');
         if (newContent.trim()) {
@@ -1284,18 +1389,21 @@ export class GitService {
           // If file would be empty, remove it entirely
           await fs.remove(gitExcludePath);
         }
-        
+
         return validation.valid;
       },
       'remove',
       validation.valid,
-      true // Allow graceful failure
+      true, // Allow graceful failure
     );
 
     if (operationResult === null) {
       // Operation failed gracefully, mark all valid paths as failed
       for (const path of validation.valid) {
-        result.failed.push({ path, error: 'Exclude removal operation failed but was handled gracefully' });
+        result.failed.push({
+          path,
+          error: 'Exclude removal operation failed but was handled gracefully',
+        });
       }
     } else {
       // Operation succeeded
@@ -1314,16 +1422,16 @@ export class GitService {
     const result = await this.executeExcludeOperation(
       async () => {
         const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-        
+
         if (!(await fs.pathExists(gitExcludePath))) {
           return '';
         }
-        
+
         return await fs.readFile(gitExcludePath, 'utf8');
       },
       'read',
       [],
-      false // Don't allow graceful failure for read operations
+      false, // Don't allow graceful failure for read operations
     );
 
     return result || '';
@@ -1342,16 +1450,17 @@ export class GitService {
           throw new GitExcludeValidationError(
             'Exclude file content contains binary data (null characters)',
             'write',
-            []
+            [],
           );
         }
 
         // Check content size (reasonable limit)
-        if (content.length > 1024 * 1024) { // 1MB limit
+        if (content.length > 1024 * 1024) {
+          // 1MB limit
           throw new GitExcludeValidationError(
             'Exclude file content is too large (>1MB)',
             'write',
-            []
+            [],
           );
         }
 
@@ -1361,14 +1470,14 @@ export class GitService {
           throw new GitExcludeValidationError(
             'Exclude file content has too many lines (>10000)',
             'write',
-            []
+            [],
           );
         }
 
         // Validate each line
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i];
-          
+
           // Skip empty lines and comments
           if (!line.trim() || line.trim().startsWith('#')) {
             continue;
@@ -1379,41 +1488,45 @@ export class GitService {
             throw new GitExcludeValidationError(
               `Line ${i + 1} is too long (>4096 characters)`,
               'write',
-              []
+              [],
             );
           }
 
           // Check for control characters
-          if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(line)) {
+          if (this.containsControlCharacters(line)) {
             throw new GitExcludeValidationError(
               `Line ${i + 1} contains control characters`,
               'write',
-              []
+              [],
             );
           }
         }
 
         const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-        
+
         // Ensure .git/info directory exists with proper permissions
         const gitInfoDir = path.dirname(gitExcludePath);
         await fs.ensureDir(gitInfoDir);
-        
+
         // Set directory permissions
         try {
           await fs.chmod(gitInfoDir, 0o755);
         } catch (error) {
-          console.warn(`Warning: Could not set directory permissions: ${error instanceof Error ? error.message : String(error)}`);
+          console.warn(
+            `Warning: Could not set directory permissions: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
-        
+
         // Write content to exclude file
         await fs.writeFile(gitExcludePath, content, 'utf8');
-        
+
         // Set proper file permissions
         try {
           await fs.chmod(gitExcludePath, 0o644);
         } catch (error) {
-          console.warn(`Warning: Could not set file permissions: ${error instanceof Error ? error.message : String(error)}`);
+          console.warn(
+            `Warning: Could not set file permissions: ${error instanceof Error ? error.message : String(error)}`,
+          );
         }
 
         // Validate the file after writing to ensure it wasn't corrupted
@@ -1422,13 +1535,13 @@ export class GitService {
           throw new GitExcludeCorruptionError(
             `Exclude file became corrupted after write: ${postWriteCheck.issues.join(', ')}`,
             'write',
-            []
+            [],
           );
         }
       },
       'write',
       [],
-      true // Allow graceful failure
+      true, // Allow graceful failure
     );
 
     // If operation failed gracefully, we don't throw but the warning was already logged
@@ -1446,23 +1559,23 @@ export class GitService {
 
     try {
       const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-      
+
       if (!(await fs.pathExists(gitExcludePath))) {
         return [];
       }
-      
+
       // Read exclude file content
       const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
       const lines = excludeContent.split('\n');
-      
+
       // Find pgit marker
       const pgitMarker = '# pgit-cli managed exclusions';
       const pgitMarkerIndex = lines.findIndex(line => line.trim() === pgitMarker);
-      
+
       if (pgitMarkerIndex === -1) {
         return []; // No pgit-managed entries
       }
-      
+
       // Extract entries after the marker until next comment or end of file
       const pgitEntries: string[] = [];
       for (let i = pgitMarkerIndex + 1; i < lines.length; i++) {
@@ -1475,7 +1588,7 @@ export class GitService {
         }
         pgitEntries.push(line);
       }
-      
+
       return pgitEntries;
     } catch (error) {
       throw new GitOperationError(
@@ -1502,7 +1615,7 @@ export class GitService {
       throw new GitExcludeValidationError(
         `Invalid path for exclude removal: ${validation.invalid[0].reason}`,
         'remove',
-        [relativePath]
+        [relativePath],
       );
     }
 
@@ -1511,7 +1624,7 @@ export class GitService {
     const result = await this.executeExcludeOperation(
       async () => {
         const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-        
+
         if (!(await fs.pathExists(gitExcludePath))) {
           // Nothing to remove if exclude file doesn't exist
           return;
@@ -1523,55 +1636,57 @@ export class GitService {
           throw new GitExcludeCorruptionError(
             `Exclude file integrity check failed: ${integrityCheck.issues.join(', ')}`,
             'remove',
-            [normalizedPath]
+            [normalizedPath],
           );
         }
-        
+
         // Read existing exclude file content
         const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
         const lines = excludeContent.split('\n');
-        
+
         // Filter out the specific path while preserving other entries
         const filteredLines = lines.filter(line => line.trim() !== normalizedPath);
-        
+
         // Check if any changes were made
         if (filteredLines.length === lines.length) {
           // Path was not found in exclude file
           console.log(`Path '${normalizedPath}' was not found in exclude file`);
           return;
         }
-        
+
         // Clean up empty pgit marker sections if no pgit-managed entries remain
         const pgitMarker = '# pgit-cli managed exclusions';
         const pgitMarkerIndex = filteredLines.findIndex(line => line.trim() === pgitMarker);
-        
+
         if (pgitMarkerIndex !== -1) {
           // Check if there are any non-comment, non-empty lines after the marker
           const hasEntriesAfterMarker = filteredLines
             .slice(pgitMarkerIndex + 1)
             .some(line => line.trim() && !line.trim().startsWith('#'));
-          
+
           if (!hasEntriesAfterMarker) {
             // Remove the marker and any empty lines that follow
             filteredLines.splice(pgitMarkerIndex, 1);
-            
+
             // Remove trailing empty lines
             while (filteredLines.length > 0 && !filteredLines[filteredLines.length - 1].trim()) {
               filteredLines.pop();
             }
           }
         }
-        
+
         // Write back to exclude file or remove it if empty
         const newContent = filteredLines.join('\n');
         if (newContent.trim()) {
           await fs.writeFile(gitExcludePath, newContent + '\n', 'utf8');
-          
+
           // Set proper file permissions
           try {
             await fs.chmod(gitExcludePath, 0o644);
           } catch (error) {
-            console.warn(`Warning: Could not set file permissions: ${error instanceof Error ? error.message : String(error)}`);
+            console.warn(
+              `Warning: Could not set file permissions: ${error instanceof Error ? error.message : String(error)}`,
+            );
           }
 
           // Validate the file after writing
@@ -1580,7 +1695,7 @@ export class GitService {
             throw new GitExcludeCorruptionError(
               `Exclude file became corrupted after write: ${postWriteCheck.issues.join(', ')}`,
               'remove',
-              [normalizedPath]
+              [normalizedPath],
             );
           }
         } else {
@@ -1590,7 +1705,7 @@ export class GitService {
       },
       'remove',
       [normalizedPath],
-      true // Allow graceful failure
+      true, // Allow graceful failure
     );
 
     // If operation failed gracefully, we don't throw but the warning was already logged
@@ -1614,7 +1729,9 @@ export class GitService {
     const validation = this.validateExcludePaths([relativePath]);
     if (validation.invalid.length > 0) {
       // For check operations, return false for invalid paths instead of throwing
-      console.warn(`Warning: Invalid path for exclude check: ${validation.invalid[0].reason} (path: ${relativePath})`);
+      console.warn(
+        `Warning: Invalid path for exclude check: ${validation.invalid[0].reason} (path: ${relativePath})`,
+      );
       return false;
     }
 
@@ -1623,21 +1740,21 @@ export class GitService {
     const result = await this.executeExcludeOperation(
       async () => {
         const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-        
+
         if (!(await fs.pathExists(gitExcludePath))) {
           return false;
         }
-        
+
         // Read exclude file content
         const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
         const lines = excludeContent.split('\n').map(line => line.trim());
-        
+
         // Check if the path exists in the exclude file
         return lines.includes(normalizedPath);
       },
       'read',
       [normalizedPath],
-      true // Allow graceful failure
+      true, // Allow graceful failure
     );
 
     // If operation failed gracefully, return false (assume not excluded)
@@ -1679,7 +1796,7 @@ export class GitService {
       if (!fileStatus) {
         // File not in git status - could be untracked, clean tracked, or excluded
         const isTracked = await this.isTracked(normalizedPath);
-        
+
         return {
           isTracked,
           isStaged: false,
@@ -1786,14 +1903,12 @@ export class GitService {
    */
   private handleDisabledExcludeOperation(operation: 'add' | 'remove', relativePath: string): void {
     const message = `Git exclude operation '${operation}' for '${relativePath}' skipped (exclude management disabled)`;
-    
+
     switch (this.excludeSettings.fallbackBehavior) {
       case 'error':
-        throw new GitExcludeError(
-          `Exclude operations are disabled: ${message}`,
-          operation,
-          [relativePath]
-        );
+        throw new GitExcludeError(`Exclude operations are disabled: ${message}`, operation, [
+          relativePath,
+        ]);
       case 'warn':
         console.warn(`Warning: ${message}`);
         break;
@@ -1816,7 +1931,29 @@ export class GitService {
   /**
    * Create git service with configuration
    */
-  public static createWithConfig(workingDir: string, excludeSettings: GitExcludeSettings): GitService {
+  public static createWithConfig(
+    workingDir: string,
+    excludeSettings: GitExcludeSettings,
+  ): GitService {
     return new GitService(workingDir, undefined, excludeSettings);
+  }
+
+  /**
+   * Check if a string contains control characters
+   */
+  private containsControlCharacters(str: string): boolean {
+    for (let i = 0; i < str.length; i++) {
+      const charCode = str.charCodeAt(i);
+      // Control characters: 0x00-0x1F and 0x7F-0x9F (except tab, LF, CR)
+      if (
+        (charCode >= 0x00 && charCode <= 0x08) ||
+        (charCode >= 0x0b && charCode <= 0x0c) ||
+        (charCode >= 0x0e && charCode <= 0x1f) ||
+        (charCode >= 0x7f && charCode <= 0x9f)
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 }

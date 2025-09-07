@@ -134,6 +134,12 @@ describe('AddCommand', () => {
         verboseOutput: false,
         createBackups: true,
         maxBackups: 5,
+        gitExclude: {
+          enabled: true,
+          markerComment: '# pgit-cli managed exclusions',
+          fallbackBehavior: 'warn' as const,
+          validateOperations: true,
+        },
       },
       metadata: {
         projectName: 'test-project',
@@ -177,9 +183,15 @@ describe('AddCommand', () => {
 
     // Mock new exclude-related methods
     mockGitServiceInstance.addToGitExclude.mockResolvedValue(undefined);
-    mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue({ successful: [], failed: [] });
+    mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue({
+      successful: [],
+      failed: [],
+    });
     mockGitServiceInstance.removeFromGitExclude.mockResolvedValue(undefined);
-    mockGitServiceInstance.removeMultipleFromGitExclude.mockResolvedValue({ successful: [], failed: [] });
+    mockGitServiceInstance.removeMultipleFromGitExclude.mockResolvedValue({
+      successful: [],
+      failed: [],
+    });
     mockGitServiceInstance.readGitExcludeFile.mockResolvedValue('');
     mockGitServiceInstance.writeGitExcludeFile.mockResolvedValue(undefined);
     mockGitServiceInstance.isInGitExclude.mockResolvedValue(false);
@@ -486,7 +498,7 @@ describe('AddCommand', () => {
       mockConfigManager.addTrackedPath.mockResolvedValue({} as PrivateConfig);
       mockGitServiceInstance.addFiles.mockResolvedValue(undefined);
       mockGitServiceInstance.commit.mockResolvedValue('single-commit');
-      
+
       // Mock the enhanced git methods that should be used
       mockGitServiceInstance.recordOriginalState.mockResolvedValue({
         isTracked: true,
@@ -499,18 +511,26 @@ describe('AddCommand', () => {
       });
       mockGitServiceInstance.readGitExcludeFile.mockResolvedValue('');
       mockGitServiceInstance.removeFromIndex.mockResolvedValue(undefined);
-      mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue({ successful: ['single-file.txt'], failed: [] });
+      mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue({
+        successful: ['single-file.txt'],
+        failed: [],
+      });
 
       const result = await addCommand.execute('single-file.txt', { verbose: true });
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Successfully added single-file.txt');
-      
+
       // Verify that enhanced git methods were used (same as batch operations)
       expect(mockGitServiceInstance.recordOriginalState).toHaveBeenCalledWith('single-file.txt');
       expect(mockGitServiceInstance.readGitExcludeFile).toHaveBeenCalled();
-      expect(mockGitServiceInstance.removeFromIndex).toHaveBeenCalledWith(['single-file.txt'], true);
-      expect(mockGitServiceInstance.addMultipleToGitExclude).toHaveBeenCalledWith(['single-file.txt']);
+      expect(mockGitServiceInstance.removeFromIndex).toHaveBeenCalledWith(
+        ['single-file.txt'],
+        true,
+      );
+      expect(mockGitServiceInstance.addMultipleToGitExclude).toHaveBeenCalledWith([
+        'single-file.txt',
+      ]);
     });
 
     it('should handle git operation failures consistently between single and batch operations', async () => {
@@ -539,10 +559,10 @@ describe('AddCommand', () => {
 
       try {
         await addCommand.execute('test-file.txt', { verbose: true });
-        
+
         // Should continue with operation despite git failure (graceful degradation)
         expect(consoleSpy).toHaveBeenCalledWith(
-          expect.stringContaining('Warning: Git operation failed')
+          expect.stringContaining('Warning: Git operation failed'),
         );
       } finally {
         consoleSpy.mockRestore();
@@ -570,7 +590,10 @@ describe('AddCommand', () => {
       mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as PrivateConfig);
       mockGitServiceInstance.addFilesAndCommit.mockResolvedValue('def456');
       mockGitServiceInstance.removeFromIndex.mockResolvedValue(undefined);
-      mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue({ successful: ['file1.txt', 'file2.txt', 'file3.txt'], failed: [] });
+      mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue({
+        successful: ['file1.txt', 'file2.txt', 'file3.txt'],
+        failed: [],
+      });
 
       const result = await addCommand.execute(['file1.txt', 'file2.txt', 'file3.txt'], {
         verbose: true,
@@ -578,7 +601,7 @@ describe('AddCommand', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Successfully added 3 files');
-      
+
       // Verify batch git operations were called
       expect(mockGitServiceInstance.addMultipleToGitExclude).toHaveBeenCalledWith([
         'file1.txt',
@@ -613,19 +636,19 @@ describe('AddCommand', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Successfully added 75 files');
-      
+
       // Verify that chunking was used (multiple calls to addMultipleTrackedPaths)
       expect(mockConfigManager.addMultipleTrackedPaths).toHaveBeenCalledTimes(2); // 75 files in 2 chunks of 50 and 25
     });
 
     it('should have batch rollback functionality', async () => {
       const addCommandInstance = addCommand as any;
-      
+
       // Test that batch rollback methods exist
       expect(typeof addCommandInstance.batchRemoveFromMainGitIndex).toBe('function');
       expect(typeof addCommandInstance.batchRestoreToEnhancedGitState).toBe('function');
       expect(typeof addCommandInstance.chunkArray).toBe('function');
-      
+
       // Test chunkArray utility
       const testArray = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       const chunks = addCommandInstance.chunkArray(testArray, 3);

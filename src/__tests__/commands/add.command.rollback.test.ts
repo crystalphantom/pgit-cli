@@ -13,19 +13,18 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
   let tempDir: string;
   let privateStorageDir: string;
 
-
   beforeEach(async () => {
     // Create temporary directory for testing
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pgit-rollback-test-'));
     privateStorageDir = path.join(tempDir, '.private');
-    
+
     // Initialize git repository structure
     await fs.ensureDir(path.join(tempDir, '.git', 'info'));
     await fs.ensureDir(privateStorageDir);
-    
+
     // Create AddCommand instance
     addCommand = new AddCommand(tempDir);
-    
+
     // Mock GitService constructor to return our mocked instance
     jest.spyOn(GitService.prototype, 'isRepository').mockResolvedValue(true);
     jest.spyOn(GitService.prototype, 'addFiles').mockResolvedValue();
@@ -34,9 +33,13 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
     jest.spyOn(GitService.prototype, 'removeFromGitExclude').mockResolvedValue();
     jest.spyOn(GitService.prototype, 'writeGitExcludeFile').mockResolvedValue();
     jest.spyOn(GitService.prototype, 'readGitExcludeFile').mockResolvedValue('');
-    jest.spyOn(GitService.prototype, 'addMultipleToGitExclude').mockResolvedValue({ successful: [], failed: [] });
-    jest.spyOn(GitService.prototype, 'removeMultipleFromGitExclude').mockResolvedValue({ successful: [], failed: [] });
-    
+    jest
+      .spyOn(GitService.prototype, 'addMultipleToGitExclude')
+      .mockResolvedValue({ successful: [], failed: [] });
+    jest
+      .spyOn(GitService.prototype, 'removeMultipleFromGitExclude')
+      .mockResolvedValue({ successful: [], failed: [] });
+
     // Mock ConfigManager methods
     const mockConfig = {
       version: '1.1.0',
@@ -50,6 +53,12 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
         verboseOutput: false,
         createBackups: true,
         maxBackups: 5,
+        gitExclude: {
+          enabled: true,
+          markerComment: '# pgit-cli managed exclusions',
+          fallbackBehavior: 'warn' as const,
+          validateOperations: true,
+        },
       },
       metadata: {
         projectName: 'test-project',
@@ -65,7 +74,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
     jest.spyOn(ConfigManager.prototype, 'removeTrackedPath').mockResolvedValue(mockConfig);
     jest.spyOn(ConfigManager.prototype, 'addMultipleTrackedPaths').mockResolvedValue(mockConfig);
     jest.spyOn(ConfigManager.prototype, 'removeMultipleTrackedPaths').mockResolvedValue(mockConfig);
-    
+
     // Mock SymlinkService methods
     jest.spyOn(SymlinkService, 'supportsSymlinks').mockResolvedValue(true);
     jest.spyOn(SymlinkService.prototype, 'create').mockResolvedValue();
@@ -174,17 +183,19 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
 
       // Mock GitService methods to throw errors
       jest.spyOn(GitService.prototype, 'addFiles').mockRejectedValue(new Error('Git add failed'));
-      jest.spyOn(GitService.prototype, 'removeFromGitExclude').mockRejectedValue(new Error('Exclude remove failed'));
+      jest
+        .spyOn(GitService.prototype, 'removeFromGitExclude')
+        .mockRejectedValue(new Error('Exclude remove failed'));
 
       // Mock console.warn to capture warnings
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
       // Access private method for testing
       const restoreMethod = (addCommand as any).restoreToEnhancedGitState.bind(addCommand);
-      
+
       // Should not throw despite errors
       await expect(restoreMethod(testFile, originalState)).resolves.not.toThrow();
-      
+
       // Should log warnings
       expect(consoleWarnSpy).toHaveBeenCalled();
       expect(consoleWarnSpy.mock.calls[0][0]).toContain('Warning:');
@@ -204,7 +215,9 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
       };
 
       // Mock GitService methods - the new implementation handles errors gracefully
-      const removeFromGitExcludeSpy = jest.spyOn(GitService.prototype, 'removeFromGitExclude').mockResolvedValue(undefined);
+      const removeFromGitExcludeSpy = jest
+        .spyOn(GitService.prototype, 'removeFromGitExclude')
+        .mockResolvedValue(undefined);
 
       // Access private method for testing
       const restoreMethod = (addCommand as any).restoreToEnhancedGitState.bind(addCommand);
@@ -227,7 +240,9 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
       };
 
       // Mock GitService methods - the new implementation handles errors gracefully
-      const removeFromGitExcludeSpy = jest.spyOn(GitService.prototype, 'removeFromGitExclude').mockResolvedValue(undefined);
+      const removeFromGitExcludeSpy = jest
+        .spyOn(GitService.prototype, 'removeFromGitExclude')
+        .mockResolvedValue(undefined);
 
       // Access private method for testing
       const restoreMethod = (addCommand as any).restoreToEnhancedGitState.bind(addCommand);
@@ -241,7 +256,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
     it('should restore multiple files with different git states', async () => {
       const testFiles = ['file1.txt', 'file2.txt', 'file3.txt'];
       const originalStates = new Map<string, GitFileState>();
-      
+
       // Create test files with different states
       originalStates.set('file1.txt', {
         isTracked: true,
@@ -252,7 +267,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
         originalPath: 'file1.txt',
         timestamp: new Date(),
       });
-      
+
       originalStates.set('file2.txt', {
         isTracked: true,
         isStaged: false,
@@ -262,7 +277,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
         originalPath: 'file2.txt',
         timestamp: new Date(),
       });
-      
+
       originalStates.set('file3.txt', {
         isTracked: false,
         isStaged: false,
@@ -281,14 +296,18 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
       const removeFromIndexSpy = jest.spyOn(GitService.prototype, 'removeFromIndex');
 
       // Access private method for testing
-      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(addCommand);
-      const result = await batchRestoreMethod(originalStates, originalExcludeContent, { verbose: true });
+      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(
+        addCommand,
+      );
+      const result = await batchRestoreMethod(originalStates, originalExcludeContent, {
+        verbose: true,
+      });
 
       expect(writeGitExcludeFileSpy).toHaveBeenCalledWith(originalExcludeContent);
       expect(addFilesSpy).toHaveBeenCalledWith(['file1.txt']); // Staged files
       expect(addFilesSpy).toHaveBeenCalledWith(['file2.txt']); // Tracked files (first add)
       expect(removeFromIndexSpy).toHaveBeenCalledWith(['file2.txt'], true); // Tracked files (then unstage)
-      
+
       expect(result.successful).toEqual(expect.arrayContaining(testFiles));
       expect(result.failed).toHaveLength(0);
     });
@@ -296,7 +315,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
     it('should handle batch operation failures gracefully', async () => {
       const testFiles = ['file1.txt', 'file2.txt'];
       const originalStates = new Map<string, GitFileState>();
-      
+
       originalStates.set('file1.txt', {
         isTracked: true,
         isStaged: true,
@@ -306,7 +325,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
         originalPath: 'file1.txt',
         timestamp: new Date(),
       });
-      
+
       originalStates.set('file2.txt', {
         isTracked: true,
         isStaged: true,
@@ -321,13 +340,18 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
 
       // Mock GitService methods to fail batch operations
       jest.spyOn(GitService.prototype, 'writeGitExcludeFile').mockResolvedValue();
-      jest.spyOn(GitService.prototype, 'addFiles')
+      jest
+        .spyOn(GitService.prototype, 'addFiles')
         .mockRejectedValueOnce(new Error('Batch add failed'))
         .mockResolvedValue(); // Individual calls succeed
 
       // Access private method for testing
-      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(addCommand);
-      const result = await batchRestoreMethod(originalStates, originalExcludeContent, { verbose: true });
+      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(
+        addCommand,
+      );
+      const result = await batchRestoreMethod(originalStates, originalExcludeContent, {
+        verbose: true,
+      });
 
       expect(result.successful).toEqual(expect.arrayContaining(testFiles));
       expect(result.failed).toHaveLength(0);
@@ -336,7 +360,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
     it('should handle exclude file restoration failure with individual fallback', async () => {
       const testFiles = ['file1.txt', 'file2.txt'];
       const originalStates = new Map<string, GitFileState>();
-      
+
       originalStates.set('file1.txt', {
         isTracked: false,
         isStaged: false,
@@ -346,7 +370,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
         originalPath: 'file1.txt',
         timestamp: new Date(),
       });
-      
+
       originalStates.set('file2.txt', {
         isTracked: false,
         isStaged: false,
@@ -360,13 +384,25 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
       const originalExcludeContent = '# Original content\nfile1.txt\n';
 
       // Mock GitService methods
-      jest.spyOn(GitService.prototype, 'writeGitExcludeFile').mockRejectedValue(new Error('Write failed'));
-      const addMultipleToGitExcludeSpy = jest.spyOn(GitService.prototype, 'addMultipleToGitExclude');
-      const removeMultipleFromGitExcludeSpy = jest.spyOn(GitService.prototype, 'removeMultipleFromGitExclude');
+      jest
+        .spyOn(GitService.prototype, 'writeGitExcludeFile')
+        .mockRejectedValue(new Error('Write failed'));
+      const addMultipleToGitExcludeSpy = jest.spyOn(
+        GitService.prototype,
+        'addMultipleToGitExclude',
+      );
+      const removeMultipleFromGitExcludeSpy = jest.spyOn(
+        GitService.prototype,
+        'removeMultipleFromGitExclude',
+      );
 
       // Access private method for testing
-      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(addCommand);
-      const result = await batchRestoreMethod(originalStates, originalExcludeContent, { verbose: true });
+      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(
+        addCommand,
+      );
+      const result = await batchRestoreMethod(originalStates, originalExcludeContent, {
+        verbose: true,
+      });
 
       expect(addMultipleToGitExcludeSpy).toHaveBeenCalledWith(['file1.txt']);
       expect(removeMultipleFromGitExcludeSpy).toHaveBeenCalledWith(['file2.txt']);
@@ -376,7 +412,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
     it('should handle non-git repository gracefully', async () => {
       const testFiles = ['file1.txt'];
       const originalStates = new Map<string, GitFileState>();
-      
+
       originalStates.set('file1.txt', {
         isTracked: true,
         isStaged: true,
@@ -391,7 +427,9 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
       jest.spyOn(GitService.prototype, 'isRepository').mockResolvedValue(false);
 
       // Access private method for testing
-      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(addCommand);
+      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(
+        addCommand,
+      );
       const result = await batchRestoreMethod(originalStates, '', { verbose: true });
 
       expect(result.successful).toEqual(testFiles);
@@ -400,7 +438,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
 
     it('should handle repository-level errors without throwing', async () => {
       const originalStates = new Map<string, GitFileState>();
-      
+
       originalStates.set('file1.txt', {
         isTracked: true,
         isStaged: true,
@@ -412,13 +450,17 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
       });
 
       // Mock GitService constructor to throw
-      jest.spyOn(GitService.prototype, 'isRepository').mockRejectedValue(new Error('Repository error'));
+      jest
+        .spyOn(GitService.prototype, 'isRepository')
+        .mockRejectedValue(new Error('Repository error'));
 
       // Mock console.warn to capture warnings
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
       // Access private method for testing
-      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(addCommand);
+      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(
+        addCommand,
+      );
       const result = await batchRestoreMethod(originalStates, '', { verbose: true });
 
       expect(result.failed).toHaveLength(1);
@@ -430,7 +472,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
     it('should ensure all files are accounted for in results', async () => {
       const testFiles = ['file1.txt', 'file2.txt', 'file3.txt'];
       const originalStates = new Map<string, GitFileState>();
-      
+
       for (const file of testFiles) {
         originalStates.set(file, {
           isTracked: false,
@@ -447,7 +489,9 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
       jest.spyOn(GitService.prototype, 'writeGitExcludeFile').mockResolvedValue();
 
       // Access private method for testing
-      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(addCommand);
+      const batchRestoreMethod = (addCommand as any).batchRestoreToEnhancedGitState.bind(
+        addCommand,
+      );
       const result = await batchRestoreMethod(originalStates, '', { verbose: false });
 
       const allProcessedFiles = [...result.successful, ...result.failed.map((f: any) => f.path)];

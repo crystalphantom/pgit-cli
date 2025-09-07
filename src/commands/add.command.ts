@@ -451,7 +451,7 @@ export class AddCommand {
             const rollbackResult = await this.batchRestoreToEnhancedGitState(
               batchGitResult.originalStates,
               originalExcludeFileContent,
-              { verbose: options.verbose }
+              { verbose: options.verbose },
             );
 
             if (rollbackResult.failed.length > 0) {
@@ -642,7 +642,7 @@ export class AddCommand {
           const rollbackResult = await this.batchRestoreToEnhancedGitState(
             batchGitResult.originalStates,
             originalExcludeContent,
-            { verbose: options.verbose }
+            { verbose: options.verbose },
           );
 
           if (rollbackResult.failed.length > 0) {
