@@ -745,16 +745,8 @@ export class AddCommand {
         }
 
         // Add to .git/info/exclude to prevent future git add operations
-        try {
-          await gitService.addToGitExclude(relativePath);
-        } catch (excludeError) {
-          // Log warning but continue - exclude operation failure shouldn't break pgit add
-          console.warn(
-            chalk.yellow(
-              `   Warning: Could not add ${relativePath} to .git/info/exclude: ${excludeError instanceof Error ? excludeError.message : String(excludeError)}`,
-            ),
-          );
-        }
+        // The new addToGitExclude method handles errors gracefully and logs warnings internally
+        await gitService.addToGitExclude(relativePath);
       }
     } catch (error) {
       // If repository check fails, log warning but continue
@@ -847,46 +839,40 @@ export class AddCommand {
         }
       }
 
-      // Step 3: Batch add to .git/info/exclude
+      // Step 3: Batch add to .git/info/exclude with enhanced error handling
       if (options.verbose) {
         console.log(chalk.gray(`     Adding ${relativePaths.length} files to .git/info/exclude...`));
       }
 
-      try {
-        await gitService.addMultipleToGitExclude(relativePaths);
-        // Mark all paths as successful for exclude operation
-        for (const relativePath of relativePaths) {
-          if (!result.successful.includes(relativePath)) {
-            result.successful.push(relativePath);
-          }
+      const excludeResult = await gitService.addMultipleToGitExclude(relativePaths);
+      
+      // Mark successful exclude operations
+      for (const successfulPath of excludeResult.successful) {
+        if (!result.successful.includes(successfulPath)) {
+          result.successful.push(successfulPath);
         }
-      } catch (excludeError) {
-        // If batch exclude fails, try individual excludes
+      }
+
+      // Handle exclude operation failures gracefully
+      if (excludeResult.failed.length > 0) {
         if (options.verbose) {
-          console.log(chalk.gray('     Batch exclude failed, trying individual excludes...'));
+          console.log(chalk.gray(`     ${excludeResult.failed.length} exclude operations failed, handling gracefully...`));
         }
 
-        for (const relativePath of relativePaths) {
-          try {
-            await gitService.addToGitExclude(relativePath);
-            if (!result.successful.includes(relativePath)) {
-              result.successful.push(relativePath);
-            }
-          } catch (individualError) {
-            // Only add to failed if not already successful from git removal
-            if (!result.successful.includes(relativePath)) {
-              result.failed.push({
-                path: relativePath,
-                error: `Failed to add to .git/info/exclude: ${individualError instanceof Error ? individualError.message : String(individualError)}`,
-              });
-            } else {
-              // Log warning but don't fail since git removal succeeded
-              console.warn(
-                chalk.yellow(
-                  `   Warning: Could not add ${relativePath} to .git/info/exclude: ${individualError instanceof Error ? individualError.message : String(individualError)}`,
-                ),
-              );
-            }
+        for (const failedExclude of excludeResult.failed) {
+          // Only add to failed if not already successful from git removal
+          if (!result.successful.includes(failedExclude.path)) {
+            result.failed.push({
+              path: failedExclude.path,
+              error: `Failed to add to .git/info/exclude: ${failedExclude.error}`,
+            });
+          } else {
+            // Log warning but don't fail since git removal succeeded
+            console.warn(
+              chalk.yellow(
+                `   Warning: Could not add ${failedExclude.path} to .git/info/exclude: ${failedExclude.error}`,
+              ),
+            );
           }
         }
       }
@@ -1010,16 +996,13 @@ export class AddCommand {
       }
 
       // Step 2: Restore exclude file state
-      try {
-        if (originalState.isExcluded) {
-          // File was originally excluded, ensure it's back in exclude file
-          await gitService.addToGitExclude(relativePath);
-        } else {
-          // File was not originally excluded, remove it from exclude file
-          await gitService.removeFromGitExclude(relativePath);
-        }
-      } catch (excludeError) {
-        rollbackErrors.push(`Exclude file restoration failed: ${excludeError instanceof Error ? excludeError.message : String(excludeError)}`);
+      // The new exclude methods handle errors gracefully and log warnings internally
+      if (originalState.isExcluded) {
+        // File was originally excluded, ensure it's back in exclude file
+        await gitService.addToGitExclude(relativePath);
+      } else {
+        // File was not originally excluded, remove it from exclude file
+        await gitService.removeFromGitExclude(relativePath);
       }
 
       // Step 3: If we have original exclude content and there were exclude errors, try full restore
@@ -1145,18 +1128,22 @@ export class AddCommand {
         }
         
         // Try to restore exclude states individually
-        try {
-          if (originallyExcluded.length > 0) {
-            await gitService.addMultipleToGitExclude(originallyExcluded);
+        if (originallyExcluded.length > 0) {
+          const addResult = await gitService.addMultipleToGitExclude(originallyExcluded);
+          if (addResult.failed.length > 0) {
+            rollbackErrors.push(`Failed to restore ${addResult.failed.length} excluded paths: ${addResult.failed.map(f => f.path).join(', ')}`);
           }
-          if (originallyNotExcluded.length > 0) {
-            await gitService.removeMultipleFromGitExclude(originallyNotExcluded);
+        }
+        
+        if (originallyNotExcluded.length > 0) {
+          const removeResult = await gitService.removeMultipleFromGitExclude(originallyNotExcluded);
+          if (removeResult.failed.length > 0) {
+            rollbackErrors.push(`Failed to remove ${removeResult.failed.length} paths from exclude: ${removeResult.failed.map(f => f.path).join(', ')}`);
           }
-          if (options.verbose) {
-            console.log(chalk.gray('     Individual exclude operations completed'));
-          }
-        } catch (individualExcludeError) {
-          rollbackErrors.push(`Individual exclude operations failed: ${individualExcludeError instanceof Error ? individualExcludeError.message : String(individualExcludeError)}`);
+        }
+        
+        if (options.verbose) {
+          console.log(chalk.gray('     Individual exclude operations completed'));
         }
       }
 

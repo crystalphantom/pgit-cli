@@ -2,7 +2,15 @@ import { simpleGit, SimpleGit, StatusResult, LogResult } from 'simple-git';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import { FileSystemService } from './filesystem.service';
-import { RepositoryNotFoundError, GitOperationError, GitIndexError } from '../errors/git.error';
+import { 
+  RepositoryNotFoundError, 
+  GitOperationError, 
+  GitIndexError,
+  GitExcludeError,
+  GitExcludeAccessError,
+  GitExcludeCorruptionError,
+  GitExcludeValidationError
+} from '../errors/git.error';
 import { GitFileState } from '../types/git.types';
 
 /**
@@ -570,244 +578,395 @@ export class GitService {
   }
 
   /**
-   * Add file path to .git/info/exclude
+   * Execute exclude operation with comprehensive error handling
+   */
+  private async executeExcludeOperation<T>(
+    operation: () => Promise<T>,
+    operationType: 'add' | 'remove' | 'read' | 'write',
+    affectedPaths: string[] = [],
+    allowGracefulFailure = true
+  ): Promise<T | null> {
+    try {
+      return await operation();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorLower = errorMessage.toLowerCase();
+
+      // Classify the error type
+      let excludeError: GitExcludeError | GitExcludeAccessError | GitExcludeCorruptionError | GitExcludeValidationError;
+
+      if (errorLower.includes('permission') || errorLower.includes('access') || errorLower.includes('eacces') || errorLower.includes('eperm')) {
+        excludeError = new GitExcludeAccessError(
+          `Permission denied during ${operationType} operation on .git/info/exclude`,
+          operationType,
+          affectedPaths,
+          errorMessage
+        );
+      } else if (errorLower.includes('corrupt') || errorLower.includes('invalid') || errorLower.includes('malformed')) {
+        excludeError = new GitExcludeCorruptionError(
+          `Exclude file corruption detected during ${operationType} operation`,
+          operationType,
+          affectedPaths,
+          errorMessage
+        );
+      } else if (errorLower.includes('path') && (errorLower.includes('invalid') || errorLower.includes('illegal'))) {
+        excludeError = new GitExcludeValidationError(
+          `Invalid path detected during ${operationType} operation`,
+          operationType,
+          affectedPaths,
+          errorMessage
+        );
+      } else {
+        excludeError = new GitExcludeError(
+          `Exclude ${operationType} operation failed`,
+          operationType,
+          affectedPaths,
+          errorMessage
+        );
+      }
+
+      if (allowGracefulFailure) {
+        // Log warning and return null to indicate graceful failure
+        console.warn(`Warning: ${excludeError.message}${affectedPaths.length > 0 ? ` (paths: ${affectedPaths.join(', ')})` : ''}`);
+        return null;
+      } else {
+        throw excludeError;
+      }
+    }
+  }
+
+  /**
+   * Validate exclude file paths
+   */
+  private validateExcludePaths(paths: string[]): { valid: string[]; invalid: Array<{ path: string; reason: string }> } {
+    const result = { valid: [] as string[], invalid: [] as Array<{ path: string; reason: string }> };
+
+    for (const path of paths) {
+      const trimmedPath = path?.trim();
+      
+      if (!trimmedPath) {
+        result.invalid.push({ path, reason: 'Empty or whitespace-only path' });
+        continue;
+      }
+
+      // Check for potentially problematic characters
+      if (trimmedPath.includes('\0')) {
+        result.invalid.push({ path, reason: 'Path contains null character' });
+        continue;
+      }
+
+      // Check path length (reasonable limit)
+      if (trimmedPath.length > 4096) {
+        result.invalid.push({ path, reason: 'Path too long (>4096 characters)' });
+        continue;
+      }
+
+      result.valid.push(trimmedPath);
+    }
+
+    return result;
+  }
+
+  /**
+   * Add file path to .git/info/exclude with comprehensive error handling
    */
   public async addToGitExclude(relativePath: string): Promise<void> {
     await this.ensureRepository();
 
-    if (!relativePath || !relativePath.trim()) {
-      throw new GitOperationError('File path cannot be empty');
-    }
-
-    try {
-      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-      
-      // Ensure .git/info directory exists
-      const gitInfoDir = path.dirname(gitExcludePath);
-      await fs.ensureDir(gitInfoDir);
-      
-      // Read existing exclude file content
-      let excludeContent = '';
-      if (await fs.pathExists(gitExcludePath)) {
-        excludeContent = await fs.readFile(gitExcludePath, 'utf8');
-      }
-      
-      // Check if path is already excluded to prevent duplicates
-      const lines = excludeContent.split('\n').map(line => line.trim());
-      const normalizedPath = relativePath.trim();
-      
-      if (lines.includes(normalizedPath)) {
-        // Path already exists, no need to add
-        return;
-      }
-      
-      // Add pgit marker comment if not present
-      const pgitMarker = '# pgit-cli managed exclusions';
-      if (!lines.includes(pgitMarker)) {
-        if (excludeContent && !excludeContent.endsWith('\n')) {
-          excludeContent += '\n';
-        }
-        excludeContent += `${pgitMarker}\n`;
-      }
-      
-      // Add the file path
-      excludeContent += `${normalizedPath}\n`;
-      
-      // Write back to exclude file
-      await fs.writeFile(gitExcludePath, excludeContent, 'utf8');
-    } catch (error) {
-      throw new GitOperationError(
-        `Failed to add ${relativePath} to .git/info/exclude`,
-        error instanceof Error ? error.message : String(error),
+    // Validate input
+    const validation = this.validateExcludePaths([relativePath]);
+    if (validation.invalid.length > 0) {
+      throw new GitExcludeValidationError(
+        `Invalid path for exclude operation: ${validation.invalid[0].reason}`,
+        'add',
+        [relativePath]
       );
     }
-  }
 
-  /**
-   * Add multiple file paths to .git/info/exclude in a single operation
-   */
-  public async addMultipleToGitExclude(relativePaths: string[]): Promise<void> {
-    await this.ensureRepository();
+    const normalizedPath = validation.valid[0];
 
-    if (!relativePaths || relativePaths.length === 0) {
-      return; // Nothing to add
-    }
-
-    // Validate all paths
-    for (const relativePath of relativePaths) {
-      if (!relativePath || !relativePath.trim()) {
-        throw new GitOperationError('File path cannot be empty');
-      }
-    }
-
-    try {
-      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-      
-      // Ensure .git/info directory exists
-      const gitInfoDir = path.dirname(gitExcludePath);
-      await fs.ensureDir(gitInfoDir);
-      
-      // Read existing exclude file content
-      let excludeContent = '';
-      if (await fs.pathExists(gitExcludePath)) {
-        excludeContent = await fs.readFile(gitExcludePath, 'utf8');
-      }
-      
-      // Parse existing lines
-      const lines = excludeContent.split('\n').map(line => line.trim());
-      const normalizedPaths = relativePaths.map(path => path.trim());
-      
-      // Remove duplicates within the input array and filter out paths already in exclude file
-      const uniquePaths = [...new Set(normalizedPaths)];
-      const pathsToAdd = uniquePaths.filter(path => !lines.includes(path));
-      
-      if (pathsToAdd.length === 0) {
-        // All paths already exist, no need to modify file
-        return;
-      }
-      
-      // Add pgit marker comment if not present
-      const pgitMarker = '# pgit-cli managed exclusions';
-      if (!lines.includes(pgitMarker)) {
-        if (excludeContent && !excludeContent.endsWith('\n')) {
-          excludeContent += '\n';
-        }
-        excludeContent += `${pgitMarker}\n`;
-      }
-      
-      // Add all new file paths
-      for (const pathToAdd of pathsToAdd) {
-        excludeContent += `${pathToAdd}\n`;
-      }
-      
-      // Write back to exclude file
-      await fs.writeFile(gitExcludePath, excludeContent, 'utf8');
-    } catch (error) {
-      throw new GitOperationError(
-        `Failed to add multiple paths to .git/info/exclude: ${relativePaths.join(', ')}`,
-        error instanceof Error ? error.message : String(error),
-      );
-    }
-  }
-
-  /**
-   * Remove multiple file paths from .git/info/exclude in a single operation
-   */
-  public async removeMultipleFromGitExclude(relativePaths: string[]): Promise<void> {
-    await this.ensureRepository();
-
-    if (!relativePaths || relativePaths.length === 0) {
-      return; // Nothing to remove
-    }
-
-    // Validate all paths
-    for (const relativePath of relativePaths) {
-      if (!relativePath || !relativePath.trim()) {
-        throw new GitOperationError('File path cannot be empty');
-      }
-    }
-
-    try {
-      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-      
-      if (!(await fs.pathExists(gitExcludePath))) {
-        // Nothing to remove if exclude file doesn't exist
-        return;
-      }
-      
-      // Read existing exclude file content
-      const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
-      const lines = excludeContent.split('\n');
-      const normalizedPaths = relativePaths.map(path => path.trim());
-      
-      // Filter out all specified paths while preserving other entries
-      const filteredLines = lines.filter(line => !normalizedPaths.includes(line.trim()));
-      
-      // Check if any changes were made
-      if (filteredLines.length === lines.length) {
-        // No paths were found in exclude file
-        return;
-      }
-      
-      // Clean up empty pgit marker sections if no pgit-managed entries remain
-      const pgitMarker = '# pgit-cli managed exclusions';
-      const pgitMarkerIndex = filteredLines.findIndex(line => line.trim() === pgitMarker);
-      
-      if (pgitMarkerIndex !== -1) {
-        // Check if there are any non-comment, non-empty lines after the marker
-        const hasEntriesAfterMarker = filteredLines
-          .slice(pgitMarkerIndex + 1)
-          .some(line => line.trim() && !line.trim().startsWith('#'));
+    const result = await this.executeExcludeOperation(
+      async () => {
+        const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
         
-        if (!hasEntriesAfterMarker) {
-          // Remove the marker and any empty lines that follow
-          filteredLines.splice(pgitMarkerIndex, 1);
+        // Ensure .git/info directory exists
+        const gitInfoDir = path.dirname(gitExcludePath);
+        await fs.ensureDir(gitInfoDir);
+        
+        // Read existing exclude file content
+        let excludeContent = '';
+        if (await fs.pathExists(gitExcludePath)) {
+          excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+        }
+        
+        // Check if path is already excluded to prevent duplicates
+        const lines = excludeContent.split('\n').map(line => line.trim());
+        
+        if (lines.includes(normalizedPath)) {
+          // Path already exists, no need to add
+          return;
+        }
+        
+        // Add pgit marker comment if not present
+        const pgitMarker = '# pgit-cli managed exclusions';
+        if (!lines.includes(pgitMarker)) {
+          if (excludeContent && !excludeContent.endsWith('\n')) {
+            excludeContent += '\n';
+          }
+          excludeContent += `${pgitMarker}\n`;
+        }
+        
+        // Add the file path
+        excludeContent += `${normalizedPath}\n`;
+        
+        // Write back to exclude file
+        await fs.writeFile(gitExcludePath, excludeContent, 'utf8');
+      },
+      'add',
+      [normalizedPath],
+      true // Allow graceful failure
+    );
+
+    // If operation failed gracefully, we don't throw but the warning was already logged
+    if (result === null) {
+      // Operation failed but was handled gracefully
+      return;
+    }
+  }
+
+  /**
+   * Add multiple file paths to .git/info/exclude in a single operation with comprehensive error handling
+   */
+  public async addMultipleToGitExclude(relativePaths: string[]): Promise<{ successful: string[]; failed: Array<{ path: string; error: string }> }> {
+    await this.ensureRepository();
+
+    const result = { successful: [] as string[], failed: [] as Array<{ path: string; error: string }> };
+
+    if (!relativePaths || relativePaths.length === 0) {
+      return result; // Nothing to add
+    }
+
+    // Validate all paths
+    const validation = this.validateExcludePaths(relativePaths);
+    
+    // Add validation failures to result
+    for (const invalid of validation.invalid) {
+      result.failed.push({ path: invalid.path, error: invalid.reason });
+    }
+
+    if (validation.valid.length === 0) {
+      return result; // No valid paths to process
+    }
+
+    const operationResult = await this.executeExcludeOperation(
+      async () => {
+        const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+        
+        // Ensure .git/info directory exists
+        const gitInfoDir = path.dirname(gitExcludePath);
+        await fs.ensureDir(gitInfoDir);
+        
+        // Read existing exclude file content
+        let excludeContent = '';
+        if (await fs.pathExists(gitExcludePath)) {
+          excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+        }
+        
+        // Parse existing lines
+        const lines = excludeContent.split('\n').map(line => line.trim());
+        
+        // Remove duplicates within the input array and filter out paths already in exclude file
+        const uniquePaths = [...new Set(validation.valid)];
+        const pathsToAdd = uniquePaths.filter(path => !lines.includes(path));
+        
+        if (pathsToAdd.length === 0) {
+          // All paths already exist, mark as successful
+          return validation.valid;
+        }
+        
+        // Add pgit marker comment if not present
+        const pgitMarker = '# pgit-cli managed exclusions';
+        if (!lines.includes(pgitMarker)) {
+          if (excludeContent && !excludeContent.endsWith('\n')) {
+            excludeContent += '\n';
+          }
+          excludeContent += `${pgitMarker}\n`;
+        }
+        
+        // Add all new file paths
+        for (const pathToAdd of pathsToAdd) {
+          excludeContent += `${pathToAdd}\n`;
+        }
+        
+        // Write back to exclude file
+        await fs.writeFile(gitExcludePath, excludeContent, 'utf8');
+        
+        return validation.valid;
+      },
+      'add',
+      validation.valid,
+      true // Allow graceful failure
+    );
+
+    if (operationResult === null) {
+      // Operation failed gracefully, mark all valid paths as failed
+      for (const path of validation.valid) {
+        result.failed.push({ path, error: 'Exclude operation failed but was handled gracefully' });
+      }
+    } else {
+      // Operation succeeded
+      result.successful.push(...operationResult);
+    }
+
+    return result;
+  }
+
+  /**
+   * Remove multiple file paths from .git/info/exclude in a single operation with comprehensive error handling
+   */
+  public async removeMultipleFromGitExclude(relativePaths: string[]): Promise<{ successful: string[]; failed: Array<{ path: string; error: string }> }> {
+    await this.ensureRepository();
+
+    const result = { successful: [] as string[], failed: [] as Array<{ path: string; error: string }> };
+
+    if (!relativePaths || relativePaths.length === 0) {
+      return result; // Nothing to remove
+    }
+
+    // Validate all paths
+    const validation = this.validateExcludePaths(relativePaths);
+    
+    // Add validation failures to result
+    for (const invalid of validation.invalid) {
+      result.failed.push({ path: invalid.path, error: invalid.reason });
+    }
+
+    if (validation.valid.length === 0) {
+      return result; // No valid paths to process
+    }
+
+    const operationResult = await this.executeExcludeOperation(
+      async () => {
+        const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+        
+        if (!(await fs.pathExists(gitExcludePath))) {
+          // Nothing to remove if exclude file doesn't exist, but mark as successful
+          return validation.valid;
+        }
+        
+        // Read existing exclude file content
+        const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+        const lines = excludeContent.split('\n');
+        
+        // Filter out all specified paths while preserving other entries
+        const filteredLines = lines.filter(line => !validation.valid.includes(line.trim()));
+        
+        // Check if any changes were made
+        if (filteredLines.length === lines.length) {
+          // No paths were found in exclude file, but mark as successful
+          return validation.valid;
+        }
+        
+        // Clean up empty pgit marker sections if no pgit-managed entries remain
+        const pgitMarker = '# pgit-cli managed exclusions';
+        const pgitMarkerIndex = filteredLines.findIndex(line => line.trim() === pgitMarker);
+        
+        if (pgitMarkerIndex !== -1) {
+          // Check if there are any non-comment, non-empty lines after the marker
+          const hasEntriesAfterMarker = filteredLines
+            .slice(pgitMarkerIndex + 1)
+            .some(line => line.trim() && !line.trim().startsWith('#'));
           
-          // Remove trailing empty lines
-          while (filteredLines.length > 0 && !filteredLines[filteredLines.length - 1].trim()) {
-            filteredLines.pop();
+          if (!hasEntriesAfterMarker) {
+            // Remove the marker and any empty lines that follow
+            filteredLines.splice(pgitMarkerIndex, 1);
+            
+            // Remove trailing empty lines
+            while (filteredLines.length > 0 && !filteredLines[filteredLines.length - 1].trim()) {
+              filteredLines.pop();
+            }
           }
         }
+        
+        // Write back to exclude file
+        const newContent = filteredLines.join('\n');
+        if (newContent.trim()) {
+          await fs.writeFile(gitExcludePath, newContent + '\n', 'utf8');
+        } else {
+          // If file would be empty, remove it entirely
+          await fs.remove(gitExcludePath);
+        }
+        
+        return validation.valid;
+      },
+      'remove',
+      validation.valid,
+      true // Allow graceful failure
+    );
+
+    if (operationResult === null) {
+      // Operation failed gracefully, mark all valid paths as failed
+      for (const path of validation.valid) {
+        result.failed.push({ path, error: 'Exclude removal operation failed but was handled gracefully' });
       }
-      
-      // Write back to exclude file
-      const newContent = filteredLines.join('\n');
-      if (newContent.trim()) {
-        await fs.writeFile(gitExcludePath, newContent + '\n', 'utf8');
-      } else {
-        // If file would be empty, remove it entirely
-        await fs.remove(gitExcludePath);
-      }
-    } catch (error) {
-      throw new GitOperationError(
-        `Failed to remove multiple paths from .git/info/exclude: ${relativePaths.join(', ')}`,
-        error instanceof Error ? error.message : String(error),
-      );
+    } else {
+      // Operation succeeded
+      result.successful.push(...operationResult);
     }
+
+    return result;
   }
 
   /**
-   * Read the entire .git/info/exclude file content
+   * Read the entire .git/info/exclude file content with comprehensive error handling
    */
   public async readGitExcludeFile(): Promise<string> {
     await this.ensureRepository();
 
-    try {
-      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-      
-      if (!(await fs.pathExists(gitExcludePath))) {
-        return '';
-      }
-      
-      return await fs.readFile(gitExcludePath, 'utf8');
-    } catch (error) {
-      throw new GitOperationError(
-        'Failed to read .git/info/exclude file',
-        error instanceof Error ? error.message : String(error),
-      );
-    }
+    const result = await this.executeExcludeOperation(
+      async () => {
+        const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+        
+        if (!(await fs.pathExists(gitExcludePath))) {
+          return '';
+        }
+        
+        return await fs.readFile(gitExcludePath, 'utf8');
+      },
+      'read',
+      [],
+      false // Don't allow graceful failure for read operations
+    );
+
+    return result || '';
   }
 
   /**
-   * Write content to .git/info/exclude file with proper permissions
+   * Write content to .git/info/exclude file with proper permissions and comprehensive error handling
    */
   public async writeGitExcludeFile(content: string): Promise<void> {
     await this.ensureRepository();
 
-    try {
-      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-      
-      // Ensure .git/info directory exists
-      const gitInfoDir = path.dirname(gitExcludePath);
-      await fs.ensureDir(gitInfoDir);
-      
-      // Write content to exclude file
-      await fs.writeFile(gitExcludePath, content, 'utf8');
-    } catch (error) {
-      throw new GitOperationError(
-        'Failed to write .git/info/exclude file',
-        error instanceof Error ? error.message : String(error),
-      );
+    const result = await this.executeExcludeOperation(
+      async () => {
+        const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+        
+        // Ensure .git/info directory exists
+        const gitInfoDir = path.dirname(gitExcludePath);
+        await fs.ensureDir(gitInfoDir);
+        
+        // Write content to exclude file
+        await fs.writeFile(gitExcludePath, content, 'utf8');
+      },
+      'write',
+      [],
+      true // Allow graceful failure
+    );
+
+    // If operation failed gracefully, we don't throw but the warning was already logged
+    if (result === null) {
+      // Operation failed but was handled gracefully
+      return;
     }
   }
 
@@ -859,76 +1018,89 @@ export class GitService {
   }
 
   /**
-   * Remove file path from .git/info/exclude
+   * Remove file path from .git/info/exclude with comprehensive error handling
    */
   public async removeFromGitExclude(relativePath: string): Promise<void> {
     await this.ensureRepository();
 
-    if (!relativePath || !relativePath.trim()) {
-      throw new GitOperationError('File path cannot be empty');
+    // Validate input
+    const validation = this.validateExcludePaths([relativePath]);
+    if (validation.invalid.length > 0) {
+      throw new GitExcludeValidationError(
+        `Invalid path for exclude removal: ${validation.invalid[0].reason}`,
+        'remove',
+        [relativePath]
+      );
     }
 
-    try {
-      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-      
-      if (!(await fs.pathExists(gitExcludePath))) {
-        // Nothing to remove if exclude file doesn't exist
-        return;
-      }
-      
-      // Read existing exclude file content
-      const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
-      const lines = excludeContent.split('\n');
-      const normalizedPath = relativePath.trim();
-      
-      // Filter out the specific path while preserving other entries
-      const filteredLines = lines.filter(line => line.trim() !== normalizedPath);
-      
-      // Check if any changes were made
-      if (filteredLines.length === lines.length) {
-        // Path was not found in exclude file
-        return;
-      }
-      
-      // Clean up empty pgit marker sections if no pgit-managed entries remain
-      const pgitMarker = '# pgit-cli managed exclusions';
-      const pgitMarkerIndex = filteredLines.findIndex(line => line.trim() === pgitMarker);
-      
-      if (pgitMarkerIndex !== -1) {
-        // Check if there are any non-comment, non-empty lines after the marker
-        const hasEntriesAfterMarker = filteredLines
-          .slice(pgitMarkerIndex + 1)
-          .some(line => line.trim() && !line.trim().startsWith('#'));
+    const normalizedPath = validation.valid[0];
+
+    const result = await this.executeExcludeOperation(
+      async () => {
+        const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
         
-        if (!hasEntriesAfterMarker) {
-          // Remove the marker and any empty lines that follow
-          filteredLines.splice(pgitMarkerIndex, 1);
+        if (!(await fs.pathExists(gitExcludePath))) {
+          // Nothing to remove if exclude file doesn't exist
+          return;
+        }
+        
+        // Read existing exclude file content
+        const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+        const lines = excludeContent.split('\n');
+        
+        // Filter out the specific path while preserving other entries
+        const filteredLines = lines.filter(line => line.trim() !== normalizedPath);
+        
+        // Check if any changes were made
+        if (filteredLines.length === lines.length) {
+          // Path was not found in exclude file
+          return;
+        }
+        
+        // Clean up empty pgit marker sections if no pgit-managed entries remain
+        const pgitMarker = '# pgit-cli managed exclusions';
+        const pgitMarkerIndex = filteredLines.findIndex(line => line.trim() === pgitMarker);
+        
+        if (pgitMarkerIndex !== -1) {
+          // Check if there are any non-comment, non-empty lines after the marker
+          const hasEntriesAfterMarker = filteredLines
+            .slice(pgitMarkerIndex + 1)
+            .some(line => line.trim() && !line.trim().startsWith('#'));
           
-          // Remove trailing empty lines
-          while (filteredLines.length > 0 && !filteredLines[filteredLines.length - 1].trim()) {
-            filteredLines.pop();
+          if (!hasEntriesAfterMarker) {
+            // Remove the marker and any empty lines that follow
+            filteredLines.splice(pgitMarkerIndex, 1);
+            
+            // Remove trailing empty lines
+            while (filteredLines.length > 0 && !filteredLines[filteredLines.length - 1].trim()) {
+              filteredLines.pop();
+            }
           }
         }
-      }
-      
-      // Write back to exclude file
-      const newContent = filteredLines.join('\n');
-      if (newContent.trim()) {
-        await fs.writeFile(gitExcludePath, newContent + '\n', 'utf8');
-      } else {
-        // If file would be empty, remove it entirely
-        await fs.remove(gitExcludePath);
-      }
-    } catch (error) {
-      throw new GitOperationError(
-        `Failed to remove ${relativePath} from .git/info/exclude`,
-        error instanceof Error ? error.message : String(error),
-      );
+        
+        // Write back to exclude file
+        const newContent = filteredLines.join('\n');
+        if (newContent.trim()) {
+          await fs.writeFile(gitExcludePath, newContent + '\n', 'utf8');
+        } else {
+          // If file would be empty, remove it entirely
+          await fs.remove(gitExcludePath);
+        }
+      },
+      'remove',
+      [normalizedPath],
+      true // Allow graceful failure
+    );
+
+    // If operation failed gracefully, we don't throw but the warning was already logged
+    if (result === null) {
+      // Operation failed but was handled gracefully
+      return;
     }
   }
 
   /**
-   * Check if file path is in .git/info/exclude
+   * Check if file path is in .git/info/exclude with comprehensive error handling
    */
   public async isInGitExclude(relativePath: string): Promise<boolean> {
     await this.ensureRepository();
@@ -937,26 +1109,38 @@ export class GitService {
       return false;
     }
 
-    try {
-      const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
-      
-      if (!(await fs.pathExists(gitExcludePath))) {
-        return false;
-      }
-      
-      // Read exclude file content
-      const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
-      const lines = excludeContent.split('\n').map(line => line.trim());
-      const normalizedPath = relativePath.trim();
-      
-      // Check if the path exists in the exclude file
-      return lines.includes(normalizedPath);
-    } catch (error) {
-      throw new GitOperationError(
-        `Failed to check if ${relativePath} is in .git/info/exclude`,
-        error instanceof Error ? error.message : String(error),
-      );
+    // Validate input
+    const validation = this.validateExcludePaths([relativePath]);
+    if (validation.invalid.length > 0) {
+      // For check operations, return false for invalid paths instead of throwing
+      console.warn(`Warning: Invalid path for exclude check: ${validation.invalid[0].reason} (path: ${relativePath})`);
+      return false;
     }
+
+    const normalizedPath = validation.valid[0];
+
+    const result = await this.executeExcludeOperation(
+      async () => {
+        const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+        
+        if (!(await fs.pathExists(gitExcludePath))) {
+          return false;
+        }
+        
+        // Read exclude file content
+        const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+        const lines = excludeContent.split('\n').map(line => line.trim());
+        
+        // Check if the path exists in the exclude file
+        return lines.includes(normalizedPath);
+      },
+      'read',
+      [normalizedPath],
+      true // Allow graceful failure
+    );
+
+    // If operation failed gracefully, return false (assume not excluded)
+    return result || false;
   }
 
   /**

@@ -39,3 +39,48 @@ export class GitIndexError extends BaseError {
   public readonly code = 'GIT_INDEX_ERROR';
   public readonly recoverable = true;
 }
+
+/**
+ * Git exclude file operation errors
+ */
+export class GitExcludeError extends BaseError {
+  public readonly code: string;
+  public readonly recoverable: boolean;
+  public readonly affectedPaths: string[];
+  public readonly operation: 'add' | 'remove' | 'read' | 'write';
+
+  constructor(message: string, operation: 'add' | 'remove' | 'read' | 'write', affectedPaths: string[] = [], cause?: string, code = 'GIT_EXCLUDE_ERROR', recoverable = true) {
+    super(message, cause);
+    this.operation = operation;
+    this.affectedPaths = affectedPaths;
+    this.code = code;
+    this.recoverable = recoverable;
+  }
+}
+
+/**
+ * Git exclude file access errors (permissions, file system issues)
+ */
+export class GitExcludeAccessError extends GitExcludeError {
+  constructor(message: string, operation: 'add' | 'remove' | 'read' | 'write', affectedPaths: string[] = [], cause?: string) {
+    super(message, operation, affectedPaths, cause, 'GIT_EXCLUDE_ACCESS_ERROR', false);
+  }
+}
+
+/**
+ * Git exclude file corruption errors
+ */
+export class GitExcludeCorruptionError extends GitExcludeError {
+  constructor(message: string, operation: 'add' | 'remove' | 'read' | 'write', affectedPaths: string[] = [], cause?: string) {
+    super(message, operation, affectedPaths, cause, 'GIT_EXCLUDE_CORRUPTION_ERROR', true);
+  }
+}
+
+/**
+ * Git exclude validation errors (invalid paths, duplicate entries)
+ */
+export class GitExcludeValidationError extends GitExcludeError {
+  constructor(message: string, operation: 'add' | 'remove' | 'read' | 'write', affectedPaths: string[] = [], cause?: string) {
+    super(message, operation, affectedPaths, cause, 'GIT_EXCLUDE_VALIDATION_ERROR', true);
+  }
+}

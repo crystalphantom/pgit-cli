@@ -175,9 +175,9 @@ describe('AddCommand', () => {
 
     // Mock new exclude-related methods
     mockGitServiceInstance.addToGitExclude.mockResolvedValue(undefined);
-    mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue(undefined);
+    mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue({ successful: [], failed: [] });
     mockGitServiceInstance.removeFromGitExclude.mockResolvedValue(undefined);
-    mockGitServiceInstance.removeMultipleFromGitExclude.mockResolvedValue(undefined);
+    mockGitServiceInstance.removeMultipleFromGitExclude.mockResolvedValue({ successful: [], failed: [] });
     mockGitServiceInstance.readGitExcludeFile.mockResolvedValue('');
     mockGitServiceInstance.writeGitExcludeFile.mockResolvedValue(undefined);
     mockGitServiceInstance.isInGitExclude.mockResolvedValue(false);
@@ -477,7 +477,7 @@ describe('AddCommand', () => {
       mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as PrivateConfig);
       mockGitServiceInstance.addFilesAndCommit.mockResolvedValue('def456');
       mockGitServiceInstance.removeFromIndex.mockResolvedValue(undefined);
-      mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue(undefined);
+      mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue({ successful: ['file1.txt', 'file2.txt', 'file3.txt'], failed: [] });
 
       const result = await addCommand.execute(['file1.txt', 'file2.txt', 'file3.txt'], {
         verbose: true,
