@@ -94,7 +94,7 @@ export class AddCommand {
         this.fileSystem,
         config.settings.gitExclude,
       );
-    } catch (error) {
+    } catch (_error) {
       // If config loading fails, use default settings
       return new GitService(workingDir || this.workingDir, this.fileSystem);
     }
@@ -328,7 +328,7 @@ export class AddCommand {
     try {
       const gitService = await this.createGitService();
       return await gitService.getFileGitState(relativePath);
-    } catch (error) {
+    } catch (_error) {
       // Return default state on error
       return {
         isTracked: false,
@@ -876,7 +876,7 @@ export class AddCommand {
         try {
           await gitService.removeFromIndex(filesToRemove, true);
           result.successful.push(...filesToRemove);
-        } catch (removeError) {
+        } catch (_removeError) {
           // If batch removal fails, try individual removals
           if (options.verbose) {
             console.log(chalk.gray('     Batch removal failed, trying individual removals...'));

@@ -1031,7 +1031,7 @@ export class GitService {
     try {
       const regex = new RegExp(regexPattern);
       return regex.test(filePath);
-    } catch (error) {
+    } catch (_error) {
       // If regex is invalid, assume no match
       return false;
     }
