@@ -235,7 +235,7 @@ describe('AddCommand', () => {
       mockFileSystem.moveFileAtomic.mockResolvedValue(undefined);
       mockFileSystem.isDirectory.mockResolvedValue(false);
       mockSymlinkService.create.mockResolvedValue(undefined);
-      mockConfigManager.addTrackedPath.mockResolvedValue({} as PrivateConfig);
+      mockConfigManager.addTrackedPath.mockResolvedValue(undefined);
       mockGitServiceInstance.addFiles.mockResolvedValue(undefined);
       mockGitServiceInstance.commit.mockResolvedValue('abc123');
 
@@ -261,7 +261,7 @@ describe('AddCommand', () => {
       mockFileSystem.moveFileAtomic.mockResolvedValue(undefined);
       mockFileSystem.isDirectory.mockResolvedValue(false);
       mockSymlinkService.create.mockResolvedValue(undefined);
-      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as PrivateConfig);
+      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue(undefined);
       mockGitServiceInstance.addFilesAndCommit.mockResolvedValue('def456');
 
       const result = await addCommand.execute(['file1.txt', 'file2.txt', 'dir1'], {
@@ -436,7 +436,7 @@ describe('AddCommand', () => {
       mockFileSystem.isDirectory.mockResolvedValue(false);
       mockSymlinkService.create.mockResolvedValue(undefined);
       mockGitServiceInstance.addFilesAndCommit.mockResolvedValue('commit-hash');
-      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as PrivateConfig);
+      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue(undefined);
 
       await (addCommand as AddCommand)['executeMultipleAddOperation'](['file1.txt', 'file2.txt'], {
         verbose: false,
@@ -495,7 +495,7 @@ describe('AddCommand', () => {
       mockFileSystem.moveFileAtomic.mockResolvedValue(undefined);
       mockFileSystem.isDirectory.mockResolvedValue(false);
       mockSymlinkService.create.mockResolvedValue(undefined);
-      mockConfigManager.addTrackedPath.mockResolvedValue({} as PrivateConfig);
+      mockConfigManager.addTrackedPath.mockResolvedValue(undefined);
       mockGitServiceInstance.addFiles.mockResolvedValue(undefined);
       mockGitServiceInstance.commit.mockResolvedValue('single-commit');
 
@@ -587,7 +587,7 @@ describe('AddCommand', () => {
       mockFileSystem.moveFileAtomic.mockResolvedValue(undefined);
       mockFileSystem.isDirectory.mockResolvedValue(false);
       mockSymlinkService.create.mockResolvedValue(undefined);
-      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as PrivateConfig);
+      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue(undefined);
       mockGitServiceInstance.addFilesAndCommit.mockResolvedValue('def456');
       mockGitServiceInstance.removeFromIndex.mockResolvedValue(undefined);
       mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue({
@@ -629,7 +629,7 @@ describe('AddCommand', () => {
       mockFileSystem.moveFileAtomic.mockResolvedValue(undefined);
       mockFileSystem.isDirectory.mockResolvedValue(false);
       mockSymlinkService.create.mockResolvedValue(undefined);
-      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as PrivateConfig);
+      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue(undefined);
       mockGitServiceInstance.addFilesAndCommit.mockResolvedValue('chunk-commit');
 
       const result = await addCommand.execute(largeFileList, { verbose: true });

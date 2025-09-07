@@ -289,11 +289,12 @@ export class ConfigManager {
       }
 
       const config = await this.load();
+      const needsMigration = config.version !== CURRENT_CONFIG_VERSION;
       return {
         exists: true,
         valid: true,
         errors: [],
-        needsMigration: false,
+        needsMigration,
         currentVersion: config.version,
         targetVersion: CURRENT_CONFIG_VERSION,
       };

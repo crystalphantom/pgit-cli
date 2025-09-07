@@ -70,10 +70,10 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
     };
     jest.spyOn(ConfigManager.prototype, 'exists').mockResolvedValue(true);
     jest.spyOn(ConfigManager.prototype, 'load').mockResolvedValue(mockConfig);
-    jest.spyOn(ConfigManager.prototype, 'addTrackedPath').mockResolvedValue(mockConfig);
-    jest.spyOn(ConfigManager.prototype, 'removeTrackedPath').mockResolvedValue(mockConfig);
-    jest.spyOn(ConfigManager.prototype, 'addMultipleTrackedPaths').mockResolvedValue(mockConfig);
-    jest.spyOn(ConfigManager.prototype, 'removeMultipleTrackedPaths').mockResolvedValue(mockConfig);
+    jest.spyOn(ConfigManager.prototype, 'addTrackedPath').mockResolvedValue(undefined);
+    jest.spyOn(ConfigManager.prototype, 'removeTrackedPath').mockResolvedValue(undefined);
+    jest.spyOn(ConfigManager.prototype, 'addMultipleTrackedPaths').mockResolvedValue(undefined);
+    jest.spyOn(ConfigManager.prototype, 'removeMultipleTrackedPaths').mockResolvedValue(undefined);
 
     // Mock SymlinkService methods
     jest.spyOn(SymlinkService, 'supportsSymlinks').mockResolvedValue(true);
