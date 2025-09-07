@@ -43,8 +43,9 @@ describe('ConfigManager - Git Exclude Settings', () => {
         markerComment: 'invalid comment without hash',
       };
 
-      await expect(configManager.updateGitExcludeSettings(invalidSettings))
-        .rejects.toThrow('Marker comment must start with #');
+      await expect(configManager.updateGitExcludeSettings(invalidSettings)).rejects.toThrow(
+        'Marker comment must start with #',
+      );
     });
 
     it('should validate marker comment length', async () => {
@@ -52,8 +53,9 @@ describe('ConfigManager - Git Exclude Settings', () => {
         markerComment: '#' + 'a'.repeat(100), // Too long
       };
 
-      await expect(configManager.updateGitExcludeSettings(invalidSettings))
-        .rejects.toThrow('Marker comment too long');
+      await expect(configManager.updateGitExcludeSettings(invalidSettings)).rejects.toThrow(
+        'Marker comment too long',
+      );
     });
 
     it('should reject marker comments with newlines', async () => {
@@ -61,8 +63,9 @@ describe('ConfigManager - Git Exclude Settings', () => {
         markerComment: '# comment\nwith newline',
       };
 
-      await expect(configManager.updateGitExcludeSettings(invalidSettings))
-        .rejects.toThrow('Marker comment cannot contain newlines');
+      await expect(configManager.updateGitExcludeSettings(invalidSettings)).rejects.toThrow(
+        'Marker comment cannot contain newlines',
+      );
     });
 
     it('should validate fallback behavior values', async () => {
@@ -70,8 +73,9 @@ describe('ConfigManager - Git Exclude Settings', () => {
         fallbackBehavior: 'invalid' as any,
       };
 
-      await expect(configManager.updateGitExcludeSettings(invalidSettings))
-        .rejects.toThrow('Fallback behavior must be warn, silent, or error');
+      await expect(configManager.updateGitExcludeSettings(invalidSettings)).rejects.toThrow(
+        'Fallback behavior must be warn, silent, or error',
+      );
     });
   });
 
@@ -137,7 +141,7 @@ describe('ConfigManager - Git Exclude Settings', () => {
       // Manually corrupt the config file with invalid exclude settings
       const configPath = path.join(tempDir, '.private-config.json');
       const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
-      
+
       config.settings.gitExclude = {
         enabled: true,
         markerComment: 'invalid comment', // Missing #
@@ -147,20 +151,26 @@ describe('ConfigManager - Git Exclude Settings', () => {
 
       await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
+      // Create new ConfigManager instance to avoid cache
+      const newConfigManager = new ConfigManager(tempDir, fileSystem);
+
       // Should throw validation error when loading
-      await expect(configManager.load()).rejects.toThrow();
+      await expect(newConfigManager.load()).rejects.toThrow();
     });
 
     it('should handle missing exclude settings in legacy config', async () => {
       // Create config without exclude settings (legacy format)
       const configPath = path.join(tempDir, '.private-config.json');
       const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
-      
+
       delete config.settings.gitExclude;
       await fs.writeFile(configPath, JSON.stringify(config, null, 2));
 
+      // Create new ConfigManager instance to avoid cache
+      const newConfigManager = new ConfigManager(tempDir, fileSystem);
+
       // Should throw validation error for missing required field
-      await expect(configManager.load()).rejects.toThrow();
+      await expect(newConfigManager.load()).rejects.toThrow();
     });
   });
 
@@ -177,7 +187,7 @@ describe('ConfigManager - Git Exclude Settings', () => {
 
       // Create new config manager
       const newConfigManager = new ConfigManager(tempDir, fileSystem);
-      
+
       // Create config with custom settings
       const customSettings = {
         gitExclude: {

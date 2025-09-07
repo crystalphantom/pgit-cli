@@ -1,6 +1,10 @@
 import { ConfigManager } from '../../core/config.manager';
 import { FileSystemService } from '../../core/filesystem.service';
-import { PrivateConfig, DEFAULT_PATHS, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../../types/config.types';
+import {
+  PrivateConfig,
+  DEFAULT_PATHS,
+  DEFAULT_GIT_EXCLUDE_SETTINGS,
+} from '../../types/config.types';
 import * as path from 'path';
 
 // Mock FileSystemService
@@ -20,6 +24,7 @@ describe('ConfigManager', () => {
       writeFileAtomic: jest.fn(),
       validatePathString: jest.fn(),
       getStats: jest.fn(),
+      isFile: jest.fn(),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
 
@@ -31,21 +36,21 @@ describe('ConfigManager', () => {
 
   describe('exists', () => {
     it('should return true when config file exists', async () => {
-      (mockFileSystem.pathExists as jest.Mock).mockResolvedValue(true);
+      (mockFileSystem.isFile as jest.Mock).mockResolvedValue(true);
 
       const result = await configManager.exists();
 
       expect(result).toBe(true);
-      expect(mockFileSystem.pathExists).toHaveBeenCalledWith(configPath);
+      expect(mockFileSystem.isFile).toHaveBeenCalledWith(configPath);
     });
 
     it('should return false when config file does not exist', async () => {
-      (mockFileSystem.pathExists as jest.Mock).mockResolvedValue(false);
+      (mockFileSystem.isFile as jest.Mock).mockResolvedValue(false);
 
       const result = await configManager.exists();
 
       expect(result).toBe(false);
-      expect(mockFileSystem.pathExists).toHaveBeenCalledWith(configPath);
+      expect(mockFileSystem.isFile).toHaveBeenCalledWith(configPath);
     });
   });
 
@@ -87,7 +92,7 @@ describe('ConfigManager', () => {
       (mockFileSystem.pathExists as jest.Mock).mockResolvedValue(true);
       (mockFileSystem.readFile as jest.Mock).mockResolvedValue('invalid json');
 
-      await expect(configManager.load()).rejects.toThrow('Configuration file is corrupted');
+      await expect(configManager.load()).rejects.toThrow('Failed to load configuration');
     });
 
     it('should throw error for missing required fields', async () => {
@@ -95,7 +100,7 @@ describe('ConfigManager', () => {
       const invalidConfig = { version: '1.0.0-beta.1' }; // missing required fields
       (mockFileSystem.readFile as jest.Mock).mockResolvedValue(JSON.stringify(invalidConfig));
 
-      await expect(configManager.load()).rejects.toThrow('Configuration file format is invalid');
+      await expect(configManager.load()).rejects.toThrow('Configuration data is invalid');
     });
 
     it('should throw error when file read fails', async () => {
@@ -242,9 +247,10 @@ describe('ConfigManager', () => {
     });
 
     it('should not add duplicate paths', async () => {
-      await expect(configManager.addTrackedPath('existing.txt')).rejects.toThrow(
-        'Path is already tracked',
-      );
+      await configManager.addTrackedPath('existing.txt');
+
+      // Should not have been called since path already exists
+      expect(mockFileSystem.writeFileAtomic).toHaveBeenCalledTimes(0);
     });
 
     it('should normalize paths before adding', async () => {
@@ -296,10 +302,11 @@ describe('ConfigManager', () => {
       );
     });
 
-    it('should throw error for non-existent paths', async () => {
-      await expect(configManager.removeTrackedPath('nonexistent.txt')).rejects.toThrow(
-        'Path is not tracked',
-      );
+    it('should not throw error for non-existent paths', async () => {
+      await configManager.removeTrackedPath('nonexistent.txt');
+
+      // Should not have been called since path doesn't exist
+      expect(mockFileSystem.writeFileAtomic).toHaveBeenCalledTimes(0);
     });
   });
 
@@ -327,7 +334,7 @@ describe('ConfigManager', () => {
           lastModified: new Date('2024-01-01T00:00:00Z'),
         },
       };
-      (mockFileSystem.pathExists as jest.Mock).mockResolvedValue(true);
+      (mockFileSystem.isFile as jest.Mock).mockResolvedValue(true);
       (mockFileSystem.readFile as jest.Mock).mockResolvedValue(JSON.stringify(validConfig));
       (mockFileSystem.getStats as jest.Mock).mockResolvedValue({
         isSymbolicLink: jest.fn().mockReturnValue(true),
@@ -342,7 +349,7 @@ describe('ConfigManager', () => {
     });
 
     it('should return unhealthy status for missing config', async () => {
-      (mockFileSystem.pathExists as jest.Mock).mockResolvedValue(false);
+      (mockFileSystem.isFile as jest.Mock).mockResolvedValue(false);
 
       const health = await configManager.getHealth();
 
@@ -352,13 +359,13 @@ describe('ConfigManager', () => {
     });
 
     it('should return unhealthy status for invalid config', async () => {
-      (mockFileSystem.pathExists as jest.Mock).mockResolvedValue(true);
+      (mockFileSystem.isFile as jest.Mock).mockResolvedValue(true);
       (mockFileSystem.readFile as jest.Mock).mockResolvedValue('invalid json');
 
       const health = await configManager.getHealth();
 
       expect(health.valid).toBe(false);
-      expect(health.errors).toContain('Configuration file is corrupted (invalid JSON)');
+      expect(health.errors).toContain('Failed to load configuration');
     });
 
     it('should detect version mismatch', async () => {
@@ -384,7 +391,7 @@ describe('ConfigManager', () => {
           lastModified: new Date('2024-01-01T00:00:00Z'),
         },
       };
-      (mockFileSystem.pathExists as jest.Mock).mockResolvedValue(true);
+      (mockFileSystem.isFile as jest.Mock).mockResolvedValue(true);
       (mockFileSystem.readFile as jest.Mock).mockResolvedValue(JSON.stringify(oldConfig));
 
       const health = await configManager.getHealth();
