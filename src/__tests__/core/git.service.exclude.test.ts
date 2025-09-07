@@ -1,6 +1,6 @@
 import { GitService } from '../../core/git.service';
 import { FileSystemService } from '../../core/filesystem.service';
-import { GitOperationError } from '../../errors/git.error';
+import { GitOperationError, GitExcludeValidationError } from '../../errors/git.error';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
@@ -82,8 +82,8 @@ describe('GitService - Exclude File Management', () => {
     });
 
     it('should throw error for empty path', async () => {
-      await expect(gitService.addToGitExclude('')).rejects.toThrow(GitOperationError);
-      await expect(gitService.addToGitExclude('   ')).rejects.toThrow(GitOperationError);
+      await expect(gitService.addToGitExclude('')).rejects.toThrow(GitExcludeValidationError);
+      await expect(gitService.addToGitExclude('   ')).rejects.toThrow(GitExcludeValidationError);
     });
 
     it('should throw error when not in git repository', async () => {
@@ -165,8 +165,8 @@ describe('GitService - Exclude File Management', () => {
     });
 
     it('should throw error for empty path', async () => {
-      await expect(gitService.removeFromGitExclude('')).rejects.toThrow(GitOperationError);
-      await expect(gitService.removeFromGitExclude('   ')).rejects.toThrow(GitOperationError);
+      await expect(gitService.removeFromGitExclude('')).rejects.toThrow(GitExcludeValidationError);
+      await expect(gitService.removeFromGitExclude('   ')).rejects.toThrow(GitExcludeValidationError);
     });
   });
 
@@ -254,10 +254,15 @@ describe('GitService - Exclude File Management', () => {
       }
     });
 
-    it('should throw error for empty paths in array', async () => {
+    it('should handle empty paths in array gracefully', async () => {
       const testPaths = ['file1.txt', '', 'file2.txt'];
       
-      await expect(gitService.addMultipleToGitExclude(testPaths)).rejects.toThrow(GitOperationError);
+      const result = await gitService.addMultipleToGitExclude(testPaths);
+      
+      expect(result.successful).toEqual(['file1.txt', 'file2.txt']);
+      expect(result.failed).toHaveLength(1);
+      expect(result.failed[0].path).toBe('');
+      expect(result.failed[0].error).toContain('Empty or whitespace-only path');
     });
 
     it('should skip paths that already exist', async () => {
@@ -344,10 +349,15 @@ describe('GitService - Exclude File Management', () => {
       expect(content).not.toContain('# pgit-cli managed exclusions');
     });
 
-    it('should throw error for empty paths in array', async () => {
+    it('should handle empty paths in array gracefully', async () => {
       const testPaths = ['file1.txt', '', 'file2.txt'];
       
-      await expect(gitService.removeMultipleFromGitExclude(testPaths)).rejects.toThrow(GitOperationError);
+      const result = await gitService.removeMultipleFromGitExclude(testPaths);
+      
+      expect(result.successful).toEqual(['file1.txt', 'file2.txt']);
+      expect(result.failed).toHaveLength(1);
+      expect(result.failed[0].path).toBe('');
+      expect(result.failed[0].error).toContain('Empty or whitespace-only path');
     });
   });
 
