@@ -107,6 +107,15 @@ describe('AddCommand', () => {
       getCurrentBranch: jest.fn(),
       checkRepositoryHealth: jest.fn(),
       getWorkingDirectory: jest.fn(),
+      addToGitExclude: jest.fn(),
+      addMultipleToGitExclude: jest.fn(),
+      removeFromGitExclude: jest.fn(),
+      removeMultipleFromGitExclude: jest.fn(),
+      readGitExcludeFile: jest.fn(),
+      writeGitExcludeFile: jest.fn(),
+      isInGitExclude: jest.fn(),
+      getPgitManagedExcludes: jest.fn(),
+      getFileGitState: jest.fn(),
     } as unknown as jest.Mocked<GitService>;
 
     // Setup default mock behaviors
@@ -163,6 +172,25 @@ describe('AddCommand', () => {
       isClean: true,
       files: [],
     } as GitStatus);
+
+    // Mock new exclude-related methods
+    mockGitServiceInstance.addToGitExclude.mockResolvedValue(undefined);
+    mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue(undefined);
+    mockGitServiceInstance.removeFromGitExclude.mockResolvedValue(undefined);
+    mockGitServiceInstance.removeMultipleFromGitExclude.mockResolvedValue(undefined);
+    mockGitServiceInstance.readGitExcludeFile.mockResolvedValue('');
+    mockGitServiceInstance.writeGitExcludeFile.mockResolvedValue(undefined);
+    mockGitServiceInstance.isInGitExclude.mockResolvedValue(false);
+    mockGitServiceInstance.getPgitManagedExcludes.mockResolvedValue([]);
+    mockGitServiceInstance.getFileGitState.mockResolvedValue({
+      isTracked: false,
+      isStaged: false,
+      isModified: false,
+      isUntracked: true,
+      isExcluded: false,
+      originalPath: 'test.txt',
+      timestamp: new Date(),
+    });
 
     addCommand = new AddCommand(testWorkingDir);
 
@@ -426,6 +454,89 @@ describe('AddCommand', () => {
       // Verify that the enhanced methods exist on the AddCommand instance
       expect(typeof (addCommand as any).getEnhancedFileGitState).toBe('function');
       expect(typeof (addCommand as any).getFileGitState).toBe('function');
+    });
+  });
+
+  describe('Enhanced Batch Processing', () => {
+    it('should use batch git operations for multiple files', async () => {
+      // Setup mocks for batch operations
+      mockFileSystem.pathExists.mockImplementation((path: string) => {
+        return Promise.resolve(
+          [
+            '/test/workspace/file1.txt',
+            '/test/workspace/file2.txt',
+            '/test/workspace/file3.txt',
+            '/test/workspace/.private-storage',
+          ].includes(path),
+        );
+      });
+
+      mockFileSystem.moveFileAtomic.mockResolvedValue(undefined);
+      mockFileSystem.isDirectory.mockResolvedValue(false);
+      mockSymlinkService.create.mockResolvedValue(undefined);
+      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as PrivateConfig);
+      mockGitServiceInstance.addFilesAndCommit.mockResolvedValue('def456');
+      mockGitServiceInstance.removeFromIndex.mockResolvedValue(undefined);
+      mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue(undefined);
+
+      const result = await addCommand.execute(['file1.txt', 'file2.txt', 'file3.txt'], {
+        verbose: true,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Successfully added 3 files');
+      
+      // Verify batch git operations were called
+      expect(mockGitServiceInstance.addMultipleToGitExclude).toHaveBeenCalledWith([
+        'file1.txt',
+        'file2.txt',
+        'file3.txt',
+      ]);
+      expect(mockGitServiceInstance.readGitExcludeFile).toHaveBeenCalled();
+      expect(mockConfigManager.addMultipleTrackedPaths).toHaveBeenCalledWith([
+        'file1.txt',
+        'file2.txt',
+        'file3.txt',
+      ]);
+    });
+
+    it('should handle large batches with chunking', async () => {
+      // Create a large array of files (more than OPTIMAL_BATCH_SIZE = 50)
+      const largeFileList = Array.from({ length: 75 }, (_, i) => `file${i + 1}.txt`);
+      const largePathList = largeFileList.map(file => `/test/workspace/${file}`);
+      largePathList.push('/test/workspace/.private-storage');
+
+      mockFileSystem.pathExists.mockImplementation((path: string) => {
+        return Promise.resolve(largePathList.includes(path));
+      });
+
+      mockFileSystem.moveFileAtomic.mockResolvedValue(undefined);
+      mockFileSystem.isDirectory.mockResolvedValue(false);
+      mockSymlinkService.create.mockResolvedValue(undefined);
+      mockConfigManager.addMultipleTrackedPaths.mockResolvedValue({} as PrivateConfig);
+      mockGitServiceInstance.addFilesAndCommit.mockResolvedValue('chunk-commit');
+
+      const result = await addCommand.execute(largeFileList, { verbose: true });
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Successfully added 75 files');
+      
+      // Verify that chunking was used (multiple calls to addMultipleTrackedPaths)
+      expect(mockConfigManager.addMultipleTrackedPaths).toHaveBeenCalledTimes(2); // 75 files in 2 chunks of 50 and 25
+    });
+
+    it('should have batch rollback functionality', async () => {
+      const addCommandInstance = addCommand as any;
+      
+      // Test that batch rollback methods exist
+      expect(typeof addCommandInstance.batchRemoveFromMainGitIndex).toBe('function');
+      expect(typeof addCommandInstance.batchRestoreToEnhancedGitState).toBe('function');
+      expect(typeof addCommandInstance.chunkArray).toBe('function');
+      
+      // Test chunkArray utility
+      const testArray = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+      const chunks = addCommandInstance.chunkArray(testArray, 3);
+      expect(chunks).toEqual([[1, 2, 3], [4, 5, 6], [7, 8, 9], [10]]);
     });
   });
 });
