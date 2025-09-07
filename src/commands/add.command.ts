@@ -326,7 +326,7 @@ export class AddCommand {
   }
 
   /**
-   * Execute atomic add operation for multiple files
+   * Execute atomic add operation for multiple files with enhanced git removal
    */
   private async executeMultipleAddOperation(
     relativePaths: string[],
@@ -341,41 +341,116 @@ export class AddCommand {
       return this.executeAddOperation(relativePaths[0], options);
     }
 
-    // For multiple files, implement atomic batch operation
+    // For multiple files, implement atomic batch operation with enhanced git removal
+    // Performance optimization: chunk large batches to prevent memory issues and improve performance
+    const OPTIMAL_BATCH_SIZE = 50; // Optimal batch size for git operations
+    
+    if (relativePaths.length > OPTIMAL_BATCH_SIZE) {
+      if (options.verbose) {
+        console.log(chalk.gray(`   Large batch detected (${relativePaths.length} files), processing in chunks for optimal performance...`));
+      }
+      
+      // Process in chunks for better performance
+      const chunks = this.chunkArray(relativePaths, OPTIMAL_BATCH_SIZE);
+      for (let i = 0; i < chunks.length; i++) {
+        const chunk = chunks[i];
+        if (options.verbose) {
+          console.log(chalk.gray(`   Processing chunk ${i + 1}/${chunks.length} (${chunk.length} files)...`));
+        }
+        await this.executeMultipleAddOperation(chunk, { ...options, verbose: false }); // Reduce verbosity for chunks
+      }
+      
+      if (options.verbose) {
+        console.log(chalk.green(`   ✓ Successfully processed all ${relativePaths.length} files in ${chunks.length} chunks`));
+      }
+      return;
+    }
+
     const rollbackActions: Array<() => Promise<void>> = [];
     const processedPaths: string[] = [];
-    const originalGitStates = new Map<string, { isTracked: boolean; isStaged: boolean }>();
+    const originalGitStates = new Map<string, GitFileState>();
 
     try {
       if (options.verbose) {
         console.log(chalk.gray(`   Processing ${relativePaths.length} files atomically...`));
       }
 
-      // Step 1: Record original git states for all files
+      // Step 1: Record original git states and exclude file state for all files
+      if (options.verbose) {
+        console.log(chalk.gray('   Recording original git states...'));
+      }
+
+      const mainGitService = new GitService(this.workingDir, this.fileSystem);
+      let isGitRepo = false;
+      let originalExcludeFileContent = '';
+
+      if (await mainGitService.isRepository()) {
+        isGitRepo = true;
+        // Record original exclude file content for rollback
+        originalExcludeFileContent = await mainGitService.readGitExcludeFile();
+      }
+
       for (const relativePath of relativePaths) {
-        const originalState = await this.getFileGitState(relativePath);
+        const originalState = await this.getEnhancedFileGitState(relativePath);
         originalGitStates.set(relativePath, originalState);
       }
 
-      // Step 2: Remove all files from main git index
+      // Step 2: Enhanced batch git removal with exclude operations using optimized batch processing
       if (options.verbose) {
-        console.log(chalk.gray('   Removing files from main git index...'));
+        console.log(chalk.gray('   Removing files from main git index and adding to exclude...'));
       }
 
-      for (const relativePath of relativePaths) {
-        await this.removeFromMainGitIndex(relativePath);
-        processedPaths.push(relativePath);
-      }
+      let batchGitResult: {
+        successful: string[];
+        failed: Array<{ path: string; error: string }>;
+        originalStates: Map<string, GitFileState>;
+      } | null = null;
 
-      // Add rollback for all git operations
-      rollbackActions.push(async () => {
-        for (const relativePath of processedPaths) {
-          const originalState = originalGitStates.get(relativePath);
-          if (originalState) {
-            await this.restoreToOriginalGitState(relativePath, originalState);
+      if (isGitRepo) {
+        // Use optimized batch git removal
+        batchGitResult = await this.batchRemoveFromMainGitIndex(relativePaths, { verbose: options.verbose });
+
+        // Check for any failures in git operations
+        if (batchGitResult.failed.length > 0) {
+          const failedPaths = batchGitResult.failed.map(f => f.path);
+          const errorMessages = batchGitResult.failed.map(f => `${f.path}: ${f.error}`).join('\n');
+          
+          console.warn(
+            chalk.yellow(
+              `   Warning: Some git operations failed for ${failedPaths.length} files:\n${errorMessages}`,
+            ),
+          );
+        }
+
+        if (batchGitResult.successful.length > 0) {
+          processedPaths.push(...batchGitResult.successful);
+          if (options.verbose) {
+            console.log(chalk.gray(`     Successfully processed ${batchGitResult.successful.length} files for git operations`));
           }
         }
-      });
+
+        // Add optimized rollback for git operations using batch restore
+        rollbackActions.push(async () => {
+          if (batchGitResult && batchGitResult.originalStates.size > 0) {
+            const rollbackResult = await this.batchRestoreToEnhancedGitState(
+              batchGitResult.originalStates,
+              originalExcludeFileContent,
+              { verbose: options.verbose }
+            );
+
+            if (rollbackResult.failed.length > 0) {
+              console.warn(
+                chalk.yellow(
+                  `   Warning: Git rollback failed for ${rollbackResult.failed.length} files: ${rollbackResult.failed.map(f => f.path).join(', ')}`,
+                ),
+              );
+            }
+          }
+        });
+      } else {
+        // Not a git repository, skip git operations but still track processed paths
+        processedPaths.push(...relativePaths);
+      }
 
       // Step 3: Move all files to private storage
       if (options.verbose) {
@@ -441,14 +516,14 @@ export class AddCommand {
       }
 
       const privateStoragePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
-      const gitService = new GitService(privateStoragePath, this.fileSystem);
+      const privateGitService = new GitService(privateStoragePath, this.fileSystem);
 
-      if (!(await gitService.isRepository())) {
+      if (!(await privateGitService.isRepository())) {
         throw new AddError('Private git repository not found. The initialization may have failed.');
       }
 
       // Use the new atomic commit method
-      const commitHash = await gitService.addFilesAndCommit(
+      const commitHash = await privateGitService.addFilesAndCommit(
         relativePaths,
         'Add files to private tracking',
       );
@@ -457,10 +532,10 @@ export class AddCommand {
       rollbackActions.push(async () => {
         try {
           // Reset the private repository to before the commit
-          await gitService.reset('hard', 'HEAD~1');
+          await privateGitService.reset('hard', 'HEAD~1');
         } catch {
           // If reset fails, try to remove files individually
-          await gitService.removeFromIndex(relativePaths, false);
+          await privateGitService.removeFromIndex(relativePaths, false);
         }
       });
 
@@ -681,6 +756,144 @@ export class AddCommand {
   }
 
   /**
+   * Remove multiple files from main git index and add to git exclude in batch
+   * Optimized for performance with large file batches
+   */
+  private async batchRemoveFromMainGitIndex(
+    relativePaths: string[],
+    options: { verbose?: boolean } = {},
+  ): Promise<{
+    successful: string[];
+    failed: Array<{ path: string; error: string }>;
+    originalStates: Map<string, GitFileState>;
+  }> {
+    const result = {
+      successful: [] as string[],
+      failed: [] as Array<{ path: string; error: string }>,
+      originalStates: new Map<string, GitFileState>(),
+    };
+
+    if (relativePaths.length === 0) {
+      return result;
+    }
+
+    try {
+      const gitService = new GitService(this.workingDir, this.fileSystem);
+
+      if (!(await gitService.isRepository())) {
+        // Not a git repository, skip git operations
+        return result;
+      }
+
+      // Step 1: Record original states for all files
+      if (options.verbose) {
+        console.log(chalk.gray(`     Recording git states for ${relativePaths.length} files...`));
+      }
+
+      for (const relativePath of relativePaths) {
+        try {
+          const originalState = await this.getEnhancedFileGitState(relativePath);
+          result.originalStates.set(relativePath, originalState);
+        } catch (error) {
+          result.failed.push({
+            path: relativePath,
+            error: `Failed to record git state: ${error instanceof Error ? error.message : String(error)}`,
+          });
+        }
+      }
+
+      // Step 2: Batch remove from git index (only files that are tracked/staged)
+      const filesToRemove = relativePaths.filter(path => {
+        const state = result.originalStates.get(path);
+        return state && (state.isTracked || state.isStaged);
+      });
+
+      if (filesToRemove.length > 0) {
+        if (options.verbose) {
+          console.log(chalk.gray(`     Removing ${filesToRemove.length} files from git index...`));
+        }
+
+        try {
+          await gitService.removeFromIndex(filesToRemove, true);
+          result.successful.push(...filesToRemove);
+        } catch (removeError) {
+          // If batch removal fails, try individual removals
+          if (options.verbose) {
+            console.log(chalk.gray('     Batch removal failed, trying individual removals...'));
+          }
+
+          for (const relativePath of filesToRemove) {
+            try {
+              await gitService.removeFromIndex(relativePath, true);
+              result.successful.push(relativePath);
+            } catch (individualError) {
+              result.failed.push({
+                path: relativePath,
+                error: `Failed to remove from git index: ${individualError instanceof Error ? individualError.message : String(individualError)}`,
+              });
+            }
+          }
+        }
+      }
+
+      // Step 3: Batch add to .git/info/exclude
+      if (options.verbose) {
+        console.log(chalk.gray(`     Adding ${relativePaths.length} files to .git/info/exclude...`));
+      }
+
+      try {
+        await gitService.addMultipleToGitExclude(relativePaths);
+        // Mark all paths as successful for exclude operation
+        for (const relativePath of relativePaths) {
+          if (!result.successful.includes(relativePath)) {
+            result.successful.push(relativePath);
+          }
+        }
+      } catch (excludeError) {
+        // If batch exclude fails, try individual excludes
+        if (options.verbose) {
+          console.log(chalk.gray('     Batch exclude failed, trying individual excludes...'));
+        }
+
+        for (const relativePath of relativePaths) {
+          try {
+            await gitService.addToGitExclude(relativePath);
+            if (!result.successful.includes(relativePath)) {
+              result.successful.push(relativePath);
+            }
+          } catch (individualError) {
+            // Only add to failed if not already successful from git removal
+            if (!result.successful.includes(relativePath)) {
+              result.failed.push({
+                path: relativePath,
+                error: `Failed to add to .git/info/exclude: ${individualError instanceof Error ? individualError.message : String(individualError)}`,
+              });
+            } else {
+              // Log warning but don't fail since git removal succeeded
+              console.warn(
+                chalk.yellow(
+                  `   Warning: Could not add ${relativePath} to .git/info/exclude: ${individualError instanceof Error ? individualError.message : String(individualError)}`,
+                ),
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      // Repository-level error, mark all files as failed
+      const errorMessage = `Git repository error: ${error instanceof Error ? error.message : String(error)}`;
+      for (const relativePath of relativePaths) {
+        result.failed.push({
+          path: relativePath,
+          error: errorMessage,
+        });
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Add file to private git repository
    */
   private async addToPrivateGit(relativePath: string): Promise<void> {
@@ -749,5 +962,158 @@ export class AddCommand {
         ),
       );
     }
+  }
+
+
+
+  /**
+   * Utility method to chunk an array into smaller arrays of specified size
+   * Used for performance optimization with large file batches
+   */
+  private chunkArray<T>(array: T[], chunkSize: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+      chunks.push(array.slice(i, i + chunkSize));
+    }
+    return chunks;
+  }
+
+  /**
+   * Batch restore multiple files to their enhanced git states (for rollback)
+   * Optimized for performance with large file batches
+   */
+  private async batchRestoreToEnhancedGitState(
+    originalStates: Map<string, GitFileState>,
+    originalExcludeContent: string,
+    options: { verbose?: boolean } = {},
+  ): Promise<{
+    successful: string[];
+    failed: Array<{ path: string; error: string }>;
+  }> {
+    const result = {
+      successful: [] as string[],
+      failed: [] as Array<{ path: string; error: string }>,
+    };
+
+    if (originalStates.size === 0) {
+      return result;
+    }
+
+    try {
+      const gitService = new GitService(this.workingDir, this.fileSystem);
+
+      if (!(await gitService.isRepository())) {
+        // Not a git repository, nothing to restore
+        return result;
+      }
+
+      if (options.verbose) {
+        console.log(chalk.gray(`     Restoring git states for ${originalStates.size} files...`));
+      }
+
+      // Step 1: Restore original exclude file content
+      try {
+        if (originalExcludeContent.trim()) {
+          await gitService.writeGitExcludeFile(originalExcludeContent);
+        } else {
+          // Remove all paths from exclude file if it was originally empty
+          const pathsToRemove = Array.from(originalStates.keys());
+          await gitService.removeMultipleFromGitExclude(pathsToRemove);
+        }
+        if (options.verbose) {
+          console.log(chalk.gray('     Restored original .git/info/exclude content'));
+        }
+      } catch (excludeError) {
+        console.warn(
+          chalk.yellow(
+            `   Warning: Could not restore .git/info/exclude: ${excludeError instanceof Error ? excludeError.message : String(excludeError)}`,
+          ),
+        );
+      }
+
+      // Step 2: Group files by their required git operations for batch processing
+      const filesToStage: string[] = [];
+      const filesToTrack: string[] = [];
+
+      for (const [relativePath, originalState] of originalStates) {
+        if (originalState.isTracked && originalState.isStaged) {
+          filesToStage.push(relativePath);
+        } else if (originalState.isTracked && !originalState.isStaged) {
+          filesToTrack.push(relativePath);
+        }
+        // Untracked files don't need restoration
+      }
+
+      // Step 3: Batch restore staged files
+      if (filesToStage.length > 0) {
+        try {
+          await gitService.addFiles(filesToStage);
+          result.successful.push(...filesToStage);
+          if (options.verbose) {
+            console.log(chalk.gray(`     Restored ${filesToStage.length} files to staged state`));
+          }
+        } catch (stageError) {
+          // If batch staging fails, try individual staging
+          for (const relativePath of filesToStage) {
+            try {
+              await gitService.addFiles([relativePath]);
+              result.successful.push(relativePath);
+            } catch (individualError) {
+              result.failed.push({
+                path: relativePath,
+                error: `Failed to restore to staged state: ${individualError instanceof Error ? individualError.message : String(individualError)}`,
+              });
+            }
+          }
+        }
+      }
+
+      // Step 4: Batch restore tracked but unstaged files
+      if (filesToTrack.length > 0) {
+        try {
+          // Add files first, then unstage them
+          await gitService.addFiles(filesToTrack);
+          await gitService.removeFromIndex(filesToTrack, true);
+          result.successful.push(...filesToTrack);
+          if (options.verbose) {
+            console.log(chalk.gray(`     Restored ${filesToTrack.length} files to tracked state`));
+          }
+        } catch (trackError) {
+          // If batch tracking fails, try individual tracking
+          for (const relativePath of filesToTrack) {
+            try {
+              await gitService.addFiles([relativePath]);
+              await gitService.removeFromIndex(relativePath, true);
+              result.successful.push(relativePath);
+            } catch (individualError) {
+              result.failed.push({
+                path: relativePath,
+                error: `Failed to restore to tracked state: ${individualError instanceof Error ? individualError.message : String(individualError)}`,
+              });
+            }
+          }
+        }
+      }
+
+      // Mark untracked files as successful (no action needed)
+      for (const [relativePath, originalState] of originalStates) {
+        if (!originalState.isTracked && !result.successful.includes(relativePath) && !result.failed.some(f => f.path === relativePath)) {
+          result.successful.push(relativePath);
+        }
+      }
+    } catch (error) {
+      // Repository-level error, mark all files as failed
+      const errorMessage = `Git repository error during rollback: ${error instanceof Error ? error.message : String(error)}`;
+      for (const relativePath of originalStates.keys()) {
+        if (!result.successful.includes(relativePath)) {
+          result.failed.push({
+            path: relativePath,
+            error: errorMessage,
+          });
+        }
+      }
+    }
+
+    return result;
   }
 }
