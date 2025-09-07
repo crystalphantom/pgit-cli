@@ -10,6 +10,7 @@ import {
 } from '../types/config.types';
 import { PrivateConfigSchema, PrivateConfigJsonSchema } from '../types/config.schema';
 import type { ZodError } from 'zod';
+import type { ConfigHealth } from '../types/config.types';
 import { FileSystemService } from './filesystem.service';
 import { PlatformDetector } from '../utils/platform.detector';
 import { BaseError } from '../errors/base.error';
@@ -273,14 +274,7 @@ export class ConfigManager {
   /**
    * Get configuration health status
    */
-  public async getHealth(): Promise<{
-    exists: boolean;
-    valid: boolean;
-    errors: string[];
-    needsMigration: boolean;
-    currentVersion: string | null;
-    targetVersion: string;
-  }> {
+  public async getHealth(): Promise<ConfigHealth> {
     try {
       const exists = await this.exists();
       if (!exists) {
@@ -289,7 +283,7 @@ export class ConfigManager {
           valid: false,
           errors: ['Configuration file does not exist'],
           needsMigration: false,
-          currentVersion: null,
+          currentVersion: '',
           targetVersion: CURRENT_CONFIG_VERSION,
         };
       }
@@ -309,7 +303,7 @@ export class ConfigManager {
         valid: false,
         errors: [error instanceof Error ? error.message : String(error)],
         needsMigration: false,
-        currentVersion: null,
+        currentVersion: '',
         targetVersion: CURRENT_CONFIG_VERSION,
       };
     }
