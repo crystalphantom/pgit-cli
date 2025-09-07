@@ -392,8 +392,9 @@ export class AddCommand {
         originalExcludeFileContent = await mainGitService.readGitExcludeFile();
       }
 
+      const gitService = new GitService(this.workingDir, this.fileSystem);
       for (const relativePath of relativePaths) {
-        const originalState = await this.getEnhancedFileGitState(relativePath);
+        const originalState = await gitService.recordOriginalState(relativePath);
         originalGitStates.set(relativePath, originalState);
       }
 
@@ -605,11 +606,11 @@ export class AddCommand {
       }
 
       // Step 1: Record enhanced git state and remove from main git index
-      const enhancedOriginalState = await this.getEnhancedFileGitState(relativePath);
+      const gitService = new GitService(this.workingDir, this.fileSystem);
+      const enhancedOriginalState = await gitService.recordOriginalState(relativePath);
       let originalExcludeContent = '';
       
       // Record original exclude file content for rollback
-      const gitService = new GitService(this.workingDir, this.fileSystem);
       if (await gitService.isRepository()) {
         originalExcludeContent = await gitService.readGitExcludeFile();
       }
@@ -617,7 +618,12 @@ export class AddCommand {
       await this.removeFromMainGitIndex(relativePath);
       rollbackActions.push(async () => {
         // Restore to enhanced git state including exclude status
-        await this.restoreToEnhancedGitState(relativePath, enhancedOriginalState, originalExcludeContent);
+        try {
+          await gitService.restoreOriginalState(relativePath, enhancedOriginalState);
+        } catch (error) {
+          // Fallback to the enhanced rollback method if git service method fails
+          await this.restoreToEnhancedGitState(relativePath, enhancedOriginalState, originalExcludeContent);
+        }
       });
 
       if (options.verbose) {
@@ -795,7 +801,7 @@ export class AddCommand {
 
       for (const relativePath of relativePaths) {
         try {
-          const originalState = await this.getEnhancedFileGitState(relativePath);
+          const originalState = await gitService.recordOriginalState(relativePath);
           result.originalStates.set(relativePath, originalState);
         } catch (error) {
           result.failed.push({
