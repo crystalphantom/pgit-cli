@@ -12,6 +12,7 @@ import {
   GitExcludeValidationError
 } from '../errors/git.error';
 import { GitFileState } from '../types/git.types';
+import { GitExcludeSettings, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../types/config.types';
 
 /**
  * Git repository status information
@@ -48,11 +49,13 @@ export class GitService {
   private readonly git: SimpleGit;
   private readonly workingDir: string;
   private readonly fileSystem: FileSystemService;
+  private readonly excludeSettings: GitExcludeSettings;
 
-  constructor(workingDir: string, fileSystem?: FileSystemService) {
+  constructor(workingDir: string, fileSystem?: FileSystemService, excludeSettings?: GitExcludeSettings) {
     this.workingDir = path.resolve(workingDir);
     this.git = simpleGit(this.workingDir);
     this.fileSystem = fileSystem || new FileSystemService();
+    this.excludeSettings = excludeSettings ? { ...excludeSettings } : { ...DEFAULT_GIT_EXCLUDE_SETTINGS };
   }
 
   /**
@@ -955,6 +958,11 @@ export class GitService {
    * Add file path to .git/info/exclude with comprehensive error handling
    */
   public async addToGitExclude(relativePath: string): Promise<void> {
+    // Check if exclude operations are enabled
+    if (!this.excludeSettings.enabled) {
+      return this.handleDisabledExcludeOperation('add', relativePath);
+    }
+
     await this.ensureRepository();
 
     // Validate input paths
@@ -1017,7 +1025,7 @@ export class GitService {
         }
         
         // Add pgit marker comment if not present
-        const pgitMarker = '# pgit-cli managed exclusions';
+        const pgitMarker = this.excludeSettings.markerComment;
         const lines = excludeContent.split('\n').map(line => line.trim());
         
         if (!lines.includes(pgitMarker)) {
@@ -1481,6 +1489,11 @@ export class GitService {
    * Remove file path from .git/info/exclude with comprehensive error handling
    */
   public async removeFromGitExclude(relativePath: string): Promise<void> {
+    // Check if exclude operations are enabled
+    if (!this.excludeSettings.enabled) {
+      return this.handleDisabledExcludeOperation('remove', relativePath);
+    }
+
     await this.ensureRepository();
 
     // Validate input
@@ -1769,9 +1782,41 @@ export class GitService {
   }
 
   /**
+   * Handle disabled exclude operations based on fallback behavior
+   */
+  private handleDisabledExcludeOperation(operation: 'add' | 'remove', relativePath: string): void {
+    const message = `Git exclude operation '${operation}' for '${relativePath}' skipped (exclude management disabled)`;
+    
+    switch (this.excludeSettings.fallbackBehavior) {
+      case 'error':
+        throw new GitExcludeError(
+          `Exclude operations are disabled: ${message}`,
+          operation,
+          [relativePath]
+        );
+      case 'warn':
+        console.warn(`Warning: ${message}`);
+        break;
+      case 'silent':
+        // Do nothing
+        break;
+      default:
+        console.warn(`Warning: ${message}`);
+        break;
+    }
+  }
+
+  /**
    * Create git service for different directory
    */
   public static create(workingDir: string): GitService {
     return new GitService(workingDir);
+  }
+
+  /**
+   * Create git service with configuration
+   */
+  public static createWithConfig(workingDir: string, excludeSettings: GitExcludeSettings): GitService {
+    return new GitService(workingDir, undefined, excludeSettings);
   }
 }

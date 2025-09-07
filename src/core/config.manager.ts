@@ -2,7 +2,9 @@ import * as path from 'path';
 import {
   PrivateConfig,
   ConfigSettings,
+  GitExcludeSettings,
   DEFAULT_SETTINGS,
+  DEFAULT_GIT_EXCLUDE_SETTINGS,
   DEFAULT_PATHS,
   CURRENT_CONFIG_VERSION,
   ValidationResult,
@@ -161,6 +163,34 @@ export class ConfigManager {
   public async updateSettings(newSettings: Partial<ConfigSettings>): Promise<PrivateConfig> {
     const config = await this.load();
     config.settings = { ...config.settings, ...newSettings };
+    await this.save(config);
+    return config;
+  }
+
+  /**
+   * Update git exclude settings
+   */
+  public async updateGitExcludeSettings(newExcludeSettings: Partial<GitExcludeSettings>): Promise<PrivateConfig> {
+    const config = await this.load();
+    config.settings.gitExclude = { ...config.settings.gitExclude, ...newExcludeSettings };
+    await this.save(config);
+    return config;
+  }
+
+  /**
+   * Get current git exclude settings
+   */
+  public async getGitExcludeSettings(): Promise<GitExcludeSettings> {
+    const config = await this.load();
+    return config.settings.gitExclude;
+  }
+
+  /**
+   * Reset git exclude settings to defaults
+   */
+  public async resetGitExcludeSettings(): Promise<PrivateConfig> {
+    const config = await this.load();
+    config.settings.gitExclude = { ...DEFAULT_GIT_EXCLUDE_SETTINGS };
     await this.save(config);
     return config;
   }

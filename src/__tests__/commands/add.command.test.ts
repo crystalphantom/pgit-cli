@@ -471,6 +471,85 @@ describe('AddCommand', () => {
     });
   });
 
+  describe('Enhanced Logic Consistency (Requirements 7.1, 7.2)', () => {
+    it('should use enhanced batch logic for single file operations', async () => {
+      // Setup mocks for single file operation
+      mockFileSystem.pathExists.mockImplementation((path: string) => {
+        return Promise.resolve(
+          ['/test/workspace/single-file.txt', '/test/workspace/.private-storage'].includes(path),
+        );
+      });
+
+      mockFileSystem.moveFileAtomic.mockResolvedValue(undefined);
+      mockFileSystem.isDirectory.mockResolvedValue(false);
+      mockSymlinkService.create.mockResolvedValue(undefined);
+      mockConfigManager.addTrackedPath.mockResolvedValue({} as PrivateConfig);
+      mockGitServiceInstance.addFiles.mockResolvedValue(undefined);
+      mockGitServiceInstance.commit.mockResolvedValue('single-commit');
+      
+      // Mock the enhanced git methods that should be used
+      mockGitServiceInstance.recordOriginalState.mockResolvedValue({
+        isTracked: true,
+        isStaged: false,
+        isModified: false,
+        isUntracked: false,
+        isExcluded: false,
+        originalPath: 'single-file.txt',
+        timestamp: new Date(),
+      });
+      mockGitServiceInstance.readGitExcludeFile.mockResolvedValue('');
+      mockGitServiceInstance.removeFromIndex.mockResolvedValue(undefined);
+      mockGitServiceInstance.addMultipleToGitExclude.mockResolvedValue({ successful: ['single-file.txt'], failed: [] });
+
+      const result = await addCommand.execute('single-file.txt', { verbose: true });
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Successfully added single-file.txt');
+      
+      // Verify that enhanced git methods were used (same as batch operations)
+      expect(mockGitServiceInstance.recordOriginalState).toHaveBeenCalledWith('single-file.txt');
+      expect(mockGitServiceInstance.readGitExcludeFile).toHaveBeenCalled();
+      expect(mockGitServiceInstance.removeFromIndex).toHaveBeenCalledWith(['single-file.txt'], true);
+      expect(mockGitServiceInstance.addMultipleToGitExclude).toHaveBeenCalledWith(['single-file.txt']);
+    });
+
+    it('should handle git operation failures consistently between single and batch operations', async () => {
+      // Setup mocks for failure scenario
+      mockFileSystem.pathExists.mockImplementation((path: string) => {
+        return Promise.resolve(
+          ['/test/workspace/test-file.txt', '/test/workspace/.private-storage'].includes(path),
+        );
+      });
+
+      // Mock git operation failure
+      mockGitServiceInstance.removeFromIndex.mockRejectedValue(new Error('Git operation failed'));
+      mockGitServiceInstance.addToGitExclude.mockResolvedValue(undefined);
+      mockGitServiceInstance.recordOriginalState.mockResolvedValue({
+        isTracked: true,
+        isStaged: false,
+        isModified: false,
+        isUntracked: false,
+        isExcluded: false,
+        originalPath: 'test-file.txt',
+        timestamp: new Date(),
+      });
+
+      // Mock console.warn to capture warning messages
+      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+      try {
+        await addCommand.execute('test-file.txt', { verbose: true });
+        
+        // Should continue with operation despite git failure (graceful degradation)
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Warning: Git operation failed')
+        );
+      } finally {
+        consoleSpy.mockRestore();
+      }
+    });
+  });
+
   describe('Enhanced Batch Processing', () => {
     it('should use batch git operations for multiple files', async () => {
       // Setup mocks for batch operations

@@ -84,6 +84,19 @@ export class AddCommand {
   }
 
   /**
+   * Create GitService instance with current configuration
+   */
+  private async createGitService(workingDir?: string): Promise<GitService> {
+    try {
+      const config = await this.configManager.load();
+      return new GitService(workingDir || this.workingDir, this.fileSystem, config.settings.gitExclude);
+    } catch (error) {
+      // If config loading fails, use default settings
+      return new GitService(workingDir || this.workingDir, this.fileSystem);
+    }
+  }
+
+  /**
    * Execute the add command for single or multiple files
    */
   public async execute(
@@ -291,7 +304,7 @@ export class AddCommand {
     relativePath: string,
   ): Promise<LegacyGitFileState> {
     try {
-      const gitService = new GitService(this.workingDir, this.fileSystem);
+      const gitService = await this.createGitService();
       const enhancedState = await gitService.getFileGitState(relativePath);
       
       // Return legacy format for backward compatibility
@@ -311,7 +324,7 @@ export class AddCommand {
   // @ts-ignore - Method will be used in future tasks
   private async getEnhancedFileGitState(relativePath: string): Promise<GitFileState> {
     try {
-      const gitService = new GitService(this.workingDir, this.fileSystem);
+      const gitService = await this.createGitService();
       return await gitService.getFileGitState(relativePath);
     } catch (error) {
       // Return default state on error
@@ -382,7 +395,7 @@ export class AddCommand {
         console.log(chalk.gray('   Recording original git states...'));
       }
 
-      const mainGitService = new GitService(this.workingDir, this.fileSystem);
+      const mainGitService = await this.createGitService();
       let isGitRepo = false;
       let originalExcludeFileContent = '';
 
@@ -392,7 +405,7 @@ export class AddCommand {
         originalExcludeFileContent = await mainGitService.readGitExcludeFile();
       }
 
-      const gitService = new GitService(this.workingDir, this.fileSystem);
+      const gitService = await this.createGitService();
       for (const relativePath of relativePaths) {
         const originalState = await gitService.recordOriginalState(relativePath);
         originalGitStates.set(relativePath, originalState);
@@ -519,7 +532,7 @@ export class AddCommand {
       }
 
       const privateStoragePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
-      const privateGitService = new GitService(privateStoragePath, this.fileSystem);
+      const privateGitService = await this.createGitService(privateStoragePath);
 
       if (!(await privateGitService.isRepository())) {
         throw new AddError('Private git repository not found. The initialization may have failed.');
@@ -597,32 +610,48 @@ export class AddCommand {
     // Store rollback actions
     const rollbackActions: Array<() => Promise<void>> = [];
 
-    // Record original git state before making any changes (legacy - kept for backward compatibility)
-    // const originalGitState = await this.getFileGitState(relativePath);
-
     try {
       if (options.verbose) {
         console.log(chalk.gray('   Removing from main git index...'));
       }
 
-      // Step 1: Record enhanced git state and remove from main git index
-      const gitService = new GitService(this.workingDir, this.fileSystem);
-      const enhancedOriginalState = await gitService.recordOriginalState(relativePath);
-      let originalExcludeContent = '';
+      // Step 1: Use enhanced batch git removal logic for consistency (Requirements 7.1, 7.2)
+      // This ensures single file operations follow the same logic as batch operations
+      const batchGitResult = await this.batchRemoveFromMainGitIndex([relativePath], { verbose: options.verbose });
       
       // Record original exclude file content for rollback
+      const gitService = await this.createGitService();
+      let originalExcludeContent = '';
       if (await gitService.isRepository()) {
         originalExcludeContent = await gitService.readGitExcludeFile();
       }
-      
-      await this.removeFromMainGitIndex(relativePath);
+
+      // Handle git operation results with consistent error handling
+      if (batchGitResult.failed.length > 0) {
+        const failedResult = batchGitResult.failed[0];
+        console.warn(
+          chalk.yellow(
+            `   Warning: Git operation failed for ${failedResult.path}: ${failedResult.error}`,
+          ),
+        );
+      }
+
+      // Add enhanced rollback for git operations using batch restore
       rollbackActions.push(async () => {
-        // Restore to enhanced git state including exclude status
-        try {
-          await gitService.restoreOriginalState(relativePath, enhancedOriginalState);
-        } catch (error) {
-          // Fallback to the enhanced rollback method if git service method fails
-          await this.restoreToEnhancedGitState(relativePath, enhancedOriginalState, originalExcludeContent);
+        if (batchGitResult.originalStates.size > 0) {
+          const rollbackResult = await this.batchRestoreToEnhancedGitState(
+            batchGitResult.originalStates,
+            originalExcludeContent,
+            { verbose: options.verbose }
+          );
+
+          if (rollbackResult.failed.length > 0) {
+            console.warn(
+              chalk.yellow(
+                `   Warning: Git rollback failed for ${rollbackResult.failed[0].path}: ${rollbackResult.failed[0].error}`,
+              ),
+            );
+          }
         }
       });
 
@@ -731,10 +760,12 @@ export class AddCommand {
 
   /**
    * Remove file from main git index and add to git exclude
+   * @deprecated Use batchRemoveFromMainGitIndex for consistency with enhanced logic
    */
+  // @ts-ignore - Method kept for backward compatibility
   private async removeFromMainGitIndex(relativePath: string): Promise<void> {
     try {
-      const gitService = new GitService(this.workingDir, this.fileSystem);
+      const gitService = await this.createGitService();
 
       if (await gitService.isRepository()) {
         // Always attempt to remove from git index regardless of current state
@@ -787,7 +818,7 @@ export class AddCommand {
     }
 
     try {
-      const gitService = new GitService(this.workingDir, this.fileSystem);
+      const gitService = await this.createGitService();
 
       if (!(await gitService.isRepository())) {
         // Not a git repository, skip git operations
@@ -901,7 +932,7 @@ export class AddCommand {
    */
   private async addToPrivateGit(relativePath: string): Promise<void> {
     const privateStoragePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
-    const gitService = new GitService(privateStoragePath, this.fileSystem);
+    const gitService = await this.createGitService(privateStoragePath);
 
     if (!(await gitService.isRepository())) {
       throw new AddError('Private git repository not found. The initialization may have failed.');
@@ -915,7 +946,7 @@ export class AddCommand {
    */
   private async commitToPrivateGit(relativePath: string, message: string): Promise<void> {
     const privateStoragePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
-    const gitService = new GitService(privateStoragePath, this.fileSystem);
+    const gitService = await this.createGitService(privateStoragePath);
 
     await gitService.commit(`${message}: ${relativePath}`);
   }
@@ -926,7 +957,7 @@ export class AddCommand {
   private async removeFromPrivateGit(relativePath: string): Promise<void> {
     try {
       const privateStoragePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
-      const gitService = new GitService(privateStoragePath, this.fileSystem);
+      const gitService = await this.createGitService(privateStoragePath);
 
       await gitService.removeFromIndex(relativePath, false);
     } catch {
@@ -944,7 +975,7 @@ export class AddCommand {
     originalState: { isTracked: boolean; isStaged: boolean },
   ): Promise<void> {
     try {
-      const gitService = new GitService(this.workingDir, this.fileSystem);
+      const gitService = await this.createGitService();
 
       if (!(await gitService.isRepository())) {
         return; // Nothing to restore in non-git directories
@@ -971,7 +1002,9 @@ export class AddCommand {
 
   /**
    * Enhanced rollback functionality: Restore file to its original enhanced git state including exclude status
+   * @deprecated Use batchRestoreToEnhancedGitState for consistency with enhanced logic
    */
+  // @ts-ignore - Method kept for backward compatibility
   private async restoreToEnhancedGitState(
     relativePath: string,
     originalState: GitFileState,
@@ -980,7 +1013,7 @@ export class AddCommand {
     const rollbackErrors: string[] = [];
 
     try {
-      const gitService = new GitService(this.workingDir, this.fileSystem);
+      const gitService = await this.createGitService();
 
       if (!(await gitService.isRepository())) {
         return; // Nothing to restore in non-git directories
@@ -1088,7 +1121,7 @@ export class AddCommand {
     const rollbackErrors: string[] = [];
 
     try {
-      const gitService = new GitService(this.workingDir, this.fileSystem);
+      const gitService = await this.createGitService();
 
       if (!(await gitService.isRepository())) {
         // Not a git repository, mark all as successful (nothing to restore)

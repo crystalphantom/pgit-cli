@@ -12,6 +12,22 @@ export interface ConfigSettings {
   createBackups: boolean;
   /** Maximum number of backup files to keep */
   maxBackups: number;
+  /** Git exclude file management settings */
+  gitExclude: GitExcludeSettings;
+}
+
+/**
+ * Git exclude file management configuration
+ */
+export interface GitExcludeSettings {
+  /** Enable/disable exclude file management */
+  enabled: boolean;
+  /** Custom marker comment for pgit-managed entries */
+  markerComment: string;
+  /** Fallback behavior when exclude operations are disabled */
+  fallbackBehavior: 'warn' | 'silent' | 'error';
+  /** Validate exclude file operations */
+  validateOperations: boolean;
 }
 
 /**
@@ -253,6 +269,16 @@ export interface ErrorInfo {
 }
 
 /**
+ * Default git exclude settings
+ */
+export const DEFAULT_GIT_EXCLUDE_SETTINGS: GitExcludeSettings = {
+  enabled: true,
+  markerComment: '# pgit-cli managed exclusions',
+  fallbackBehavior: 'warn',
+  validateOperations: true,
+};
+
+/**
  * Default configuration settings
  */
 export const DEFAULT_SETTINGS: ConfigSettings = {
@@ -261,6 +287,7 @@ export const DEFAULT_SETTINGS: ConfigSettings = {
   verboseOutput: false,
   createBackups: true,
   maxBackups: 5,
+  gitExclude: DEFAULT_GIT_EXCLUDE_SETTINGS,
 };
 
 /**
