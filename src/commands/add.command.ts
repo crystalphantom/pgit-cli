@@ -284,7 +284,9 @@ export class AddCommand {
 
   /**
    * Get the current git state of a file (legacy version for backward compatibility)
+   * @deprecated Use getEnhancedFileGitState instead
    */
+  // @ts-ignore - Method kept for backward compatibility
   private async getFileGitState(
     relativePath: string,
   ): Promise<LegacyGitFileState> {
@@ -594,19 +596,28 @@ export class AddCommand {
     // Store rollback actions
     const rollbackActions: Array<() => Promise<void>> = [];
 
-    // Record original git state before making any changes
-    const originalGitState = await this.getFileGitState(relativePath);
+    // Record original git state before making any changes (legacy - kept for backward compatibility)
+    // const originalGitState = await this.getFileGitState(relativePath);
 
     try {
       if (options.verbose) {
         console.log(chalk.gray('   Removing from main git index...'));
       }
 
-      // Step 1: Remove from main git index (if tracked)
+      // Step 1: Record enhanced git state and remove from main git index
+      const enhancedOriginalState = await this.getEnhancedFileGitState(relativePath);
+      let originalExcludeContent = '';
+      
+      // Record original exclude file content for rollback
+      const gitService = new GitService(this.workingDir, this.fileSystem);
+      if (await gitService.isRepository()) {
+        originalExcludeContent = await gitService.readGitExcludeFile();
+      }
+      
       await this.removeFromMainGitIndex(relativePath);
       rollbackActions.push(async () => {
-        // Restore to original git state
-        await this.restoreToOriginalGitState(relativePath, originalGitState);
+        // Restore to enhanced git state including exclude status
+        await this.restoreToEnhancedGitState(relativePath, enhancedOriginalState, originalExcludeContent);
       });
 
       if (options.verbose) {
@@ -932,8 +943,10 @@ export class AddCommand {
   }
 
   /**
-   * Restore file to its original git state (for rollback)
+   * Restore file to its original git state (for rollback) - Legacy version for backward compatibility
+   * @deprecated Use restoreToEnhancedGitState instead
    */
+  // @ts-ignore - Method kept for backward compatibility
   private async restoreToOriginalGitState(
     relativePath: string,
     originalState: { isTracked: boolean; isStaged: boolean },
@@ -964,6 +977,90 @@ export class AddCommand {
     }
   }
 
+  /**
+   * Enhanced rollback functionality: Restore file to its original enhanced git state including exclude status
+   */
+  private async restoreToEnhancedGitState(
+    relativePath: string,
+    originalState: GitFileState,
+    originalExcludeContent?: string,
+  ): Promise<void> {
+    const rollbackErrors: string[] = [];
+
+    try {
+      const gitService = new GitService(this.workingDir, this.fileSystem);
+
+      if (!(await gitService.isRepository())) {
+        return; // Nothing to restore in non-git directories
+      }
+
+      // Step 1: Restore git index state
+      try {
+        if (originalState.isTracked && originalState.isStaged) {
+          // File was previously staged, add it back to staging
+          await gitService.addFiles([relativePath]);
+        } else if (originalState.isTracked && !originalState.isStaged) {
+          // File was tracked but not staged, add then unstage to get it back in index but not staged
+          await gitService.addFiles([relativePath]);
+          await gitService.removeFromIndex(relativePath, true); // Remove from staging but keep in index
+        }
+        // If originalState.isTracked is false, file was untracked - do nothing (leave it untracked)
+      } catch (gitError) {
+        rollbackErrors.push(`Git index restoration failed: ${gitError instanceof Error ? gitError.message : String(gitError)}`);
+      }
+
+      // Step 2: Restore exclude file state
+      try {
+        if (originalState.isExcluded) {
+          // File was originally excluded, ensure it's back in exclude file
+          await gitService.addToGitExclude(relativePath);
+        } else {
+          // File was not originally excluded, remove it from exclude file
+          await gitService.removeFromGitExclude(relativePath);
+        }
+      } catch (excludeError) {
+        rollbackErrors.push(`Exclude file restoration failed: ${excludeError instanceof Error ? excludeError.message : String(excludeError)}`);
+      }
+
+      // Step 3: If we have original exclude content and there were exclude errors, try full restore
+      if (rollbackErrors.some(error => error.includes('Exclude file')) && originalExcludeContent !== undefined) {
+        try {
+          if (originalExcludeContent.trim()) {
+            await gitService.writeGitExcludeFile(originalExcludeContent);
+          } else {
+            // Original exclude file was empty, remove current exclude file
+            const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+            if (await this.fileSystem.pathExists(gitExcludePath)) {
+              await this.fileSystem.remove(gitExcludePath);
+            }
+          }
+          // Clear exclude-related errors since we did a full restore
+          const nonExcludeErrors = rollbackErrors.filter(error => !error.includes('Exclude file'));
+          rollbackErrors.length = 0;
+          rollbackErrors.push(...nonExcludeErrors);
+        } catch (fullRestoreError) {
+          rollbackErrors.push(`Full exclude file restoration failed: ${fullRestoreError instanceof Error ? fullRestoreError.message : String(fullRestoreError)}`);
+        }
+      }
+
+      // Log warnings for any rollback errors without throwing
+      if (rollbackErrors.length > 0) {
+        console.warn(
+          chalk.yellow(
+            `   Warning: Rollback issues for ${relativePath}: ${rollbackErrors.join('; ')}`,
+          ),
+        );
+      }
+    } catch (error) {
+      // Log warning but don't fail rollback to avoid masking original error
+      console.warn(
+        chalk.yellow(
+          `   Warning: Could not restore enhanced git state for ${relativePath}: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
+    }
+  }
+
 
 
   /**
@@ -979,8 +1076,8 @@ export class AddCommand {
   }
 
   /**
-   * Batch restore multiple files to their enhanced git states (for rollback)
-   * Optimized for performance with large file batches
+   * Enhanced batch restore multiple files to their git states including exclude file restoration
+   * Optimized for performance with large file batches and proper error handling
    */
   private async batchRestoreToEnhancedGitState(
     originalStates: Map<string, GitFileState>,
@@ -999,11 +1096,14 @@ export class AddCommand {
       return result;
     }
 
+    const rollbackErrors: string[] = [];
+
     try {
       const gitService = new GitService(this.workingDir, this.fileSystem);
 
       if (!(await gitService.isRepository())) {
-        // Not a git repository, nothing to restore
+        // Not a git repository, mark all as successful (nothing to restore)
+        result.successful.push(...Array.from(originalStates.keys()));
         return result;
       }
 
@@ -1011,37 +1111,69 @@ export class AddCommand {
         console.log(chalk.gray(`     Restoring git states for ${originalStates.size} files...`));
       }
 
-      // Step 1: Restore original exclude file content
+      // Step 1: Restore original exclude file content completely
       try {
         if (originalExcludeContent.trim()) {
           await gitService.writeGitExcludeFile(originalExcludeContent);
         } else {
-          // Remove all paths from exclude file if it was originally empty
-          const pathsToRemove = Array.from(originalStates.keys());
-          await gitService.removeMultipleFromGitExclude(pathsToRemove);
+          // Original exclude file was empty or didn't exist, remove current exclude file
+          const gitExcludePath = path.join(this.workingDir, '.git', 'info', 'exclude');
+          if (await this.fileSystem.pathExists(gitExcludePath)) {
+            await this.fileSystem.remove(gitExcludePath);
+          }
         }
         if (options.verbose) {
           console.log(chalk.gray('     Restored original .git/info/exclude content'));
         }
       } catch (excludeError) {
-        console.warn(
-          chalk.yellow(
-            `   Warning: Could not restore .git/info/exclude: ${excludeError instanceof Error ? excludeError.message : String(excludeError)}`,
-          ),
-        );
+        rollbackErrors.push(`Exclude file restoration failed: ${excludeError instanceof Error ? excludeError.message : String(excludeError)}`);
+        
+        // If full restore failed, try individual exclude operations as fallback
+        if (options.verbose) {
+          console.log(chalk.gray('     Full exclude restore failed, trying individual exclude operations...'));
+        }
+        
+        const originallyExcluded: string[] = [];
+        const originallyNotExcluded: string[] = [];
+        
+        for (const [relativePath, originalState] of originalStates) {
+          if (originalState.isExcluded) {
+            originallyExcluded.push(relativePath);
+          } else {
+            originallyNotExcluded.push(relativePath);
+          }
+        }
+        
+        // Try to restore exclude states individually
+        try {
+          if (originallyExcluded.length > 0) {
+            await gitService.addMultipleToGitExclude(originallyExcluded);
+          }
+          if (originallyNotExcluded.length > 0) {
+            await gitService.removeMultipleFromGitExclude(originallyNotExcluded);
+          }
+          if (options.verbose) {
+            console.log(chalk.gray('     Individual exclude operations completed'));
+          }
+        } catch (individualExcludeError) {
+          rollbackErrors.push(`Individual exclude operations failed: ${individualExcludeError instanceof Error ? individualExcludeError.message : String(individualExcludeError)}`);
+        }
       }
 
       // Step 2: Group files by their required git operations for batch processing
       const filesToStage: string[] = [];
       const filesToTrack: string[] = [];
+      const filesToLeaveUntracked: string[] = [];
 
       for (const [relativePath, originalState] of originalStates) {
         if (originalState.isTracked && originalState.isStaged) {
           filesToStage.push(relativePath);
         } else if (originalState.isTracked && !originalState.isStaged) {
           filesToTrack.push(relativePath);
+        } else {
+          // Untracked files don't need git index restoration
+          filesToLeaveUntracked.push(relativePath);
         }
-        // Untracked files don't need restoration
       }
 
       // Step 3: Batch restore staged files
@@ -1053,7 +1185,13 @@ export class AddCommand {
             console.log(chalk.gray(`     Restored ${filesToStage.length} files to staged state`));
           }
         } catch (stageError) {
+          rollbackErrors.push(`Batch staging failed: ${stageError instanceof Error ? stageError.message : String(stageError)}`);
+          
           // If batch staging fails, try individual staging
+          if (options.verbose) {
+            console.log(chalk.gray('     Batch staging failed, trying individual staging...'));
+          }
+          
           for (const relativePath of filesToStage) {
             try {
               await gitService.addFiles([relativePath]);
@@ -1071,7 +1209,7 @@ export class AddCommand {
       // Step 4: Batch restore tracked but unstaged files
       if (filesToTrack.length > 0) {
         try {
-          // Add files first, then unstage them
+          // Add files first, then unstage them to get them back in index but not staged
           await gitService.addFiles(filesToTrack);
           await gitService.removeFromIndex(filesToTrack, true);
           result.successful.push(...filesToTrack);
@@ -1079,7 +1217,13 @@ export class AddCommand {
             console.log(chalk.gray(`     Restored ${filesToTrack.length} files to tracked state`));
           }
         } catch (trackError) {
+          rollbackErrors.push(`Batch tracking failed: ${trackError instanceof Error ? trackError.message : String(trackError)}`);
+          
           // If batch tracking fails, try individual tracking
+          if (options.verbose) {
+            console.log(chalk.gray('     Batch tracking failed, trying individual tracking...'));
+          }
+          
           for (const relativePath of filesToTrack) {
             try {
               await gitService.addFiles([relativePath]);
@@ -1095,23 +1239,49 @@ export class AddCommand {
         }
       }
 
-      // Mark untracked files as successful (no action needed)
-      for (const [relativePath, originalState] of originalStates) {
-        if (!originalState.isTracked && !result.successful.includes(relativePath) && !result.failed.some(f => f.path === relativePath)) {
+      // Step 5: Mark untracked files as successful (no git index action needed)
+      result.successful.push(...filesToLeaveUntracked);
+      if (options.verbose && filesToLeaveUntracked.length > 0) {
+        console.log(chalk.gray(`     Left ${filesToLeaveUntracked.length} files in untracked state`));
+      }
+
+      // Step 6: Log rollback warnings without failing the operation
+      if (rollbackErrors.length > 0) {
+        console.warn(
+          chalk.yellow(
+            `   Warning: Some rollback operations had issues: ${rollbackErrors.join('; ')}`,
+          ),
+        );
+      }
+
+      // Step 7: Ensure all files are accounted for
+      const processedFiles = new Set([...result.successful, ...result.failed.map(f => f.path)]);
+      for (const relativePath of originalStates.keys()) {
+        if (!processedFiles.has(relativePath)) {
           result.successful.push(relativePath);
         }
       }
+
     } catch (error) {
-      // Repository-level error, mark all files as failed
+      // Repository-level error, mark remaining files as failed but don't throw
       const errorMessage = `Git repository error during rollback: ${error instanceof Error ? error.message : String(error)}`;
+      const processedFiles = new Set([...result.successful, ...result.failed.map(f => f.path)]);
+      
       for (const relativePath of originalStates.keys()) {
-        if (!result.successful.includes(relativePath)) {
+        if (!processedFiles.has(relativePath)) {
           result.failed.push({
             path: relativePath,
             error: errorMessage,
           });
         }
       }
+      
+      // Log the error but don't throw to avoid masking the original error
+      console.warn(
+        chalk.yellow(
+          `   Warning: Repository-level rollback error: ${errorMessage}`,
+        ),
+      );
     }
 
     return result;
