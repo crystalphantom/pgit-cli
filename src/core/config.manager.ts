@@ -9,6 +9,7 @@ import {
   CURRENT_CONFIG_VERSION,
 } from '../types/config.types';
 import { PrivateConfigSchema, PrivateConfigJsonSchema } from '../types/config.schema';
+import type { ZodError } from 'zod';
 import { FileSystemService } from './filesystem.service';
 import { PlatformDetector } from '../utils/platform.detector';
 import { BaseError } from '../errors/base.error';
@@ -125,13 +126,12 @@ export class ConfigManager {
     } catch (error) {
       if (error instanceof Error && error.name === 'ZodError') {
         // Extract specific validation error messages from ZodError
-        const zodError = error as any;
+        const zodError = error as ZodError;
         const errors = zodError.errors || [];
-        const errorMessages = errors.map((err: any) => err.message);
+        const errorMessages = errors.map(err => err.message);
 
         // If all errors are "Required", use generic message for better UX
-        const allRequired =
-          errors.length > 0 && errors.every((err: any) => err.message === 'Required');
+        const allRequired = errors.length > 0 && errors.every(err => err.message === 'Required');
         const message = allRequired ? 'Configuration data is invalid' : errorMessages.join(', ');
 
         throw new ConfigValidationError(message, error.message);
@@ -273,7 +273,14 @@ export class ConfigManager {
   /**
    * Get configuration health status
    */
-  public async getHealth(): Promise<any> {
+  public async getHealth(): Promise<{
+    exists: boolean;
+    valid: boolean;
+    errors: string[];
+    needsMigration: boolean;
+    currentVersion: string | null;
+    targetVersion: string;
+  }> {
     try {
       const exists = await this.exists();
       if (!exists) {
@@ -311,7 +318,7 @@ export class ConfigManager {
   /**
    * Transform configuration to JSON format
    */
-  private transformToJson(config: PrivateConfig): any {
+  private transformToJson(config: PrivateConfig): Record<string, unknown> {
     return {
       version: config.version,
       privateRepoPath: config.privateRepoPath,
