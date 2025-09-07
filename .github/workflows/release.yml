@@ -62,7 +62,7 @@ jobs:
           # Create release notes from changelog
           if [ -f "CHANGELOG.md" ]; then
             # Extract content between current version and next version/end of file
-            sed -n "/## \[v\?$VERSION\]/,/## \[v\?/p" CHANGELOG.md | head -n -1 > release_notes.md
+            sed -n "/#### \[v$VERSION\]/,/#### \[/p" CHANGELOG.md | head -n -1 > release_notes.md
             # Remove the version header line
             tail -n +2 release_notes.md > temp_notes.md && mv temp_notes.md release_notes.md
             

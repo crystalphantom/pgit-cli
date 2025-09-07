@@ -18,7 +18,7 @@
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist",
     "test:coverage": "jest --coverage",
-    "test:ci": "echo \"Skipping tests for CI\" && exit 0",
+    "test:ci": "jest --coverage --passWithNoTests",
     "release": "release-it",
     "release:patch": "release-it patch",
     "release:minor": "release-it minor",
