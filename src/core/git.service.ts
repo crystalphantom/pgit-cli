@@ -1218,6 +1218,69 @@ export class GitService {
   }
 
   /**
+   * Record the original git state of a file for later restoration
+   */
+  public async recordOriginalState(relativePath: string): Promise<GitFileState> {
+    if (!relativePath || !relativePath.trim()) {
+      throw new GitOperationError('File path cannot be empty');
+    }
+
+    try {
+      return await this.getFileGitState(relativePath);
+    } catch (error) {
+      throw new GitOperationError(
+        `Failed to record original state for ${relativePath}`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  /**
+   * Restore a file to its original git state
+   */
+  public async restoreOriginalState(relativePath: string, state: GitFileState): Promise<void> {
+    if (!relativePath || !relativePath.trim()) {
+      throw new GitOperationError('File path cannot be empty');
+    }
+
+    if (!state) {
+      throw new GitOperationError('Git state cannot be null or undefined');
+    }
+
+    try {
+      // If not a git repository, nothing to restore
+      if (!(await this.isRepository())) {
+        return;
+      }
+
+      // Restore git index state
+      if (state.isTracked && state.isStaged) {
+        // File was previously staged, add it back to staging
+        await this.addFiles([relativePath]);
+      } else if (state.isTracked && !state.isStaged) {
+        // File was tracked but not staged, add then unstage to get it back in index but not staged
+        await this.addFiles([relativePath]);
+        await this.removeFromIndex(relativePath, true); // Remove from staging but keep in index
+      }
+      // If state.isTracked is false, file was untracked - do nothing (leave it untracked)
+
+      // Restore exclude file state
+      if (state.isExcluded) {
+        // File was originally excluded, ensure it's back in exclude file
+        await this.addToGitExclude(relativePath);
+      } else {
+        // File was not originally excluded, remove it from exclude file
+        await this.removeFromGitExclude(relativePath);
+      }
+    } catch (error) {
+      throw new GitOperationError(
+        `Failed to restore original state for ${relativePath}`,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  /**
    * Create git service for different directory
    */
   public static create(workingDir: string): GitService {

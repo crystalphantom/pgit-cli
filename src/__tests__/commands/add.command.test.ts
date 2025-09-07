@@ -116,6 +116,8 @@ describe('AddCommand', () => {
       isInGitExclude: jest.fn(),
       getPgitManagedExcludes: jest.fn(),
       getFileGitState: jest.fn(),
+      recordOriginalState: jest.fn(),
+      restoreOriginalState: jest.fn(),
     } as unknown as jest.Mocked<GitService>;
 
     // Setup default mock behaviors
@@ -191,6 +193,18 @@ describe('AddCommand', () => {
       originalPath: 'test.txt',
       timestamp: new Date(),
     });
+
+    // Mock new state recording methods
+    mockGitServiceInstance.recordOriginalState.mockResolvedValue({
+      isTracked: false,
+      isStaged: false,
+      isModified: false,
+      isUntracked: true,
+      isExcluded: false,
+      originalPath: 'test.txt',
+      timestamp: new Date(),
+    });
+    mockGitServiceInstance.restoreOriginalState.mockResolvedValue(undefined);
 
     addCommand = new AddCommand(testWorkingDir);
 
