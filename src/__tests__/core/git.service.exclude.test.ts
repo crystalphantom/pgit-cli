@@ -262,7 +262,7 @@ describe('GitService - Exclude File Management', () => {
       expect(result.successful).toEqual(['file1.txt', 'file2.txt']);
       expect(result.failed).toHaveLength(1);
       expect(result.failed[0].path).toBe('');
-      expect(result.failed[0].error).toContain('Empty or whitespace-only path');
+      expect(result.failed[0].error).toContain('Path must be a non-empty string');
     });
 
     it('should skip paths that already exist', async () => {
@@ -357,7 +357,7 @@ describe('GitService - Exclude File Management', () => {
       expect(result.successful).toEqual(['file1.txt', 'file2.txt']);
       expect(result.failed).toHaveLength(1);
       expect(result.failed[0].path).toBe('');
-      expect(result.failed[0].error).toContain('Empty or whitespace-only path');
+      expect(result.failed[0].error).toContain('Path must be a non-empty string');
     });
   });
 
