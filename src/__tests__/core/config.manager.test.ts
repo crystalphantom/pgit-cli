@@ -1,6 +1,6 @@
 import { ConfigManager } from '../../core/config.manager';
 import { FileSystemService } from '../../core/filesystem.service';
-import { PrivateConfig, DEFAULT_PATHS } from '../../types/config.types';
+import { PrivateConfig, DEFAULT_PATHS, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../../types/config.types';
 import * as path from 'path';
 
 // Mock FileSystemService
@@ -62,6 +62,7 @@ describe('ConfigManager', () => {
         verboseOutput: false,
         createBackups: true,
         maxBackups: 5,
+        gitExclude: DEFAULT_GIT_EXCLUDE_SETTINGS,
       },
       metadata: {
         projectName: 'test-project',
@@ -119,6 +120,7 @@ describe('ConfigManager', () => {
         verboseOutput: false,
         createBackups: true,
         maxBackups: 5,
+        gitExclude: DEFAULT_GIT_EXCLUDE_SETTINGS,
       },
       metadata: {
         projectName: 'test-project',
@@ -176,6 +178,7 @@ describe('ConfigManager', () => {
           verboseOutput: false,
           createBackups: true,
           maxBackups: 5,
+          gitExclude: DEFAULT_GIT_EXCLUDE_SETTINGS,
         },
         metadata: {
           projectName: 'workspace',
@@ -212,6 +215,7 @@ describe('ConfigManager', () => {
         verboseOutput: false,
         createBackups: true,
         maxBackups: 5,
+        gitExclude: DEFAULT_GIT_EXCLUDE_SETTINGS,
       },
       metadata: {
         projectName: 'test-project',
@@ -266,6 +270,7 @@ describe('ConfigManager', () => {
         verboseOutput: false,
         createBackups: true,
         maxBackups: 5,
+        gitExclude: DEFAULT_GIT_EXCLUDE_SETTINGS,
       },
       metadata: {
         projectName: 'test-project',
@@ -312,6 +317,7 @@ describe('ConfigManager', () => {
           verboseOutput: false,
           createBackups: true,
           maxBackups: 5,
+          gitExclude: DEFAULT_GIT_EXCLUDE_SETTINGS,
         },
         metadata: {
           projectName: 'test-project',
@@ -368,6 +374,7 @@ describe('ConfigManager', () => {
           verboseOutput: false,
           createBackups: true,
           maxBackups: 5,
+          gitExclude: DEFAULT_GIT_EXCLUDE_SETTINGS,
         },
         metadata: {
           projectName: 'test-project',
@@ -406,6 +413,7 @@ describe('ConfigManager', () => {
           verboseOutput: false,
           createBackups: true,
           maxBackups: 5,
+          gitExclude: DEFAULT_GIT_EXCLUDE_SETTINGS,
         },
         metadata: {
           projectName: 'test-project',
@@ -443,6 +451,7 @@ describe('ConfigManager', () => {
           verboseOutput: false,
           createBackups: true,
           maxBackups: 5,
+          gitExclude: DEFAULT_GIT_EXCLUDE_SETTINGS,
         },
         metadata: {
           projectName: 'test-project',
@@ -473,6 +482,7 @@ describe('ConfigManager', () => {
           verboseOutput: false,
           createBackups: true,
           maxBackups: 5,
+          gitExclude: DEFAULT_GIT_EXCLUDE_SETTINGS,
         },
         metadata: {
           projectName: 'test-project',
