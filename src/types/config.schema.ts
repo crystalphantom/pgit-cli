@@ -9,11 +9,11 @@ export const GitExcludeSettingsSchema = z.object({
     .string()
     .min(1, 'Marker comment cannot be empty')
     .max(100, 'Marker comment too long')
-    .refine(comment => comment.startsWith('#'), { 
-      message: 'Marker comment must start with #', 
+    .refine(comment => comment.startsWith('#'), {
+      message: 'Marker comment must start with #',
     })
-    .refine(comment => !comment.includes('\n'), { 
-      message: 'Marker comment cannot contain newlines', 
+    .refine(comment => !comment.includes('\n'), {
+      message: 'Marker comment cannot contain newlines',
     }),
   fallbackBehavior: z.enum(['warn', 'silent', 'error'], {
     errorMap: () => ({ message: 'Fallback behavior must be warn, silent, or error' }),
