@@ -49,7 +49,7 @@ export class GitService {
   private readonly git: SimpleGit;
   private readonly workingDir: string;
   private readonly fileSystem: FileSystemService;
-  private readonly excludeSettings: GitExcludeSettings;
+  private readonly _excludeSettings: GitExcludeSettings;
 
   constructor(
     workingDir: string,
@@ -59,9 +59,16 @@ export class GitService {
     this.workingDir = path.resolve(workingDir);
     this.git = simpleGit(this.workingDir);
     this.fileSystem = fileSystem || new FileSystemService();
-    this.excludeSettings = excludeSettings
+    this._excludeSettings = excludeSettings
       ? { ...excludeSettings }
       : { ...DEFAULT_GIT_EXCLUDE_SETTINGS };
+  }
+
+  /**
+   * Get current exclude settings
+   */
+  public get excludeSettings(): GitExcludeSettings {
+    return { ...this._excludeSettings };
   }
 
   /**
@@ -1042,7 +1049,7 @@ export class GitService {
    */
   public async addToGitExclude(relativePath: string): Promise<void> {
     // Check if exclude operations are enabled
-    if (!this.excludeSettings.enabled) {
+    if (!this._excludeSettings.enabled) {
       return this.handleDisabledExcludeOperation('add', relativePath);
     }
 
@@ -1112,7 +1119,7 @@ export class GitService {
         }
 
         // Add pgit marker comment if not present
-        const pgitMarker = this.excludeSettings.markerComment;
+        const pgitMarker = this._excludeSettings.markerComment;
         const lines = excludeContent.split('\n').map(line => line.trim());
 
         if (!lines.includes(pgitMarker)) {
@@ -1166,6 +1173,11 @@ export class GitService {
   public async addMultipleToGitExclude(
     relativePaths: string[],
   ): Promise<{ successful: string[]; failed: Array<{ path: string; error: string }> }> {
+    // Check if exclude operations are enabled
+    if (!this._excludeSettings.enabled) {
+      return this.handleDisabledExcludeOperationMultiple('add', relativePaths);
+    }
+
     await this.ensureRepository();
 
     const result = {
@@ -1252,7 +1264,7 @@ export class GitService {
         }
 
         // Add pgit marker comment if not present and we have paths to add
-        const pgitMarker = '# pgit-cli managed exclusions';
+        const pgitMarker = this._excludeSettings.markerComment;
         if (pathsToAdd.length > 0 && !lines.includes(pgitMarker)) {
           if (excludeContent && !excludeContent.endsWith('\n')) {
             excludeContent += '\n';
@@ -1315,6 +1327,11 @@ export class GitService {
   public async removeMultipleFromGitExclude(
     relativePaths: string[],
   ): Promise<{ successful: string[]; failed: Array<{ path: string; error: string }> }> {
+    // Check if exclude operations are enabled
+    if (!this._excludeSettings.enabled) {
+      return this.handleDisabledExcludeOperationMultiple('remove', relativePaths);
+    }
+
     await this.ensureRepository();
 
     const result = {
@@ -1603,7 +1620,7 @@ export class GitService {
    */
   public async removeFromGitExclude(relativePath: string): Promise<void> {
     // Check if exclude operations are enabled
-    if (!this.excludeSettings.enabled) {
+    if (!this._excludeSettings.enabled) {
       return this.handleDisabledExcludeOperation('remove', relativePath);
     }
 
@@ -1904,7 +1921,7 @@ export class GitService {
   private handleDisabledExcludeOperation(operation: 'add' | 'remove', relativePath: string): void {
     const message = `Git exclude operation '${operation}' for '${relativePath}' skipped (exclude management disabled)`;
 
-    switch (this.excludeSettings.fallbackBehavior) {
+    switch (this._excludeSettings.fallbackBehavior) {
       case 'error':
         throw new GitExcludeError(`Exclude operations are disabled: ${message}`, operation, [
           relativePath,
@@ -1919,6 +1936,49 @@ export class GitService {
         console.warn(`Warning: ${message}`);
         break;
     }
+  }
+
+  /**
+   * Handle disabled exclude operations for multiple paths
+   */
+  private handleDisabledExcludeOperationMultiple(
+    operation: 'add' | 'remove',
+    relativePaths: string[],
+  ): { successful: string[]; failed: Array<{ path: string; error: string }> } {
+    // If fallback behavior is 'error', throw immediately (don't return a result object)
+    if (this._excludeSettings.fallbackBehavior === 'error') {
+      const message = `Git exclude operations are disabled for ${relativePaths.length} path(s)`;
+      throw new GitExcludeError(
+        `Exclude operations are disabled: ${message}`,
+        operation,
+        relativePaths,
+      );
+    }
+
+    const result = {
+      successful: [] as string[],
+      failed: [] as Array<{ path: string; error: string }>,
+    };
+
+    for (const relativePath of relativePaths) {
+      const message = `Git exclude operation '${operation}' for '${relativePath}' skipped (exclude management disabled)`;
+
+      switch (this._excludeSettings.fallbackBehavior) {
+        case 'warn':
+          console.warn(`Warning: ${message}`);
+          result.successful.push(relativePath); // Consider it successful for the caller
+          break;
+        case 'silent':
+          result.successful.push(relativePath); // Consider it successful for the caller
+          break;
+        default:
+          console.warn(`Warning: ${message}`);
+          result.successful.push(relativePath); // Consider it successful for the caller
+          break;
+      }
+    }
+
+    return result;
   }
 
   /**

@@ -4,16 +4,17 @@ import { GitExcludeSettings, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../../types/co
 import { GitExcludeError } from '../../errors/git.error';
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { simpleGit } from 'simple-git';
+import * as os from 'os';
+import { simpleGit, SimpleGit } from 'simple-git';
 
 describe('GitService - Configuration Support', () => {
   let gitService: GitService;
   let fileSystem: FileSystemService;
   let tempDir: string;
-  let git: any;
+  let git: SimpleGit;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(__dirname, '../../../test-temp/git-config-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'git-config-'));
     fileSystem = new FileSystemService();
     
     // Initialize git repository
@@ -29,7 +30,9 @@ describe('GitService - Configuration Support', () => {
   });
 
   afterEach(async () => {
-    await fs.remove(tempDir);
+    if (tempDir) {
+      await fs.remove(tempDir);
+    }
   });
 
   describe('constructor with exclude settings', () => {
@@ -37,7 +40,7 @@ describe('GitService - Configuration Support', () => {
       gitService = new GitService(tempDir, fileSystem);
       
       // Access private property for testing
-      const excludeSettings = (gitService as any).excludeSettings;
+      const excludeSettings = gitService.excludeSettings;
       expect(excludeSettings).toEqual(DEFAULT_GIT_EXCLUDE_SETTINGS);
     });
 
@@ -51,7 +54,7 @@ describe('GitService - Configuration Support', () => {
 
       gitService = new GitService(tempDir, fileSystem, customSettings);
       
-      const excludeSettings = (gitService as any).excludeSettings;
+      const excludeSettings = gitService.excludeSettings;
       expect(excludeSettings).toEqual(customSettings);
     });
 
@@ -70,7 +73,7 @@ describe('GitService - Configuration Support', () => {
       customSettings.markerComment = '# modified marker';
 
       // GitService should still have original values
-      const excludeSettings = (gitService as any).excludeSettings;
+      const excludeSettings = gitService.excludeSettings;
       expect(excludeSettings.enabled).toBe(true);
       expect(excludeSettings.markerComment).toBe('# original marker');
     });
@@ -80,7 +83,7 @@ describe('GitService - Configuration Support', () => {
     it('should create GitService with default settings using create()', () => {
       gitService = GitService.create(tempDir);
       
-      const excludeSettings = (gitService as any).excludeSettings;
+      const excludeSettings = gitService.excludeSettings;
       expect(excludeSettings).toEqual(DEFAULT_GIT_EXCLUDE_SETTINGS);
     });
 
@@ -94,7 +97,7 @@ describe('GitService - Configuration Support', () => {
 
       gitService = GitService.createWithConfig(tempDir, customSettings);
       
-      const excludeSettings = (gitService as any).excludeSettings;
+      const excludeSettings = gitService.excludeSettings;
       expect(excludeSettings).toEqual(customSettings);
     });
   });
@@ -117,7 +120,7 @@ describe('GitService - Configuration Support', () => {
       await gitService.addToGitExclude('test-file.txt');
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Git exclude operation 'add' for 'test-file.txt' skipped")
+        expect.stringContaining('Git exclude operation \'add\' for \'test-file.txt\' skipped'),
       );
 
       consoleSpy.mockRestore();
@@ -164,7 +167,7 @@ describe('GitService - Configuration Support', () => {
       await gitService.removeFromGitExclude('test-file.txt');
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Git exclude operation 'remove' for 'test-file.txt' skipped")
+        expect.stringContaining('Git exclude operation \'remove\' for \'test-file.txt\' skipped'),
       );
 
       consoleSpy.mockRestore();
@@ -225,9 +228,9 @@ describe('GitService - Configuration Support', () => {
       const invalidSettings = {
         enabled: false,
         markerComment: '# test marker',
-        fallbackBehavior: undefined as any,
+        fallbackBehavior: undefined,
         validateOperations: true,
-      };
+      } as unknown as GitExcludeSettings;
 
       gitService = new GitService(tempDir, fileSystem, invalidSettings);
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
@@ -236,7 +239,7 @@ describe('GitService - Configuration Support', () => {
 
       // Should default to warn behavior
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Git exclude operation 'add' for 'test-file.txt' skipped")
+        expect.stringContaining('Git exclude operation \'add\' for \'test-file.txt\' skipped'),
       );
 
       consoleSpy.mockRestore();

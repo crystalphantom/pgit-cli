@@ -3,6 +3,7 @@ import { FileSystemService } from '../../core/filesystem.service';
 import { GitExcludeSettings, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../../types/config.types';
 import * as path from 'path';
 import * as fs from 'fs-extra';
+import * as os from 'os';
 
 describe('ConfigManager - Git Exclude Settings', () => {
   let configManager: ConfigManager;
@@ -10,7 +11,7 @@ describe('ConfigManager - Git Exclude Settings', () => {
   let tempDir: string;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(__dirname, '../../../test-temp/config-exclude-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'config-exclude-'));
     fileSystem = new FileSystemService();
     configManager = new ConfigManager(tempDir, fileSystem);
 
@@ -19,7 +20,9 @@ describe('ConfigManager - Git Exclude Settings', () => {
   });
 
   afterEach(async () => {
-    await fs.remove(tempDir);
+    if (tempDir) {
+      await fs.remove(tempDir);
+    }
   });
 
   describe('updateGitExcludeSettings', () => {
@@ -70,7 +73,7 @@ describe('ConfigManager - Git Exclude Settings', () => {
 
     it('should validate fallback behavior values', async () => {
       const invalidSettings = {
-        fallbackBehavior: 'invalid' as any,
+        fallbackBehavior: 'invalid' as 'warn' | 'silent' | 'error',
       };
 
       await expect(configManager.updateGitExcludeSettings(invalidSettings)).rejects.toThrow(
