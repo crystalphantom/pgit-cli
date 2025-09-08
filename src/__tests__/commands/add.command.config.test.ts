@@ -22,37 +22,47 @@ describe('AddCommand - Configuration Integration', () => {
   let git: SimpleGit;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'add-config-'));
-    fileSystem = new FileSystemService();
-    
-    // Initialize git repository
-    git = simpleGit(tempDir);
-    await git.init();
-    await git.addConfig('user.name', 'Test User');
-    await git.addConfig('user.email', 'test@example.com');
+    // Initialize tempDir first to ensure it's available for cleanup
+    tempDir = '';
+    try {
+      tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'add-config-'));
+      fileSystem = new FileSystemService();
 
-    // Create initial commit
-    await fs.writeFile(path.join(tempDir, 'README.md'), '# Test Repository');
-    await git.add('README.md');
-    await git.commit('Initial commit');
+      // Initialize git repository
+      git = simpleGit(tempDir);
+      await git.init();
+      await git.addConfig('user.name', 'Test User');
+      await git.addConfig('user.email', 'test@example.com');
 
-    // Initialize pgit
-    addCommand = new AddCommand(tempDir);
-    configManager = new ConfigManager(tempDir, fileSystem);
-    await configManager.create(tempDir);
+      // Create initial commit
+      await fs.writeFile(path.join(tempDir, 'README.md'), '# Test Repository');
+      await git.add('README.md');
+      await git.commit('Initial commit');
 
-    // Create private storage and initialize private git
-    const privateStoragePath = path.join(tempDir, '.private-storage');
-    await fs.ensureDir(privateStoragePath);
-    const privateGit = simpleGit(privateStoragePath);
-    await privateGit.init();
-    await privateGit.addConfig('user.name', 'Test User');
-    await privateGit.addConfig('user.email', 'test@example.com');
+      // Initialize pgit
+      addCommand = new AddCommand(tempDir);
+      configManager = new ConfigManager(tempDir, fileSystem);
+      await configManager.create(tempDir);
+
+      // Create private storage and initialize private git
+      const privateStoragePath = path.join(tempDir, '.private-storage');
+      await fs.ensureDir(privateStoragePath);
+      const privateGit = simpleGit(privateStoragePath);
+      await privateGit.init();
+      await privateGit.addConfig('user.name', 'Test User');
+      await privateGit.addConfig('user.email', 'test@example.com');
+    } catch (error) {
+      // If setup fails, ensure tempDir is cleaned up
+      if (tempDir) {
+        await fs.remove(tempDir).catch(() => {});
+      }
+      throw error;
+    }
   });
 
   afterEach(async () => {
-    if (tempDir) {
-      await fs.remove(tempDir);
+    if (tempDir && tempDir.trim() !== '') {
+      await fs.remove(tempDir).catch(() => {});
     }
   });
 
@@ -72,7 +82,7 @@ describe('AddCommand - Configuration Integration', () => {
 
     it('should handle multiple files with default settings', async () => {
       const testFiles = ['file1.txt', 'file2.txt', 'file3.txt'];
-      
+
       for (const fileName of testFiles) {
         const filePath = path.join(tempDir, fileName);
         await fs.writeFile(filePath, `content of ${fileName}`);
@@ -91,24 +101,27 @@ describe('AddCommand - Configuration Integration', () => {
   });
 
   describe('exclude operations with custom configuration', () => {
-
     it('should use custom marker comment', async () => {
       // Update configuration using AddCommand's configManager
       const customExcludeSettings: Partial<GitExcludeSettings> = {
         markerComment: '# custom test marker for pgit',
         fallbackBehavior: 'warn',
       };
-      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(customExcludeSettings);
-      
+      await (
+        addCommand as unknown as AddCommandWithPrivates
+      ).configManager.updateGitExcludeSettings(customExcludeSettings);
+
       // Verify the configuration was updated
-      const updatedConfig = await (addCommand as unknown as AddCommandWithPrivates).configManager.load();
+      const updatedConfig = await (
+        addCommand as unknown as AddCommandWithPrivates
+      ).configManager.load();
       console.log('Updated config marker:', updatedConfig.settings.gitExclude.markerComment);
-      
+
       // Test GitService creation
-      const testGitService = await (addCommand as unknown as AddCommandWithPrivates).createGitService();
-      const testExcludeSettings = testGitService.excludeSettings;
-      console.log('GitService marker:', testExcludeSettings.markerComment);
-      
+      await (addCommand as unknown as AddCommandWithPrivates).createGitService();
+      // Note: excludeSettings is private, so we test the behavior instead
+      console.log('GitService created successfully');
+
       const testFile = path.join(tempDir, 'custom-test.txt');
       await fs.writeFile(testFile, 'test content');
 
@@ -129,11 +142,13 @@ describe('AddCommand - Configuration Integration', () => {
         markerComment: '# custom test marker for pgit',
         fallbackBehavior: 'warn',
       };
-      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(customExcludeSettings);
-      
+      await (
+        addCommand as unknown as AddCommandWithPrivates
+      ).configManager.updateGitExcludeSettings(customExcludeSettings);
+
       const testFile1 = path.join(tempDir, 'persistent-test1.txt');
       const testFile2 = path.join(tempDir, 'persistent-test2.txt');
-      
+
       await fs.writeFile(testFile1, 'test content 1');
       await fs.writeFile(testFile2, 'test content 2');
 
@@ -153,17 +168,18 @@ describe('AddCommand - Configuration Integration', () => {
   });
 
   describe('exclude operations with disabled configuration', () => {
-
     it('should skip exclude operations when disabled', async () => {
       // Update configuration using AddCommand's configManager
       const disabledExcludeSettings: Partial<GitExcludeSettings> = {
         enabled: false,
         fallbackBehavior: 'warn',
       };
-      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(disabledExcludeSettings);
-      
+      await (
+        addCommand as unknown as AddCommandWithPrivates
+      ).configManager.updateGitExcludeSettings(disabledExcludeSettings);
+
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const testFile = path.join(tempDir, 'disabled-test.txt');
       await fs.writeFile(testFile, 'test content');
 
@@ -183,7 +199,7 @@ describe('AddCommand - Configuration Integration', () => {
 
       // Should have logged warnings about skipped operations
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Git exclude operation \'add\' for \'disabled-test.txt\' skipped'),
+        expect.stringContaining("Git exclude operation 'add' for 'disabled-test.txt' skipped"),
       );
 
       consoleSpy.mockRestore();
@@ -195,12 +211,14 @@ describe('AddCommand - Configuration Integration', () => {
         enabled: false,
         fallbackBehavior: 'warn',
       };
-      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(disabledExcludeSettings);
-      
+      await (
+        addCommand as unknown as AddCommandWithPrivates
+      ).configManager.updateGitExcludeSettings(disabledExcludeSettings);
+
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const testFiles = ['batch1.txt', 'batch2.txt'];
-      
+
       for (const fileName of testFiles) {
         const filePath = path.join(tempDir, fileName);
         await fs.writeFile(filePath, `content of ${fileName}`);
@@ -229,13 +247,16 @@ describe('AddCommand - Configuration Integration', () => {
         enabled: false,
         fallbackBehavior: 'error',
       };
-      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(errorExcludeSettings);
-      
+      await (
+        addCommand as unknown as AddCommandWithPrivates
+      ).configManager.updateGitExcludeSettings(errorExcludeSettings);
+
       const testFile = path.join(tempDir, 'error-test.txt');
       await fs.writeFile(testFile, 'test content');
 
-      await expect(addCommand.execute('error-test.txt', { verbose: false }))
-        .rejects.toThrow('Exclude operations are disabled');
+      await expect(addCommand.execute('error-test.txt', { verbose: false })).rejects.toThrow(
+        'Exclude operations are disabled',
+      );
     });
   });
 
@@ -246,10 +267,12 @@ describe('AddCommand - Configuration Integration', () => {
         enabled: false,
         fallbackBehavior: 'silent',
       };
-      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(silentExcludeSettings);
-      
+      await (
+        addCommand as unknown as AddCommandWithPrivates
+      ).configManager.updateGitExcludeSettings(silentExcludeSettings);
+
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      
+
       const testFile = path.join(tempDir, 'silent-test.txt');
       await fs.writeFile(testFile, 'test content');
 
@@ -313,7 +336,9 @@ describe('AddCommand - Configuration Integration', () => {
       const customExcludeSettings: Partial<GitExcludeSettings> = {
         markerComment: '# rollback test marker',
       };
-      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(customExcludeSettings);
+      await (
+        addCommand as unknown as AddCommandWithPrivates
+      ).configManager.updateGitExcludeSettings(customExcludeSettings);
 
       const testFile = path.join(tempDir, 'rollback-test.txt');
       await fs.writeFile(testFile, 'test content');
