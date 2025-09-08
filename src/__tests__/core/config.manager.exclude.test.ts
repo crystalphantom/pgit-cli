@@ -77,7 +77,7 @@ describe('ConfigManager - Git Exclude Settings', () => {
       };
 
       await expect(configManager.updateGitExcludeSettings(invalidSettings)).rejects.toThrow(
-        'Fallback behavior must be warn, silent, or error',
+        'Invalid enum value. Expected \'warn\' | \'silent\' | \'error\', received \'invalid\'',
       );
     });
   });

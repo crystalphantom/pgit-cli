@@ -9,7 +9,7 @@ import {
   CURRENT_CONFIG_VERSION,
 } from '../types/config.types';
 import { PrivateConfigSchema, PrivateConfigJsonSchema } from '../types/config.schema';
-import type { ZodError } from 'zod';
+import { ZodError, ZodIssue } from 'zod';
 import type { ConfigHealth } from '../types/config.types';
 import { FileSystemService } from './filesystem.service';
 import { PlatformDetector } from '../utils/platform.detector';
@@ -125,14 +125,14 @@ export class ConfigManager {
       // Update cache
       this.cachedConfig = validatedConfig;
     } catch (error) {
-      if (error instanceof Error && error.name === 'ZodError') {
+      if (error instanceof ZodError) {
         // Extract specific validation error messages from ZodError
         const zodError = error as ZodError;
-        const errors = zodError.errors || [];
-        const errorMessages = errors.map(err => err.message);
+        const errors = zodError.issues || [];
+        const errorMessages = errors.map((err: ZodIssue) => err.message);
 
         // If all errors are "Required", use generic message for better UX
-        const allRequired = errors.length > 0 && errors.every(err => err.message === 'Required');
+        const allRequired = errors.length > 0 && errors.every((err: ZodIssue) => err.message === 'Required');
         const message = allRequired ? 'Configuration data is invalid' : errorMessages.join(', ');
 
         throw new ConfigValidationError(message, error.message);
