@@ -16,7 +16,7 @@ export const GitExcludeSettingsSchema = z.object({
       message: 'Marker comment cannot contain newlines',
     }),
   fallbackBehavior: z.enum(['warn', 'silent', 'error'], {
-    errorMap: () => ({ message: 'Fallback behavior must be warn, silent, or error' }),
+    invalid_type_error: 'Fallback behavior must be warn, silent, or error',
   }),
   validateOperations: z.boolean(),
 });

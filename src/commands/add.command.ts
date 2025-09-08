@@ -274,7 +274,7 @@ export class AddCommand {
     let config: PrivateConfig;
     try {
       config = await this.configManager.load();
-    } catch (error) {
+    } catch (_error) {
       // If config loading fails, create a minimal fallback config
       console.warn('Warning: Could not load configuration. Using default settings for validation.');
       config = {
@@ -799,7 +799,7 @@ export class AddCommand {
             // Ignore errors during rollback
           }
         });
-      } catch (configError) {
+      } catch (_configError) {
         // If config is corrupted, log warning but continue
         console.warn(
           chalk.yellow(
