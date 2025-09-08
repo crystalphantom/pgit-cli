@@ -1,20 +1,28 @@
 import { AddCommand } from '../../commands/add.command';
 import { ConfigManager } from '../../core/config.manager';
 import { FileSystemService } from '../../core/filesystem.service';
+import { GitService } from '../../core/git.service';
 import { GitExcludeSettings } from '../../types/config.types';
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { simpleGit } from 'simple-git';
+import * as os from 'os';
+import { SimpleGit, simpleGit } from 'simple-git';
+
+// Helper types for testing private members
+type AddCommandWithPrivates = {
+  configManager: ConfigManager;
+  createGitService(): Promise<GitService>;
+};
 
 describe('AddCommand - Configuration Integration', () => {
   let addCommand: AddCommand;
   let configManager: ConfigManager;
   let fileSystem: FileSystemService;
   let tempDir: string;
-  let git: any;
+  let git: SimpleGit;
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(__dirname, '../../../test-temp/add-config-'));
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'add-config-'));
     fileSystem = new FileSystemService();
     
     // Initialize git repository
@@ -43,7 +51,9 @@ describe('AddCommand - Configuration Integration', () => {
   });
 
   afterEach(async () => {
-    await fs.remove(tempDir);
+    if (tempDir) {
+      await fs.remove(tempDir);
+    }
   });
 
   describe('exclude operations with default configuration', () => {
@@ -88,15 +98,15 @@ describe('AddCommand - Configuration Integration', () => {
         markerComment: '# custom test marker for pgit',
         fallbackBehavior: 'warn',
       };
-      await (addCommand as any).configManager.updateGitExcludeSettings(customExcludeSettings);
+      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(customExcludeSettings);
       
       // Verify the configuration was updated
-      const updatedConfig = await (addCommand as any).configManager.load();
+      const updatedConfig = await (addCommand as unknown as AddCommandWithPrivates).configManager.load();
       console.log('Updated config marker:', updatedConfig.settings.gitExclude.markerComment);
       
       // Test GitService creation
-      const testGitService = await (addCommand as any).createGitService();
-      const testExcludeSettings = (testGitService as any).excludeSettings;
+      const testGitService = await (addCommand as unknown as AddCommandWithPrivates).createGitService();
+      const testExcludeSettings = testGitService.excludeSettings;
       console.log('GitService marker:', testExcludeSettings.markerComment);
       
       const testFile = path.join(tempDir, 'custom-test.txt');
@@ -119,7 +129,7 @@ describe('AddCommand - Configuration Integration', () => {
         markerComment: '# custom test marker for pgit',
         fallbackBehavior: 'warn',
       };
-      await (addCommand as any).configManager.updateGitExcludeSettings(customExcludeSettings);
+      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(customExcludeSettings);
       
       const testFile1 = path.join(tempDir, 'persistent-test1.txt');
       const testFile2 = path.join(tempDir, 'persistent-test2.txt');
@@ -150,7 +160,7 @@ describe('AddCommand - Configuration Integration', () => {
         enabled: false,
         fallbackBehavior: 'warn',
       };
-      await (addCommand as any).configManager.updateGitExcludeSettings(disabledExcludeSettings);
+      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(disabledExcludeSettings);
       
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       
@@ -173,7 +183,7 @@ describe('AddCommand - Configuration Integration', () => {
 
       // Should have logged warnings about skipped operations
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Git exclude operation 'add' for 'disabled-test.txt' skipped")
+        expect.stringContaining('Git exclude operation \'add\' for \'disabled-test.txt\' skipped'),
       );
 
       consoleSpy.mockRestore();
@@ -185,7 +195,7 @@ describe('AddCommand - Configuration Integration', () => {
         enabled: false,
         fallbackBehavior: 'warn',
       };
-      await (addCommand as any).configManager.updateGitExcludeSettings(disabledExcludeSettings);
+      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(disabledExcludeSettings);
       
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       
@@ -219,7 +229,7 @@ describe('AddCommand - Configuration Integration', () => {
         enabled: false,
         fallbackBehavior: 'error',
       };
-      await (addCommand as any).configManager.updateGitExcludeSettings(errorExcludeSettings);
+      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(errorExcludeSettings);
       
       const testFile = path.join(tempDir, 'error-test.txt');
       await fs.writeFile(testFile, 'test content');
@@ -236,7 +246,7 @@ describe('AddCommand - Configuration Integration', () => {
         enabled: false,
         fallbackBehavior: 'silent',
       };
-      await (addCommand as any).configManager.updateGitExcludeSettings(silentExcludeSettings);
+      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(silentExcludeSettings);
       
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
       
@@ -303,7 +313,7 @@ describe('AddCommand - Configuration Integration', () => {
       const customExcludeSettings: Partial<GitExcludeSettings> = {
         markerComment: '# rollback test marker',
       };
-      await (addCommand as any).configManager.updateGitExcludeSettings(customExcludeSettings);
+      await (addCommand as unknown as AddCommandWithPrivates).configManager.updateGitExcludeSettings(customExcludeSettings);
 
       const testFile = path.join(tempDir, 'rollback-test.txt');
       await fs.writeFile(testFile, 'test content');
@@ -319,8 +329,8 @@ describe('AddCommand - Configuration Integration', () => {
 
       // Simulate rollback by manually calling restore methods
       // (This would normally happen during error scenarios)
-      const gitService = (addCommand as any).createGitService();
-      await (await gitService).removeFromGitExclude('rollback-test.txt');
+      const gitService = await (addCommand as unknown as AddCommandWithPrivates).createGitService();
+      await gitService.removeFromGitExclude('rollback-test.txt');
 
       // Verify file was removed from exclude
       content = await fs.readFile(excludePath, 'utf8');

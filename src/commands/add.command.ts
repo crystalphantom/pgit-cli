@@ -1,11 +1,20 @@
 import * as path from 'path';
 import chalk from 'chalk';
-import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types';
+import {
+  CommandResult,
+  CommandOptions,
+  DEFAULT_PATHS,
+  PrivateConfig,
+  DEFAULT_SETTINGS,
+  DEFAULT_GIT_EXCLUDE_SETTINGS,
+  CURRENT_CONFIG_VERSION,
+} from '../types/config.types';
 import { ConfigManager } from '../core/config.manager';
 import { FileSystemService } from '../core/filesystem.service';
 import { GitService } from '../core/git.service';
 import { SymlinkService } from '../core/symlink.service';
 import { BaseError } from '../errors/base.error';
+import { GitExcludeError } from '../errors/git.error';
 import { InputValidator } from '../utils/input.validator';
 import { PathNotFoundError, UnsafePathError, InvalidInputError } from '../errors/specific.errors';
 import { GitFileState, LegacyGitFileState } from '../types/git.types';
@@ -179,6 +188,15 @@ export class AddCommand {
         exitCode: 0,
       };
     } catch (error) {
+      // Special handling for GitExcludeError with 'error' fallback behavior
+      // These should cause the command to fail by throwing, not returning a failure result
+      if (
+        error instanceof GitExcludeError &&
+        error.message.includes('Git exclude operations are disabled')
+      ) {
+        throw error; // Re-throw to fail the entire command with rejection
+      }
+
       if (error instanceof BaseError) {
         return {
           success: false,
@@ -201,11 +219,24 @@ export class AddCommand {
    * Validate that the environment is ready for add operation
    */
   private async validateEnvironment(): Promise<void> {
-    // Check if private git tracking is initialized
-    if (!(await this.configManager.exists())) {
+    // Check if private storage directory exists first (indicates pgit was initialized)
+    const storagePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
+    const storageExists = await this.fileSystem.pathExists(storagePath);
+
+    // Check if config file exists
+    const configExists = await this.configManager.exists();
+
+    // If neither config nor storage exists, pgit is not initialized
+    if (!configExists && !storageExists) {
       throw new NotInitializedError(
         'Private git tracking is not initialized. Run "private init" first.',
       );
+    }
+
+    // If storage exists but config is missing/corrupted, we can fall back to defaults
+    // This provides resilience against config file corruption
+    if (!configExists && storageExists) {
+      console.warn('Warning: Configuration file is missing or corrupted. Using default settings.');
     }
 
     // Check if symbolic links are supported
@@ -215,9 +246,8 @@ export class AddCommand {
       );
     }
 
-    // Check if private storage directory exists
-    const storagePath = path.join(this.workingDir, DEFAULT_PATHS.storage);
-    if (!(await this.fileSystem.pathExists(storagePath))) {
+    // Ensure private storage directory exists (create if missing)
+    if (!storageExists) {
       throw new AddError(
         'Private storage directory does not exist. The initialization may have failed.',
       );
@@ -240,8 +270,32 @@ export class AddCommand {
     // Remove duplicates while preserving order
     const uniquePaths = [...new Set(filePaths)];
 
-    // Load config once for efficiency
-    const config = await this.configManager.load();
+    // Load config once for efficiency, with fallback for corrupted config
+    let config: PrivateConfig;
+    try {
+      config = await this.configManager.load();
+    } catch (error) {
+      // If config loading fails, create a minimal fallback config
+      console.warn('Warning: Could not load configuration. Using default settings for validation.');
+      config = {
+        version: CURRENT_CONFIG_VERSION,
+        privateRepoPath: DEFAULT_PATHS.privateRepo,
+        storagePath: DEFAULT_PATHS.storage,
+        trackedPaths: [], // Empty tracked paths as fallback
+        initialized: new Date(),
+        settings: {
+          ...DEFAULT_SETTINGS,
+          gitExclude: { ...DEFAULT_GIT_EXCLUDE_SETTINGS },
+        },
+        metadata: {
+          projectName: 'unknown',
+          mainRepoPath: this.workingDir,
+          cliVersion: CURRENT_CONFIG_VERSION,
+          platform: 'unknown',
+          lastModified: new Date(),
+        },
+      };
+    }
 
     for (const filePath of uniquePaths) {
       try {
@@ -734,16 +788,29 @@ export class AddCommand {
         console.log(chalk.gray('   Updating configuration...'));
       }
 
-      // Step 5: Update configuration
-      await this.configManager.addTrackedPath(relativePath);
-      rollbackActions.push(async () => {
-        // Remove from tracked paths
-        try {
-          await this.configManager.removeTrackedPath(relativePath);
-        } catch {
-          // Ignore errors during rollback
-        }
-      });
+      // Step 5: Update configuration (skip if config is corrupted)
+      try {
+        await this.configManager.addTrackedPath(relativePath);
+        rollbackActions.push(async () => {
+          // Remove from tracked paths
+          try {
+            await this.configManager.removeTrackedPath(relativePath);
+          } catch {
+            // Ignore errors during rollback
+          }
+        });
+      } catch (configError) {
+        // If config is corrupted, log warning but continue
+        console.warn(
+          chalk.yellow(
+            `   Warning: Could not update configuration for ${relativePath}. File tracking will still work, but may not persist after restart.`,
+          ),
+        );
+        // Add a no-op rollback action for consistency
+        rollbackActions.push(async () => {
+          // No-op since config update failed
+        });
+      }
 
       if (options.verbose) {
         console.log(chalk.gray('   Committing to private repository...'));
@@ -940,6 +1007,15 @@ export class AddCommand {
         }
       }
     } catch (error) {
+      // Check if this is a GitExcludeError with 'error' fallback behavior
+      // These should propagate up to fail the entire command, not be treated as graceful failures
+      if (
+        error instanceof GitExcludeError &&
+        error.message.includes('Git exclude operations are disabled')
+      ) {
+        throw error; // Re-throw to fail the entire command
+      }
+
       // Repository-level error, mark all files as failed
       const errorMessage = `Git repository error: ${error instanceof Error ? error.message : String(error)}`;
       for (const relativePath of relativePaths) {
