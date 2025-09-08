@@ -132,7 +132,8 @@ export class ConfigManager {
         const errorMessages = errors.map((err: ZodIssue) => err.message);
 
         // If all errors are "Required", use generic message for better UX
-        const allRequired = errors.length > 0 && errors.every((err: ZodIssue) => err.message === 'Required');
+        const allRequired =
+          errors.length > 0 && errors.every((err: ZodIssue) => err.message === 'Required');
         const message = allRequired ? 'Configuration data is invalid' : errorMessages.join(', ');
 
         throw new ConfigValidationError(message, error.message);
