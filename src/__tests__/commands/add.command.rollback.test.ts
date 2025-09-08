@@ -42,7 +42,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
 
     // Mock ConfigManager methods
     const mockConfig = {
-      version: '1.1.0',
+      version: '1.2.0',
       privateRepoPath: path.join(privateStorageDir, '.git'),
       storagePath: privateStorageDir,
       trackedPaths: [],
@@ -63,7 +63,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
       metadata: {
         projectName: 'test-project',
         mainRepoPath: tempDir,
-        cliVersion: '1.1.0',
+        cliVersion: '1.2.0',
         platform: 'test',
         lastModified: new Date(),
       },
