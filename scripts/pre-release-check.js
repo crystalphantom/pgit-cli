@@ -14,18 +14,18 @@ function checkVersionConsistency() {
   const packageJsonPath = path.join(__dirname, '..', 'package.json');
   const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   const targetVersion = packageJson.version;
-  
+
   const checks = [
     {
       file: 'src/cli.ts',
-      pattern: /\.version\(['"]([^'"]+)['"]\)/,
-      description: 'CLI version declaration'
+      pattern: /packageJson\.version/,
+      description: 'CLI version from package.json',
     },
     {
-      file: 'src/types/config.types.ts', 
+      file: 'src/types/config.types.ts',
       pattern: /CURRENT_CONFIG_VERSION = ['"]([^'"]+)['"]/,
-      description: 'Config version constant'
-    }
+      description: 'Config version constant',
+    },
   ];
 
   console.log(chalk.blue(`🔍 Checking version consistency for v${targetVersion}...\n`));
@@ -41,7 +41,7 @@ function checkVersionConsistency() {
 
     const content = fs.readFileSync(filePath, 'utf8');
     const match = content.match(check.pattern);
-    
+
     if (!match) {
       console.log(chalk.red(`❌ ${check.description}: Pattern not found in ${check.file}`));
       allValid = false;
@@ -50,7 +50,9 @@ function checkVersionConsistency() {
       if (foundVersion === targetVersion) {
         console.log(chalk.green(`✅ ${check.description}: v${foundVersion}`));
       } else {
-        console.log(chalk.red(`❌ ${check.description}: Expected v${targetVersion}, found v${foundVersion}`));
+        console.log(
+          chalk.red(`❌ ${check.description}: Expected v${targetVersion}, found v${foundVersion}`),
+        );
         allValid = false;
       }
     }
@@ -64,7 +66,7 @@ function checkGitStatus() {
 
   try {
     const status = execSync('git status --porcelain', { encoding: 'utf8' });
-    
+
     if (status.trim()) {
       console.log(chalk.red('❌ Working directory is not clean:'));
       console.log(status);
@@ -84,7 +86,7 @@ function checkBranch() {
 
   try {
     const branch = execSync('git rev-parse --abbrev-ref HEAD', { encoding: 'utf8' }).trim();
-    
+
     if (branch === 'main') {
       console.log(chalk.green(`✅ On main branch`));
       return true;
@@ -104,7 +106,7 @@ function checkBuildAndTest() {
   const commands = [
     { cmd: 'npm run lint', name: 'Linting' },
     { cmd: 'npm run build', name: 'Build' },
-    { cmd: 'npm run test:coverage', name: 'Tests with coverage' }
+    { cmd: 'npm run test:coverage', name: 'Tests with coverage' },
   ];
 
   for (const command of commands) {
@@ -131,7 +133,7 @@ function checkRequiredFiles() {
     'CHANGELOG.md',
     'package.json',
     'dist/cli.js',
-    'dist/index.js'
+    'dist/index.js',
   ];
 
   let allFilesExist = true;
@@ -151,14 +153,14 @@ function checkRequiredFiles() {
 
 function performPreReleaseCheck() {
   console.log(chalk.blue('🚀 Starting Pre-Release Validation\n'));
-  console.log(chalk.gray('=' .repeat(50) + '\n'));
+  console.log(chalk.gray('='.repeat(50) + '\n'));
 
   const checks = [
     { name: 'Version Consistency', fn: checkVersionConsistency },
     { name: 'Git Status', fn: checkGitStatus },
     { name: 'Branch Check', fn: checkBranch },
     { name: 'Required Files', fn: checkRequiredFiles },
-    { name: 'Build and Test', fn: checkBuildAndTest }
+    { name: 'Build and Test', fn: checkBuildAndTest },
   ];
 
   let allChecksPassed = true;
@@ -171,7 +173,7 @@ function performPreReleaseCheck() {
     console.log(); // Add spacing
   }
 
-  console.log(chalk.gray('=' .repeat(50)));
+  console.log(chalk.gray('='.repeat(50)));
 
   if (allChecksPassed) {
     console.log(chalk.green('\n🎉 All pre-release checks passed! Ready for release.\n'));
@@ -188,11 +190,11 @@ if (require.main === module) {
   performPreReleaseCheck();
 }
 
-module.exports = { 
-  checkVersionConsistency, 
-  checkGitStatus, 
-  checkBranch, 
-  checkBuildAndTest, 
+module.exports = {
+  checkVersionConsistency,
+  checkGitStatus,
+  checkBranch,
+  checkBuildAndTest,
   checkRequiredFiles,
-  performPreReleaseCheck 
+  performPreReleaseCheck,
 };

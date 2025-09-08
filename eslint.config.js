@@ -71,6 +71,19 @@ export default [
     },
   },
   {
+    files: ['scripts/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2021,
+      sourceType: 'commonjs',
+      globals: {
+        ...globals.node,
+      },
+    },
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
     ignores: ['dist/', 'node_modules/', '*.js'],
   },
 ];
