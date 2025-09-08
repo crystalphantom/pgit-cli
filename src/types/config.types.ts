@@ -303,7 +303,7 @@ export const DEFAULT_PATHS = {
 /**
  * Current configuration version
  */
-export const CURRENT_CONFIG_VERSION = '1.1.0';
+export const CURRENT_CONFIG_VERSION = '1.2.0';
 
 /**
  * Supported file extensions for tracking
