@@ -5,3 +5,4 @@
 4. Add support for glob patterns (e.g., pgit add *.env)
 5. Implement exclusion patterns (e.g., pgit add . --exclude *.log)
 6. Add dry-run mode to preview what would be added
+- Refactor version management to use package.json as the single source of truth (see Refactoring_Version_Management_Plan.md for details).

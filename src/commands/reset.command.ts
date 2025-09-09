@@ -7,6 +7,7 @@ import { FileSystemService } from '../core/filesystem.service';
 import { GitService } from '../core/git.service';
 import { SymlinkService } from '../core/symlink.service';
 import { BaseError } from '../errors/base.error';
+import { logger } from '../utils/logger.service';
 
 /**
  * Reset command specific errors
@@ -61,9 +62,7 @@ export class ResetCommand {
    */
   public async execute(force = false, options: CommandOptions = {}): Promise<CommandResult> {
     try {
-      if (options.verbose) {
-        console.log(chalk.blue('🔄 Starting complete pgit reset...'));
-      }
+      logger.debug('🔄 Starting complete pgit reset...');
 
       // Validate environment
       await this.validateEnvironment();
@@ -92,49 +91,32 @@ export class ResetCommand {
       };
 
       if (options.dryRun) {
-        return await this.executeDryRun(result, options.verbose);
+        return await this.executeDryRun(result);
       }
 
       // Step 1: Load config to get tracked paths
       const config = await this.configManager.load();
 
-      if (options.verbose) {
-        console.log(chalk.gray(`   Found ${config.trackedPaths.length} tracked file(s)`));
-      }
+      logger.debug(`Found ${config.trackedPaths.length} tracked file(s)`);
 
       // Step 2: Restore all tracked files
-      if (options.verbose) {
-        console.log(chalk.gray('   Restoring tracked files...'));
-      }
-      await this.restoreTrackedFiles(
-        config.trackedPaths,
-        config.storagePath,
-        result,
-        options.verbose,
-      );
+      logger.debug('Restoring tracked files...');
+      await this.restoreTrackedFiles(config.trackedPaths, config.storagePath, result);
 
       // Step 3: Clean git excludes
-      if (options.verbose) {
-        console.log(chalk.gray('   Cleaning git exclude entries...'));
-      }
-      await this.cleanupGitExcludes(config.trackedPaths, result, options.verbose);
+      logger.debug('Cleaning git exclude entries...');
+      await this.cleanupGitExcludes(config.trackedPaths, result);
 
       // Step 4: Remove directories
-      if (options.verbose) {
-        console.log(chalk.gray('   Removing pgit directories...'));
-      }
-      await this.removeDirectories(config, result, options.verbose);
+      logger.debug('Removing pgit directories...');
+      await this.removeDirectories(config, result);
 
       // Step 5: Remove configuration
-      if (options.verbose) {
-        console.log(chalk.gray('   Removing configuration...'));
-      }
-      await this.removeConfiguration(result, options.verbose);
+      logger.debug('Removing configuration...');
+      await this.removeConfiguration(result);
 
       // Step 6: Clean up any backup files created during the entire operation
-      if (options.verbose) {
-        console.log(chalk.gray('   Cleaning up backup files...'));
-      }
+      logger.debug('Cleaning up backup files...');
 
       // Clear rollback actions first to prevent interference
       this.fileSystem.clearRollbackActions();
@@ -156,10 +138,8 @@ export class ResetCommand {
 
       // Final cleanup pass to catch any lingering backup files
       const finalCleanup = await this.cleanupBackupFiles(process.cwd());
-      if (finalCleanup > 0 && options.verbose) {
-        console.log(
-          chalk.gray(`   Final cleanup: removed ${finalCleanup} additional backup files`),
-        );
+      if (finalCleanup > 0) {
+        logger.debug(`Final cleanup: removed ${finalCleanup} additional backup files`);
       }
 
       const hasErrors = result.errors.length > 0;
@@ -206,33 +186,31 @@ export class ResetCommand {
   private confirmReset(): boolean {
     // In a real CLI, this would use inquirer or similar
     // For now, we'll assume force mode or that confirmation was handled at CLI level
-    console.log(
-      chalk.yellow('⚠️  This will completely remove pgit setup and restore all tracked files.'),
-    );
-    console.log(chalk.yellow('   Use --force to skip this confirmation.'));
+    logger.warn('This will completely remove pgit setup and restore all tracked files.');
+    logger.info('Use --force to skip this confirmation.');
     return false; // Require explicit --force for safety
   }
 
   /**
    * Execute dry run to show what would be done
    */
-  private async executeDryRun(result: ResetResult, _verbose?: boolean): Promise<CommandResult> {
+  private async executeDryRun(result: ResetResult): Promise<CommandResult> {
     try {
       const config = await this.configManager.load();
 
-      console.log(chalk.yellow('🔍 Dry run - showing what would be done:'));
-      console.log(chalk.gray(`   Would restore ${config.trackedPaths.length} tracked file(s):`));
+      logger.info(chalk.yellow('🔍 Dry run - showing what would be done:'));
+      logger.info(chalk.gray(`   Would restore ${config.trackedPaths.length} tracked file(s):`));
 
       for (const trackedPath of config.trackedPaths) {
-        console.log(chalk.gray(`     - ${trackedPath}`));
+        logger.info(chalk.gray(`     - ${trackedPath}`));
       }
 
-      console.log(chalk.gray('   Would remove directories:'));
-      console.log(chalk.gray(`     - ${config.privateRepoPath}`));
-      console.log(chalk.gray(`     - ${config.storagePath}`));
-      console.log(chalk.gray(`     - ${DEFAULT_PATHS.config}`));
+      logger.info(chalk.gray('   Would remove directories:'));
+      logger.info(chalk.gray(`     - ${config.privateRepoPath}`));
+      logger.info(chalk.gray(`     - ${config.storagePath}`));
+      logger.info(chalk.gray(`     - ${DEFAULT_PATHS.config}`));
 
-      console.log(chalk.gray('   Would clean git exclude entries for tracked files'));
+      logger.info(chalk.gray('   Would clean git exclude entries for tracked files'));
 
       return {
         success: true,
@@ -257,7 +235,6 @@ export class ResetCommand {
     trackedPaths: string[],
     storagePath: string,
     result: ResetResult,
-    verbose?: boolean,
   ): Promise<void> {
     for (const trackedPath of trackedPaths) {
       try {
@@ -272,9 +249,7 @@ export class ResetCommand {
           await this.fileSystem.remove(linkPath);
           result.removedSymlinks++;
 
-          if (verbose) {
-            console.log(chalk.gray(`     Removed symlink: ${trackedPath}`));
-          }
+          logger.debug(`Removed symlink: ${trackedPath}`);
         }
 
         // Check if stored file exists
@@ -289,21 +264,15 @@ export class ResetCommand {
           // Clear rollback actions after successful move
           this.fileSystem.clearRollbackActions();
 
-          if (verbose) {
-            console.log(chalk.green(`     ✓ Restored: ${trackedPath}`));
-          }
+          logger.debug(chalk.green(`✓ Restored: ${trackedPath}`));
         } else {
           result.warnings.push(`Stored file not found: ${trackedPath}`);
-          if (verbose) {
-            console.log(chalk.yellow(`     ⚠️  Stored file not found: ${trackedPath}`));
-          }
+          logger.warn(`Stored file not found: ${trackedPath}`);
         }
       } catch (error) {
         const errorMsg = `Failed to restore ${trackedPath}: ${error instanceof Error ? error.message : String(error)}`;
         result.errors.push(errorMsg);
-        if (verbose) {
-          console.log(chalk.red(`     ✗ ${errorMsg}`));
-        }
+        logger.error(errorMsg);
       }
     }
   }
@@ -314,7 +283,6 @@ export class ResetCommand {
   private async cleanupGitExcludes(
     trackedPaths: string[],
     result: ResetResult,
-    verbose?: boolean,
   ): Promise<void> {
     try {
       const gitService = new GitService(this.workingDir, this.fileSystem);
@@ -323,9 +291,7 @@ export class ResetCommand {
         for (const trackedPath of trackedPaths) {
           try {
             await gitService.removeFromGitExclude(trackedPath);
-            if (verbose) {
-              console.log(chalk.gray(`     Removed exclude entry: ${trackedPath}`));
-            }
+            logger.debug(`Removed exclude entry: ${trackedPath}`);
           } catch (error) {
             result.warnings.push(`Failed to remove exclude entry for ${trackedPath}`);
           }
@@ -343,7 +309,6 @@ export class ResetCommand {
   private async removeDirectories(
     config: { privateRepoPath: string; storagePath: string },
     result: ResetResult,
-    verbose?: boolean,
   ): Promise<void> {
     const directoriesToRemove = [config.privateRepoPath, config.storagePath];
 
@@ -355,16 +320,12 @@ export class ResetCommand {
           await this.fileSystem.remove(fullPath);
           result.removedDirectories.push(dirPath);
 
-          if (verbose) {
-            console.log(chalk.gray(`     Removed directory: ${dirPath}`));
-          }
+          logger.debug(`Removed directory: ${dirPath}`);
         }
       } catch (error) {
         const errorMsg = `Failed to remove directory ${dirPath}: ${error instanceof Error ? error.message : String(error)}`;
         result.errors.push(errorMsg);
-        if (verbose) {
-          console.log(chalk.red(`     ✗ ${errorMsg}`));
-        }
+        logger.error(errorMsg);
       }
     }
   }
@@ -372,7 +333,7 @@ export class ResetCommand {
   /**
    * Remove configuration file
    */
-  private async removeConfiguration(result: ResetResult, verbose?: boolean): Promise<void> {
+  private async removeConfiguration(result: ResetResult): Promise<void> {
     try {
       const configPath = path.join(this.workingDir, DEFAULT_PATHS.config);
 
@@ -380,16 +341,12 @@ export class ResetCommand {
         await this.fileSystem.remove(configPath);
         result.configRemoved = true;
 
-        if (verbose) {
-          console.log(chalk.gray(`     Removed configuration: ${DEFAULT_PATHS.config}`));
-        }
+        logger.debug(`Removed configuration: ${DEFAULT_PATHS.config}`);
       }
     } catch (error) {
       const errorMsg = `Failed to remove configuration: ${error instanceof Error ? error.message : String(error)}`;
       result.errors.push(errorMsg);
-      if (verbose) {
-        console.log(chalk.red(`     ✗ ${errorMsg}`));
-      }
+      logger.error(errorMsg);
     }
   }
 
@@ -432,35 +389,33 @@ export class ResetCommand {
    * Display reset operation results
    */
   private displayResetResults(result: ResetResult): void {
-    console.log(chalk.blue('\n📊 Reset Summary:'));
-    console.log(chalk.green(`   ✓ Restored files: ${result.restoredFiles}`));
-    console.log(chalk.green(`   ✓ Removed symlinks: ${result.removedSymlinks}`));
-    console.log(chalk.green(`   ✓ Removed directories: ${result.removedDirectories.length}`));
-    console.log(chalk.green(`   ✓ Configuration removed: ${result.configRemoved ? 'Yes' : 'No'}`));
-    console.log(
+    logger.info(chalk.blue('\n📊 Reset Summary:'));
+    logger.info(chalk.green(`   ✓ Restored files: ${result.restoredFiles}`));
+    logger.info(chalk.green(`   ✓ Removed symlinks: ${result.removedSymlinks}`));
+    logger.info(chalk.green(`   ✓ Removed directories: ${result.removedDirectories.length}`));
+    logger.info(chalk.green(`   ✓ Configuration removed: ${result.configRemoved ? 'Yes' : 'No'}`));
+    logger.info(
       chalk.green(`   ✓ Git excludes cleaned: ${result.gitExcludesCleaned ? 'Yes' : 'No'}`),
     );
-    console.log(chalk.green(`   ✓ Backup files cleaned: ${result.cleanedBackups}`));
+    logger.info(chalk.green(`   ✓ Backup files cleaned: ${result.cleanedBackups}`));
 
     if (result.warnings.length > 0) {
-      console.log(chalk.yellow(`\n⚠️  Warnings (${result.warnings.length}):`));
+      logger.warn(`Found ${result.warnings.length} warnings:`);
       result.warnings.forEach(warning => {
-        console.log(chalk.yellow(`   ${warning}`));
+        logger.warn(`   ${warning}`);
       });
     }
 
     if (result.errors.length > 0) {
-      console.log(chalk.red(`\n❌ Errors (${result.errors.length}):`));
+      logger.error(`Found ${result.errors.length} errors:`);
       result.errors.forEach(error => {
-        console.log(chalk.red(`   ${error}`));
+        logger.error(`   ${error}`);
       });
     }
 
     if (result.errors.length === 0) {
-      console.log(
-        chalk.green(
-          '\n✅ pgit setup completely removed. You can now run "pgit init" to start fresh.',
-        ),
+      logger.success(
+        '\npgit setup completely removed. You can now run "pgit init" to start fresh.',
       );
     }
   }
