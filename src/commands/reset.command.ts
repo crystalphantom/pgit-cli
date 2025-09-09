@@ -97,7 +97,7 @@ export class ResetCommand {
 
       // Step 1: Load config to get tracked paths
       const config = await this.configManager.load();
-      
+
       if (options.verbose) {
         console.log(chalk.gray(`   Found ${config.trackedPaths.length} tracked file(s)`));
       }
@@ -106,7 +106,12 @@ export class ResetCommand {
       if (options.verbose) {
         console.log(chalk.gray('   Restoring tracked files...'));
       }
-      await this.restoreTrackedFiles(config.trackedPaths, config.storagePath, result, options.verbose);
+      await this.restoreTrackedFiles(
+        config.trackedPaths,
+        config.storagePath,
+        result,
+        options.verbose,
+      );
 
       // Step 3: Clean git excludes
       if (options.verbose) {
@@ -130,17 +135,17 @@ export class ResetCommand {
       if (options.verbose) {
         console.log(chalk.gray('   Cleaning up backup files...'));
       }
-      
+
       // Clear rollback actions first to prevent interference
       this.fileSystem.clearRollbackActions();
-      
+
       // Clean backup files multiple times to catch all backups created during operations
       let totalCleaned = 0;
       for (let i = 0; i < 5; i++) {
         const cleaned = await this.cleanupBackupFiles(process.cwd());
         totalCleaned += cleaned;
         if (cleaned === 0) break; // No more backups found
-        
+
         // Small delay to allow any pending operations to complete
         await new Promise(resolve => setTimeout(resolve, 100));
       }
@@ -152,7 +157,9 @@ export class ResetCommand {
       // Final cleanup pass to catch any lingering backup files
       const finalCleanup = await this.cleanupBackupFiles(process.cwd());
       if (finalCleanup > 0 && options.verbose) {
-        console.log(chalk.gray(`   Final cleanup: removed ${finalCleanup} additional backup files`));
+        console.log(
+          chalk.gray(`   Final cleanup: removed ${finalCleanup} additional backup files`),
+        );
       }
 
       const hasErrors = result.errors.length > 0;
@@ -189,9 +196,7 @@ export class ResetCommand {
    */
   private async validateEnvironment(): Promise<void> {
     if (!(await this.configManager.exists())) {
-      throw new NotInitializedError(
-        'Private git tracking is not initialized. Nothing to reset.',
-      );
+      throw new NotInitializedError('Private git tracking is not initialized. Nothing to reset.');
     }
   }
 
@@ -201,7 +206,9 @@ export class ResetCommand {
   private confirmReset(): boolean {
     // In a real CLI, this would use inquirer or similar
     // For now, we'll assume force mode or that confirmation was handled at CLI level
-    console.log(chalk.yellow('⚠️  This will completely remove pgit setup and restore all tracked files.'));
+    console.log(
+      chalk.yellow('⚠️  This will completely remove pgit setup and restore all tracked files.'),
+    );
     console.log(chalk.yellow('   Use --force to skip this confirmation.'));
     return false; // Require explicit --force for safety
   }
@@ -212,21 +219,21 @@ export class ResetCommand {
   private async executeDryRun(result: ResetResult, _verbose?: boolean): Promise<CommandResult> {
     try {
       const config = await this.configManager.load();
-      
+
       console.log(chalk.yellow('🔍 Dry run - showing what would be done:'));
       console.log(chalk.gray(`   Would restore ${config.trackedPaths.length} tracked file(s):`));
-      
+
       for (const trackedPath of config.trackedPaths) {
         console.log(chalk.gray(`     - ${trackedPath}`));
       }
-      
+
       console.log(chalk.gray('   Would remove directories:'));
       console.log(chalk.gray(`     - ${config.privateRepoPath}`));
       console.log(chalk.gray(`     - ${config.storagePath}`));
       console.log(chalk.gray(`     - ${DEFAULT_PATHS.config}`));
-      
+
       console.log(chalk.gray('   Would clean git exclude entries for tracked files'));
-      
+
       return {
         success: true,
         message: 'Dry run completed - use without --dry-run to execute',
@@ -259,12 +266,12 @@ export class ResetCommand {
 
         // Check if symlink exists
         const linkInfo = await this.symlinkService.validate(linkPath);
-        
+
         if (linkInfo.exists) {
           // Remove the symlink
           await this.fileSystem.remove(linkPath);
           result.removedSymlinks++;
-          
+
           if (verbose) {
             console.log(chalk.gray(`     Removed symlink: ${trackedPath}`));
           }
@@ -274,14 +281,14 @@ export class ResetCommand {
         if (await this.fileSystem.pathExists(storedPath)) {
           // Ensure parent directory exists
           await this.fileSystem.createDirectory(path.dirname(linkPath));
-          
+
           // Move the file back to original location
           await this.fileSystem.moveFileAtomic(storedPath, linkPath);
           result.restoredFiles++;
-          
+
           // Clear rollback actions after successful move
           this.fileSystem.clearRollbackActions();
-          
+
           if (verbose) {
             console.log(chalk.green(`     ✓ Restored: ${trackedPath}`));
           }
@@ -311,7 +318,7 @@ export class ResetCommand {
   ): Promise<void> {
     try {
       const gitService = new GitService(this.workingDir, this.fileSystem);
-      
+
       if (await gitService.isRepository()) {
         for (const trackedPath of trackedPaths) {
           try {
@@ -338,19 +345,16 @@ export class ResetCommand {
     result: ResetResult,
     verbose?: boolean,
   ): Promise<void> {
-    const directoriesToRemove = [
-      config.privateRepoPath,
-      config.storagePath,
-    ];
+    const directoriesToRemove = [config.privateRepoPath, config.storagePath];
 
     for (const dirPath of directoriesToRemove) {
       try {
         const fullPath = path.join(this.workingDir, dirPath);
-        
+
         if (await this.fileSystem.pathExists(fullPath)) {
           await this.fileSystem.remove(fullPath);
           result.removedDirectories.push(dirPath);
-          
+
           if (verbose) {
             console.log(chalk.gray(`     Removed directory: ${dirPath}`));
           }
@@ -371,11 +375,11 @@ export class ResetCommand {
   private async removeConfiguration(result: ResetResult, verbose?: boolean): Promise<void> {
     try {
       const configPath = path.join(this.workingDir, DEFAULT_PATHS.config);
-      
+
       if (await this.fileSystem.pathExists(configPath)) {
         await this.fileSystem.remove(configPath);
         result.configRemoved = true;
-        
+
         if (verbose) {
           console.log(chalk.gray(`     Removed configuration: ${DEFAULT_PATHS.config}`));
         }
@@ -396,10 +400,10 @@ export class ResetCommand {
     let cleanedCount = 0;
     try {
       const entries = await fs.readdir(rootPath, { withFileTypes: true });
-      
+
       for (const entry of entries) {
         const fullPath = path.join(rootPath, entry.name);
-        
+
         // Match backup files created by FileSystemService (contains .backup. followed by timestamp and hash)
         if (entry.isFile() && /\.backup\.\d+\.[a-f0-9]+$/.test(entry.name)) {
           await fs.unlink(fullPath);
@@ -420,7 +424,7 @@ export class ResetCommand {
     } catch (error) {
       // Ignore errors during backup cleanup - not critical
     }
-    
+
     return cleanedCount;
   }
 
@@ -433,7 +437,9 @@ export class ResetCommand {
     console.log(chalk.green(`   ✓ Removed symlinks: ${result.removedSymlinks}`));
     console.log(chalk.green(`   ✓ Removed directories: ${result.removedDirectories.length}`));
     console.log(chalk.green(`   ✓ Configuration removed: ${result.configRemoved ? 'Yes' : 'No'}`));
-    console.log(chalk.green(`   ✓ Git excludes cleaned: ${result.gitExcludesCleaned ? 'Yes' : 'No'}`));
+    console.log(
+      chalk.green(`   ✓ Git excludes cleaned: ${result.gitExcludesCleaned ? 'Yes' : 'No'}`),
+    );
     console.log(chalk.green(`   ✓ Backup files cleaned: ${result.cleanedBackups}`));
 
     if (result.warnings.length > 0) {
@@ -451,7 +457,11 @@ export class ResetCommand {
     }
 
     if (result.errors.length === 0) {
-      console.log(chalk.green('\n✅ pgit setup completely removed. You can now run "pgit init" to start fresh.'));
+      console.log(
+        chalk.green(
+          '\n✅ pgit setup completely removed. You can now run "pgit init" to start fresh.',
+        ),
+      );
     }
   }
 }
