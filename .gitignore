@@ -66,3 +66,7 @@ test-results/
 *.backup
 *.bak
 *.orig
+# Private Git Tracking (auto-generated)
+.git-private
+.private-storage
+.private-config.json
