@@ -10,6 +10,7 @@ import { AddCommand } from './commands/add.command';
 import { CommitCommand } from './commands/commit.command';
 import { GitOpsCommand } from './commands/gitops.command';
 import { CleanupCommand } from './commands/cleanup.command';
+import { ResetCommand } from './commands/reset.command';
 import { EnhancedErrorHandler } from './errors/enhanced.error-handler';
 
 /**
@@ -288,6 +289,32 @@ async function main(): Promise<void> {
           console.log(chalk.green(`✓ ${result.message || 'Cleanup completed successfully'}`));
         } else {
           console.error(chalk.red(`✗ ${result.message || 'Cleanup completed with issues'}`));
+          process.exit(result.exitCode);
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  // Reset command
+  program
+    .command('reset')
+    .description('Completely remove pgit setup and restore all tracked files to main repository')
+    .option('--force', 'Skip confirmation prompt')
+    .option('--dry-run', 'Show what would be done without executing')
+    .option('-v, --verbose', 'Show verbose output')
+    .action(async options => {
+      try {
+        const resetCommand = new ResetCommand();
+        const result = await resetCommand.execute(options.force, { 
+          verbose: options.verbose,
+          dryRun: options.dryRun,
+        });
+
+        if (result.success) {
+          console.log(chalk.green(`✓ ${result.message || 'Reset completed successfully'}`));
+        } else {
+          console.error(chalk.red(`✗ ${result.message || 'Reset failed'}`));
           process.exit(result.exitCode);
         }
       } catch (error) {
