@@ -34,6 +34,9 @@ describe('ResetCommand', () => {
     MockedSymlinkService.mockImplementation(() => mockSymlinkService);
     MockedGitService.mockImplementation(() => mockGitServiceInstance);
 
+    // Ensure GitService constructor returns the mocked instance
+    MockedGitService.mockImplementation(() => mockGitServiceInstance);
+
     mockConfigManager = {
       exists: jest.fn(),
       load: jest.fn(),
@@ -65,6 +68,7 @@ describe('ResetCommand', () => {
       getLinkStats: jest.fn(),
       validatePath: jest.fn(),
       validatePathString: jest.fn(),
+      clearRollbackActions: jest.fn(),
     } as unknown as jest.Mocked<FileSystemService>;
 
     mockSymlinkService = {
@@ -124,15 +128,15 @@ describe('ResetCommand', () => {
       mockConfigManager.load.mockResolvedValue(createMockConfig());
 
       // Mock necessary filesystem calls to prevent errors
-      mockSymlinkService.validate.mockResolvedValue({ 
-        exists: false, 
-        isValid: false, 
-        isHealthy: false, 
-        linkPath: '', 
-        targetPath: '', 
+      mockSymlinkService.validate.mockResolvedValue({
+        exists: false,
+        isValid: false,
+        isHealthy: false,
+        linkPath: '',
+        targetPath: '',
         issues: [],
       });
-      
+
       mockFileSystem.pathExists.mockResolvedValue(false);
 
       const result = await resetCommand.execute(true, {}); // force to skip confirmation
@@ -163,12 +167,26 @@ describe('ResetCommand', () => {
       const mockConfig = createMockConfig(['file1.txt', 'file2.txt']);
       mockConfigManager.exists.mockResolvedValue(true);
       mockConfigManager.load.mockResolvedValue(mockConfig);
-      
+
       // Mock symlink validation
       mockSymlinkService.validate
-        .mockResolvedValueOnce({ exists: true, isValid: true, isHealthy: true, linkPath: '', targetPath: '', issues: [] })
-        .mockResolvedValueOnce({ exists: true, isValid: true, isHealthy: true, linkPath: '', targetPath: '', issues: [] });
-      
+        .mockResolvedValueOnce({
+          exists: true,
+          isValid: true,
+          isHealthy: true,
+          linkPath: '',
+          targetPath: '',
+          issues: [],
+        })
+        .mockResolvedValueOnce({
+          exists: true,
+          isValid: true,
+          isHealthy: true,
+          linkPath: '',
+          targetPath: '',
+          issues: [],
+        });
+
       // Mock stored files exist
       mockFileSystem.pathExists
         .mockResolvedValueOnce(true) // file1.txt exists in storage
@@ -196,47 +214,49 @@ describe('ResetCommand', () => {
       const mockConfig = createMockConfig(['missing-file.txt']);
       mockConfigManager.exists.mockResolvedValue(true);
       mockConfigManager.load.mockResolvedValue(mockConfig);
-      
+
       // Mock symlink exists but stored file doesn't
-      mockSymlinkService.validate.mockResolvedValue({ 
-        exists: true, 
-        isValid: true, 
-        isHealthy: true, 
-        linkPath: '', 
-        targetPath: '', 
+      mockSymlinkService.validate.mockResolvedValue({
+        exists: true,
+        isValid: true,
+        isHealthy: true,
+        linkPath: '',
+        targetPath: '',
         issues: [],
       });
-      
+
       mockFileSystem.pathExists
         .mockResolvedValueOnce(false) // stored file doesn't exist
-        .mockResolvedValueOnce(true)  // private repo exists
-        .mockResolvedValueOnce(true)  // storage dir exists
+        .mockResolvedValueOnce(true) // private repo exists
+        .mockResolvedValueOnce(true) // storage dir exists
         .mockResolvedValueOnce(true); // config file exists
 
       const result = await resetCommand.execute(true, {});
 
       expect(result.success).toBe(true);
-      expect((result.data as ResetResult).warnings).toContain('Stored file not found: missing-file.txt');
+      expect((result.data as ResetResult).warnings).toContain(
+        'Stored file not found: missing-file.txt',
+      );
     });
 
     it('should handle file restoration errors', async () => {
       const mockConfig = createMockConfig(['error-file.txt']);
       mockConfigManager.exists.mockResolvedValue(true);
       mockConfigManager.load.mockResolvedValue(mockConfig);
-      
-      mockSymlinkService.validate.mockResolvedValue({ 
-        exists: true, 
-        isValid: true, 
-        isHealthy: true, 
-        linkPath: '', 
-        targetPath: '', 
+
+      mockSymlinkService.validate.mockResolvedValue({
+        exists: true,
+        isValid: true,
+        isHealthy: true,
+        linkPath: '',
+        targetPath: '',
         issues: [],
       });
-      
+
       mockFileSystem.pathExists
-        .mockResolvedValueOnce(true)  // stored file exists
-        .mockResolvedValueOnce(true)  // private repo exists
-        .mockResolvedValueOnce(true)  // storage dir exists
+        .mockResolvedValueOnce(true) // stored file exists
+        .mockResolvedValueOnce(true) // private repo exists
+        .mockResolvedValueOnce(true) // storage dir exists
         .mockResolvedValueOnce(true); // config file exists
 
       mockFileSystem.moveFileAtomic.mockRejectedValue(new Error('Move failed'));
@@ -244,7 +264,9 @@ describe('ResetCommand', () => {
       const result = await resetCommand.execute(true, {});
 
       expect(result.success).toBe(false);
-      expect((result.data as ResetResult).errors).toContain('Failed to restore error-file.txt: Move failed');
+      expect((result.data as ResetResult).errors).toContain(
+        'Failed to restore error-file.txt: Move failed',
+      );
     });
   });
 
@@ -253,21 +275,21 @@ describe('ResetCommand', () => {
       const mockConfig = createMockConfig(['file1.txt', 'file2.txt']);
       mockConfigManager.exists.mockResolvedValue(true);
       mockConfigManager.load.mockResolvedValue(mockConfig);
-      
-      mockSymlinkService.validate.mockResolvedValue({ 
-        exists: false, 
-        isValid: false, 
-        isHealthy: false, 
-        linkPath: '', 
-        targetPath: '', 
+
+      mockSymlinkService.validate.mockResolvedValue({
+        exists: false,
+        isValid: false,
+        isHealthy: false,
+        linkPath: '',
+        targetPath: '',
         issues: [],
       });
-      
+
       mockFileSystem.pathExists
         .mockResolvedValueOnce(false) // no stored files
         .mockResolvedValueOnce(false) // no stored files
-        .mockResolvedValueOnce(true)  // private repo exists
-        .mockResolvedValueOnce(true)  // storage dir exists
+        .mockResolvedValueOnce(true) // private repo exists
+        .mockResolvedValueOnce(true) // storage dir exists
         .mockResolvedValueOnce(true); // config file exists
 
       mockGitServiceInstance.isRepository.mockResolvedValue(true);
@@ -283,28 +305,32 @@ describe('ResetCommand', () => {
       const mockConfig = createMockConfig(['file1.txt']);
       mockConfigManager.exists.mockResolvedValue(true);
       mockConfigManager.load.mockResolvedValue(mockConfig);
-      
-      mockSymlinkService.validate.mockResolvedValue({ 
-        exists: false, 
-        isValid: false, 
-        isHealthy: false, 
-        linkPath: '', 
-        targetPath: '', 
+
+      mockSymlinkService.validate.mockResolvedValue({
+        exists: false,
+        isValid: false,
+        isHealthy: false,
+        linkPath: '',
+        targetPath: '',
         issues: [],
       });
-      
+
       mockFileSystem.pathExists
         .mockResolvedValueOnce(false) // no stored file
-        .mockResolvedValueOnce(true)  // private repo exists
-        .mockResolvedValueOnce(true)  // storage dir exists
+        .mockResolvedValueOnce(true) // private repo exists
+        .mockResolvedValueOnce(true) // storage dir exists
         .mockResolvedValueOnce(true); // config file exists
 
       mockGitServiceInstance.isRepository.mockResolvedValue(true);
-      mockGitServiceInstance.removeFromGitExclude.mockRejectedValue(new Error('Git exclude failed'));
+      mockGitServiceInstance.removeFromGitExclude.mockRejectedValue(
+        new Error('Git exclude failed'),
+      );
 
       const result = await resetCommand.execute(true, {});
 
-      expect((result.data as ResetResult).warnings).toContain('Failed to remove exclude entry for file1.txt');
+      expect((result.data as ResetResult).warnings).toContain(
+        'Failed to remove exclude entry for file1.txt',
+      );
     });
   });
 
@@ -313,10 +339,10 @@ describe('ResetCommand', () => {
       const mockConfig = createMockConfig([]);
       mockConfigManager.exists.mockResolvedValue(true);
       mockConfigManager.load.mockResolvedValue(mockConfig);
-      
+
       mockFileSystem.pathExists
-        .mockResolvedValueOnce(true)  // private repo exists
-        .mockResolvedValueOnce(true)  // storage dir exists
+        .mockResolvedValueOnce(true) // private repo exists
+        .mockResolvedValueOnce(true) // storage dir exists
         .mockResolvedValueOnce(true); // config file exists
 
       const result = await resetCommand.execute(true, {});
@@ -333,10 +359,10 @@ describe('ResetCommand', () => {
       const mockConfig = createMockConfig([]);
       mockConfigManager.exists.mockResolvedValue(true);
       mockConfigManager.load.mockResolvedValue(mockConfig);
-      
+
       mockFileSystem.pathExists
-        .mockResolvedValueOnce(true)  // private repo exists
-        .mockResolvedValueOnce(true)  // storage dir exists
+        .mockResolvedValueOnce(true) // private repo exists
+        .mockResolvedValueOnce(true) // storage dir exists
         .mockResolvedValueOnce(true); // config file exists
 
       mockFileSystem.remove
@@ -347,7 +373,9 @@ describe('ResetCommand', () => {
       const result = await resetCommand.execute(true, {});
 
       expect(result.success).toBe(false);
-      expect((result.data as ResetResult).errors).toContain('Failed to remove directory .git-private: Remove failed');
+      expect((result.data as ResetResult).errors).toContain(
+        'Failed to remove directory .git-private: Remove failed',
+      );
     });
   });
 
@@ -366,7 +394,7 @@ describe('ResetCommand', () => {
       const mockConfig = createMockConfig([]);
       mockConfigManager.exists.mockResolvedValue(true);
       mockConfigManager.load.mockResolvedValue(mockConfig);
-      
+
       mockFileSystem.pathExists.mockResolvedValue(false); // no directories exist
 
       const result = await resetCommand.execute(true, {}); // force flag
@@ -381,20 +409,20 @@ describe('ResetCommand', () => {
       const mockConfig = createMockConfig(['file1.txt']);
       mockConfigManager.exists.mockResolvedValue(true);
       mockConfigManager.load.mockResolvedValue(mockConfig);
-      
-      mockSymlinkService.validate.mockResolvedValue({ 
-        exists: true, 
-        isValid: true, 
-        isHealthy: true, 
-        linkPath: '', 
-        targetPath: '', 
+
+      mockSymlinkService.validate.mockResolvedValue({
+        exists: true,
+        isValid: true,
+        isHealthy: true,
+        linkPath: '',
+        targetPath: '',
         issues: [],
       });
-      
+
       mockFileSystem.pathExists
-        .mockResolvedValueOnce(true)  // stored file exists
-        .mockResolvedValueOnce(true)  // private repo exists
-        .mockResolvedValueOnce(true)  // storage dir exists
+        .mockResolvedValueOnce(true) // stored file exists
+        .mockResolvedValueOnce(true) // private repo exists
+        .mockResolvedValueOnce(true) // storage dir exists
         .mockResolvedValueOnce(true); // config file exists
 
       // Capture console.log calls
@@ -403,8 +431,10 @@ describe('ResetCommand', () => {
       const result = await resetCommand.execute(true, { verbose: true });
 
       expect(result.success).toBe(true);
-      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Starting complete pgit reset'));
-      
+      expect(consoleSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Starting complete pgit reset'),
+      );
+
       consoleSpy.mockRestore();
     });
   });
