@@ -17,6 +17,32 @@ export interface ConfigSettings {
 }
 
 /**
+ * Preset configuration for bundled file tracking
+ */
+export interface Preset {
+  /** Human-readable description of what this preset does */
+  description: string;
+  /** Optional category for organizing presets */
+  category?: string;
+  /** Array of file/directory paths to track */
+  paths: string[];
+  /** When this preset was created (for user presets) */
+  created?: Date;
+  /** When this preset was last applied (for usage tracking) */
+  lastUsed?: Date;
+}
+
+/**
+ * Built-in presets structure from presets.json
+ */
+export interface BuiltinPresets {
+  /** Version of the presets file format */
+  version: string;
+  /** Built-in presets available to all users */
+  presets: Record<string, Preset>;
+}
+
+/**
  * Git exclude file management configuration
  */
 export interface GitExcludeSettings {
@@ -50,6 +76,8 @@ export interface PrivateConfig {
   settings: ConfigSettings;
   /** Project metadata */
   metadata: ProjectMetadata;
+  /** User-defined presets for this project */
+  presets?: Record<string, Preset>;
 }
 
 /**

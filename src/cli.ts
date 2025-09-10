@@ -10,6 +10,7 @@ import { CommitCommand } from './commands/commit.command';
 import { GitOpsCommand } from './commands/gitops.command';
 import { CleanupCommand } from './commands/cleanup.command';
 import { ResetCommand } from './commands/reset.command';
+import { PresetCommand } from './commands/preset.command';
 import { EnhancedErrorHandler } from './errors/enhanced.error-handler';
 import { logger, LogLevel } from './utils/logger.service';
 
@@ -131,6 +132,112 @@ async function main(): Promise<void> {
           logger.success(result.message || 'Changes committed to private repository successfully');
         } else {
           logger.error(result.message || 'Failed to commit changes to private repository');
+          process.exit(result.exitCode);
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  // Preset commands
+  const presetCmd = program
+    .command('preset')
+    .description('Manage file presets for common workflows');
+
+  presetCmd
+    .command('apply <preset-name>')
+    .description('Apply a preset by adding all its paths to private tracking')
+    .action(async (presetName, options) => {
+      try {
+        const presetCommand = new PresetCommand();
+        const result = await presetCommand.apply(presetName, { 
+          verbose: options.parent?.parent?.verbose || false,
+        });
+
+        if (result.success) {
+          // Success message is handled by the command itself
+        } else {
+          logger.error(result.message || 'Failed to apply preset');
+          process.exit(result.exitCode);
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  presetCmd
+    .command('define <preset-name> <paths...>')
+    .description('Define a new user preset with specified paths')
+    .action(async (presetName, paths, options) => {
+      try {
+        const presetCommand = new PresetCommand();
+        const result = await presetCommand.define(presetName, paths, { 
+          verbose: options.parent?.parent?.verbose || false,
+        });
+
+        if (result.success) {
+          // Success message is handled by the command itself
+        } else {
+          logger.error(result.message || 'Failed to define preset');
+          process.exit(result.exitCode);
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  presetCmd
+    .command('undefine <preset-name>')
+    .description('Remove a user-defined preset')
+    .action(async (presetName, options) => {
+      try {
+        const presetCommand = new PresetCommand();
+        const result = await presetCommand.undefine(presetName, { 
+          verbose: options.parent?.parent?.verbose || false,
+        });
+
+        if (result.success) {
+          // Success message is handled by the command itself
+        } else {
+          logger.error(result.message || 'Failed to remove preset');
+          process.exit(result.exitCode);
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  presetCmd
+    .command('list')
+    .description('List all available presets')
+    .action(async (options) => {
+      try {
+        const presetCommand = new PresetCommand();
+        const result = await presetCommand.list({ 
+          verbose: options.parent?.parent?.verbose || false,
+        });
+
+        if (!result.success) {
+          logger.error(result.message || 'Failed to list presets');
+          process.exit(result.exitCode);
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  presetCmd
+    .command('show <preset-name>')
+    .description('Show details about a specific preset')
+    .action(async (presetName, options) => {
+      try {
+        const presetCommand = new PresetCommand();
+        const result = await presetCommand.show(presetName, { 
+          verbose: options.parent?.parent?.verbose || false,
+        });
+
+        if (!result.success) {
+          logger.error(result.message || 'Failed to show preset');
           process.exit(result.exitCode);
         }
       } catch (error) {

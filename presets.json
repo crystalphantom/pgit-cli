@@ -1,0 +1,76 @@
+{
+  "version": "1.0.0",
+  "presets": {
+    "claude-flow": {
+      "description": "Adds files and folders for a standard Claude agent workflow.",
+      "category": "ai-tools",
+      "paths": [
+        ".claude/",
+        ".hive-mind/",
+        ".swarm/",
+        "CLAUDE.md",
+        "claude-flow",
+        "claude-flow.bat",
+        "claude-flow.config.json",
+        "claude-flow.ps1",
+        "memory/"
+      ]
+    },
+
+    "nodejs-dev": {
+      "description": "Common Node.js development files to track privately.",
+      "category": "development",
+      "paths": [
+        "node_modules/",
+        ".env",
+        ".env.local",
+        ".env.development",
+        ".env.production",
+        "dist/",
+        "build/",
+        ".next/",
+        ".nuxt/",
+        "coverage/"
+      ]
+    },
+    "python-dev": {
+      "description": "Common Python development files and directories.",
+      "category": "development",
+      "paths": [
+        "__pycache__/",
+        "*.pyc",
+        ".venv/",
+        "venv/",
+        "env/",
+        ".env",
+        ".pytest_cache/",
+        ".coverage",
+        "htmlcov/",
+        "dist/",
+        "build/",
+        "*.egg-info/"
+      ]
+    },
+    "docker-dev": {
+      "description": "Docker development and build artifacts.",
+      "category": "development",
+      "paths": [
+        ".docker/",
+        "docker-compose.override.yml",
+        ".env.docker",
+        "Dockerfile.local",
+        ".dockerignore.local"
+      ]
+    },
+    "vscode-workspace": {
+      "description": "VS Code workspace and extension files.",
+      "category": "editor",
+      "paths": [
+        ".vscode/",
+        "*.code-workspace",
+        ".vscode-server/",
+        ".devcontainer/"
+      ]
+    }
+  }
+}

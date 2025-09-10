@@ -34,6 +34,28 @@ export const ConfigSettingsSchema = z.object({
 });
 
 /**
+ * Zod schema for preset configuration
+ */
+export const PresetSchema = z.object({
+  description: z.string().min(1).max(200, 'Description too long'),
+  category: z.string().min(1).max(50).optional(),
+  paths: z
+    .array(z.string().min(1, 'Path cannot be empty'))
+    .min(1, 'At least one path is required')
+    .max(50, 'Too many paths in preset'),
+  created: z.date().optional(),
+  lastUsed: z.date().optional(),
+});
+
+/**
+ * Zod schema for built-in presets file
+ */
+export const BuiltinPresetsSchema = z.object({
+  version: z.string().regex(/^\d+\.\d+\.\d+$/, 'Invalid version format'),
+  presets: z.record(z.string(), PresetSchema),
+});
+
+/**
  * Zod schema for project metadata
  */
 export const ProjectMetadataSchema = z.object({
@@ -56,6 +78,7 @@ export const PrivateConfigSchema = z.object({
   lastCleanup: z.date().optional(),
   settings: ConfigSettingsSchema,
   metadata: ProjectMetadataSchema,
+  presets: z.record(z.string(), PresetSchema).optional(),
 });
 
 /**
