@@ -17,12 +17,15 @@ describe('PresetCommand', () => {
   let mockAddCommand: jest.Mocked<AddCommand>;
 
   beforeEach(() => {
-    mockConfigManager = new ConfigManager('test', new FileSystemService()) as jest.Mocked<ConfigManager>;
+    mockConfigManager = new ConfigManager(
+      'test',
+      new FileSystemService(),
+    ) as jest.Mocked<ConfigManager>;
     mockPresetManager = new PresetManager(mockConfigManager) as jest.Mocked<PresetManager>;
     mockAddCommand = new AddCommand() as jest.Mocked<AddCommand>;
-    
+
     presetCommand = new PresetCommand('test');
-    
+
     // Replace the private instances with our mocks
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (presetCommand as any).configManager = mockConfigManager;
@@ -72,7 +75,8 @@ describe('PresetCommand', () => {
       mockPresetManager.getPreset.mockResolvedValue(undefined);
       mockPresetManager.getAllPresets.mockResolvedValue({
         builtin: {},
-        user: {},
+        localUser: {},
+        globalUser: {},
         merged: { 'available-preset': { description: 'Available', paths: [] } },
       });
 
@@ -93,13 +97,13 @@ describe('PresetCommand', () => {
       mockPresetManager.markPresetUsed.mockResolvedValue();
       mockAddCommand.execute
         .mockResolvedValueOnce({ success: true, exitCode: 0 })
-        .mockResolvedValueOnce({ 
-          success: false, 
+        .mockResolvedValueOnce({
+          success: false,
           error: new Error('already tracked'),
           exitCode: 1,
         })
-        .mockResolvedValueOnce({ 
-          success: false, 
+        .mockResolvedValueOnce({
+          success: false,
           error: new Error('does not exist'),
           exitCode: 1,
         });
@@ -177,7 +181,7 @@ describe('PresetCommand', () => {
   describe('undefine', () => {
     it('should remove user preset successfully', async () => {
       mockConfigManager.exists.mockResolvedValue(true);
-      mockPresetManager.getPresetSource.mockResolvedValue('user');
+      mockPresetManager.getPresetSource.mockResolvedValue('localUser');
       mockPresetManager.removeUserPreset.mockResolvedValue(true);
 
       const result = await presetCommand.undefine('user-preset');
@@ -217,13 +221,14 @@ describe('PresetCommand', () => {
             paths: ['builtin/path'],
           },
         },
-        user: {
+        localUser: {
           'user-preset': {
             description: 'User preset',
             paths: ['user/path'],
             created: new Date(),
           },
         },
+        globalUser: {},
         merged: {
           'builtin-preset': {
             description: 'Built-in preset',
@@ -249,7 +254,8 @@ describe('PresetCommand', () => {
     it('should handle empty preset list', async () => {
       mockPresetManager.getAllPresets.mockResolvedValue({
         builtin: {},
-        user: {},
+        localUser: {},
+        globalUser: {},
         merged: {},
       });
 
@@ -269,14 +275,14 @@ describe('PresetCommand', () => {
       };
 
       mockPresetManager.getPreset.mockResolvedValue(mockPreset);
-      mockPresetManager.getPresetSource.mockResolvedValue('user');
+      mockPresetManager.getPresetSource.mockResolvedValue('localUser');
 
       const result = await presetCommand.show('test-preset');
 
       expect(result.success).toBe(true);
       expect(result.data).toEqual({
         preset: mockPreset,
-        source: 'user',
+        source: 'localUser',
       });
     });
 
@@ -284,7 +290,8 @@ describe('PresetCommand', () => {
       mockPresetManager.getPreset.mockResolvedValue(undefined);
       mockPresetManager.getAllPresets.mockResolvedValue({
         builtin: {},
-        user: {},
+        localUser: {},
+        globalUser: {},
         merged: { 'available-preset': { description: 'Available', paths: [] } },
       });
 
