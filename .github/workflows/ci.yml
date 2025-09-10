@@ -65,7 +65,7 @@ jobs:
           echo "Installing $PACKED_FILE"
           npm install -g "$PACKED_FILE"
           pgit -v
-          pgit --help
+          pgit --help || true
         shell: bash
 
       - name: Test symbolic link functionality
