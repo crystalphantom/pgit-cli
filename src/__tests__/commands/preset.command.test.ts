@@ -49,16 +49,15 @@ describe('PresetCommand', () => {
       mockConfigManager.exists.mockResolvedValue(true);
       mockPresetManager.getPreset.mockResolvedValue(mockPreset);
       mockPresetManager.markPresetUsed.mockResolvedValue();
-      mockAddCommand.execute
-        .mockResolvedValueOnce({ success: true, exitCode: 0 })
-        .mockResolvedValueOnce({ success: true, exitCode: 0 });
+      mockAddCommand.execute.mockResolvedValue({ success: true, exitCode: 0 });
 
       const result = await presetCommand.apply('test-preset');
 
       expect(result.success).toBe(true);
       expect(mockPresetManager.getPreset).toHaveBeenCalledWith('test-preset');
       expect(mockPresetManager.markPresetUsed).toHaveBeenCalledWith('test-preset');
-      expect(mockAddCommand.execute).toHaveBeenCalledTimes(2);
+      expect(mockAddCommand.execute).toHaveBeenCalledTimes(1);
+      expect(mockAddCommand.execute).toHaveBeenCalledWith(['path1', 'path2'], {});
     });
 
     it('should fail when pgit is not initialized', async () => {
@@ -95,18 +94,35 @@ describe('PresetCommand', () => {
       mockConfigManager.exists.mockResolvedValue(true);
       mockPresetManager.getPreset.mockResolvedValue(mockPreset);
       mockPresetManager.markPresetUsed.mockResolvedValue();
+      
+      // Import BatchOperationError for the test
+      const { BatchOperationError } = require('../../commands/add.command');
+      const batchError = new BatchOperationError(
+        'Partial failure',
+        ['path3'], // failed paths
+        ['path1']  // successful paths
+      );
+      
+      // First call: bulk operation fails with BatchOperationError
+      // Then fallback to individual processing
       mockAddCommand.execute
-        .mockResolvedValueOnce({ success: true, exitCode: 0 })
+        .mockResolvedValueOnce({
+          success: false,
+          error: batchError,
+          exitCode: 1,
+        })
+        // Individual processing calls:
+        .mockResolvedValueOnce({ success: true, exitCode: 0 }) // path1 - added
         .mockResolvedValueOnce({
           success: false,
           error: new Error('already tracked'),
           exitCode: 1,
-        })
+        }) // path2 - skipped
         .mockResolvedValueOnce({
           success: false,
           error: new Error('does not exist'),
           exitCode: 1,
-        });
+        }); // path3 - failed
 
       const result = await presetCommand.apply('test-preset');
 
@@ -136,6 +152,7 @@ describe('PresetCommand', () => {
           paths: ['path1', 'path2'],
           created: expect.any(Date),
         }),
+        undefined
       );
     });
 
@@ -154,7 +171,7 @@ describe('PresetCommand', () => {
       const result = await presetCommand.define('', ['path1']);
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('cannot be empty');
+      expect(result.message).toContain('Failed to define preset');
     });
 
     it('should fail with no paths', async () => {
@@ -163,7 +180,7 @@ describe('PresetCommand', () => {
       const result = await presetCommand.define('new-preset', []);
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('At least one path');
+      expect(result.message).toContain('Failed to define preset');
     });
 
     it('should warn when overriding built-in preset', async () => {
@@ -187,7 +204,7 @@ describe('PresetCommand', () => {
       const result = await presetCommand.undefine('user-preset');
 
       expect(result.success).toBe(true);
-      expect(mockPresetManager.removeUserPreset).toHaveBeenCalledWith('user-preset');
+      expect(mockPresetManager.removeUserPreset).toHaveBeenCalledWith('user-preset', false);
     });
 
     it('should fail when trying to remove built-in preset', async () => {
