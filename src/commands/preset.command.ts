@@ -637,7 +637,7 @@ export class PresetCommand {
       message += `\n\nAvailable presets: ${availableNames.sort().join(', ')}`;
     }
 
-    message += "\nUse 'pgit preset list' to see all available presets.";
+    message += '\nUse \'pgit preset list\' to see all available presets.';
 
     return {
       success: false,
