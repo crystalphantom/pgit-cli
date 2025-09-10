@@ -64,7 +64,7 @@ jobs:
           PACKED_FILE=$(ls pgit-cli-*.tgz)
           echo "Installing $PACKED_FILE"
           npm install -g "$PACKED_FILE"
-          pgit --version
+          pgit -v
           pgit --help
         shell: bash
 
