@@ -9,7 +9,10 @@
         - pgit preset add preset-name
         - pgit preset remove preset-name
 
-Currently preset command includes the file and commits independantly . We should b able to bulk add it . If possible can we use the underlining methods of the - `pgit add ... ` as this can handle mulitple files and folders 
+    * Currently preset command includes the file and commits independantly . We should b able to bulk add it ( single meaunigfull commit) . If possible can we use the underlining methods of the - `pgit add ... ` as this can handle mulitple files and folders 
+    * Also update the pgit -h to also include all the sub commands available for the preset .
+    * define preset is not working . It should work even without initializing the pgit in a worksapce or repo as the presets are global . 
+
 6. Add a file based on the file pattern ( *.sql)
 7. What happens if i pause or close the pgit add command ? Need its handling
 8. Update the pgit commit message to also include the files/folders metadata ( at least no of files)

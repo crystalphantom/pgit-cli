@@ -280,10 +280,7 @@ export class ResetCommand {
   /**
    * Clean up git exclude entries for tracked paths
    */
-  private async cleanupGitExcludes(
-    trackedPaths: string[],
-    result: ResetResult,
-  ): Promise<void> {
+  private async cleanupGitExcludes(trackedPaths: string[], result: ResetResult): Promise<void> {
     try {
       const gitService = new GitService(this.workingDir, this.fileSystem);
 
