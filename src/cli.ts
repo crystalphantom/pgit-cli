@@ -418,8 +418,13 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Global error handler
-  program.exitOverride(() => {
+  // Global error handler - only override for actual errors, not help/version
+  program.exitOverride((err) => {
+    // Allow normal exit codes for help and version commands
+    if (err.code === 'commander.version' || err.code === 'commander.helpDisplayed') {
+      process.exit(0);
+    }
+    // Force exit code 1 for other errors
     process.exit(1);
   });
 
