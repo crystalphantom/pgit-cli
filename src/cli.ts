@@ -142,7 +142,7 @@ async function main(): Promise<void> {
   // Preset commands
   const presetCmd = program
     .command('preset')
-    .description('Manage file presets for common workflows');
+    .description('Manage file presets for common workflows (apply|define|undefine|list|show)');
 
   presetCmd
     .command('apply <preset-name>')
@@ -168,11 +168,13 @@ async function main(): Promise<void> {
   presetCmd
     .command('define <preset-name> <paths...>')
     .description('Define a new user preset with specified paths')
+    .option('-g, --global', 'Create a global preset (available across all projects)')
     .action(async (presetName, paths, options) => {
       try {
         const presetCommand = new PresetCommand();
         const result = await presetCommand.define(presetName, paths, { 
           verbose: options.parent?.parent?.verbose || false,
+          global: options.global || false,
         });
 
         if (result.success) {
@@ -189,11 +191,13 @@ async function main(): Promise<void> {
   presetCmd
     .command('undefine <preset-name>')
     .description('Remove a user-defined preset')
+    .option('-g, --global', 'Remove a global preset')
     .action(async (presetName, options) => {
       try {
         const presetCommand = new PresetCommand();
         const result = await presetCommand.undefine(presetName, { 
           verbose: options.parent?.parent?.verbose || false,
+          global: options.global || false,
         });
 
         if (result.success) {

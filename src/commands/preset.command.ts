@@ -1,13 +1,9 @@
 import chalk from 'chalk';
-import {
-  CommandResult,
-  CommandOptions,
-  Preset,
-} from '../types/config.types';
+import { CommandResult, CommandOptions, Preset } from '../types/config.types';
 import { ConfigManager } from '../core/config.manager';
 import { FileSystemService } from '../core/filesystem.service';
 import { PresetManager } from '../core/preset.manager';
-import { AddCommand } from './add.command';
+import { AddCommand, BatchOperationError } from './add.command';
 import { BaseError } from '../errors/base.error';
 import { PresetNotFoundError, PresetValidationError } from '../core/preset.manager';
 import { InputValidator } from '../utils/input.validator';
@@ -81,8 +77,8 @@ export class PresetCommand {
         logger.info(`Description: ${preset.description}`);
       }
 
-      // Apply each path in the preset
-      const result = await this.applyPresetPaths(preset.paths, options);
+      // Apply all paths in the preset using bulk operation (single atomic commit)
+      const result = await this.applyPresetPathsBulk(preset.paths, options);
 
       // Display results
       this.displayApplyResults(presetName, result);
@@ -118,14 +114,18 @@ export class PresetCommand {
   public async define(
     presetName: string,
     paths: string[],
-    options: CommandOptions = {},
+    options: CommandOptions & { global?: boolean } = {},
   ): Promise<CommandResult> {
     try {
-      // Check if pgit is initialized
-      if (!(await this.configManager.exists())) {
-        throw new NotInitializedError(
-          'Private git tracking is not initialized. Run "pgit init" first.',
-        );
+      // For apply operations, we still need pgit to be initialized
+      // But for global presets, we don't need initialization
+      if (!options.global) {
+        // Check if pgit is initialized for local presets
+        if (!(await this.configManager.exists())) {
+          throw new NotInitializedError(
+            'Private git tracking is not initialized. Run "pgit init" first, or use --global flag to create a global preset.',
+          );
+        }
       }
 
       // Validate preset name
@@ -167,9 +167,14 @@ export class PresetCommand {
       // Check if preset already exists and warn user
       const existingSource = await this.presetManager.getPresetSource(presetName);
       if (existingSource === 'builtin') {
-        logger.warn(`Warning: Preset '${presetName}' exists as a built-in preset. Your custom preset will override it.`);
-      } else if (existingSource === 'user') {
-        logger.warn(`Warning: User preset '${presetName}' already exists. It will be updated.`);
+        logger.warn(
+          `Warning: Preset '${presetName}' exists as a built-in preset. Your custom preset will override it.`,
+        );
+      } else if (existingSource === 'localUser' || existingSource === 'globalUser') {
+        const sourceType = existingSource === 'localUser' ? 'local' : 'global';
+        logger.warn(
+          `Warning: ${sourceType} user preset '${presetName}' already exists. It will be updated.`,
+        );
       }
 
       // Create preset object
@@ -179,13 +184,15 @@ export class PresetCommand {
         created: new Date(),
       };
 
-      // Save the preset
-      await this.presetManager.saveUserPreset(presetName, preset);
+      // Save the preset (global or local)
+      await this.presetManager.saveUserPreset(presetName, preset, options.global);
 
-      logger.success(`✔ Preset '${presetName}' saved to project configuration.`);
+      const presetType = options.global ? 'global' : 'local';
+      logger.success(`✔ ${presetType} preset '${presetName}' saved.`);
       logger.info(`Use 'pgit preset apply ${presetName}' to apply this preset.`);
 
       if (options.verbose) {
+        logger.info(`Preset type: ${presetType}`);
         logger.info('Paths in preset:');
         validatedPaths.forEach(path => logger.info(`  • ${path}`));
       }
@@ -218,42 +225,70 @@ export class PresetCommand {
   /**
    * Remove a user-defined preset
    */
-  public async undefine(presetName: string, _options: CommandOptions = {}): Promise<CommandResult> {
+  public async undefine(
+    presetName: string,
+    options: CommandOptions & { global?: boolean } = {},
+  ): Promise<CommandResult> {
     try {
-      // Check if pgit is initialized
-      if (!(await this.configManager.exists())) {
-        throw new NotInitializedError(
-          'Private git tracking is not initialized. Run "pgit init" first.',
-        );
-      }
-
-      // Check preset source
+      // Check what type of preset exists
       const source = await this.presetManager.getPresetSource(presetName);
-      
-      if (source === 'none') {
-        throw new PresetNotFoundError(`Preset '${presetName}' not found`);
-      }
 
       if (source === 'builtin') {
-        throw new PresetCommandError(
-          `Cannot remove built-in preset '${presetName}'. Only user-defined presets can be removed.`,
-        );
+        return {
+          success: false,
+          message: `Cannot remove built-in preset '${presetName}'. Built-in presets are read-only.`,
+          exitCode: 1,
+        };
       }
 
-      // Remove the preset
-      const removed = await this.presetManager.removeUserPreset(presetName);
-      
-      if (!removed) {
-        throw new PresetCommandError(`Failed to remove preset '${presetName}'`);
+      if (source === 'none') {
+        return {
+          success: false,
+          message: `Preset '${presetName}' not found.`,
+          exitCode: 1,
+        };
       }
 
-      logger.success(`✔ Preset '${presetName}' removed from project configuration.`);
+      let removed = false;
+      let removedType = '';
 
-      return {
-        success: true,
-        message: `Preset '${presetName}' undefined successfully`,
-        exitCode: 0,
-      };
+      // If global flag is specified, only remove global preset
+      if (options.global) {
+        if (source === 'globalUser') {
+          removed = await this.presetManager.removeUserPreset(presetName, true);
+          removedType = 'global';
+        } else {
+          return {
+            success: false,
+            message: `Global preset '${presetName}' not found.`,
+            exitCode: 1,
+          };
+        }
+      } else {
+        // Remove from the appropriate location
+        if (source === 'localUser') {
+          removed = await this.presetManager.removeUserPreset(presetName, false);
+          removedType = 'local';
+        } else if (source === 'globalUser') {
+          removed = await this.presetManager.removeUserPreset(presetName, true);
+          removedType = 'global';
+        }
+      }
+
+      if (removed) {
+        logger.success(`✔ ${removedType} preset '${presetName}' removed successfully.`);
+        return {
+          success: true,
+          message: `Preset '${presetName}' removed successfully`,
+          exitCode: 0,
+        };
+      } else {
+        return {
+          success: false,
+          message: `Failed to remove preset '${presetName}'.`,
+          exitCode: 1,
+        };
+      }
     } catch (error) {
       if (error instanceof BaseError) {
         return {
@@ -266,7 +301,7 @@ export class PresetCommand {
 
       return {
         success: false,
-        message: `Failed to undefine preset '${presetName}'`,
+        message: `Failed to remove preset '${presetName}'`,
         error: error instanceof Error ? error : new Error(String(error)),
         exitCode: 1,
       };
@@ -289,27 +324,37 @@ export class PresetCommand {
         for (const name of builtinNames.sort()) {
           const preset = allPresets.builtin[name];
           const category = preset.category ? `[${preset.category}]` : '[general]';
-          
+
           if (options.verbose) {
-            logger.info(`  ${chalk.cyan(name.padEnd(15))} ${chalk.gray(category.padEnd(15))} ${preset.description}`);
-            logger.info(`    Paths: ${preset.paths.length} item${preset.paths.length === 1 ? '' : 's'}`);
+            logger.info(
+              `  ${chalk.cyan(name.padEnd(15))} ${chalk.gray(category.padEnd(15))} ${preset.description}`,
+            );
+            logger.info(
+              `    Paths: ${preset.paths.length} item${preset.paths.length === 1 ? '' : 's'}`,
+            );
           } else {
-            logger.info(`  ${chalk.cyan(name.padEnd(15))} ${chalk.gray(category.padEnd(15))} ${preset.description}`);
+            logger.info(
+              `  ${chalk.cyan(name.padEnd(15))} ${chalk.gray(category.padEnd(15))} ${preset.description}`,
+            );
           }
         }
         logger.info('');
       }
 
       // Display user-defined presets
-      const userNames = Object.keys(allPresets.user);
-      if (userNames.length > 0) {
-        logger.info(chalk.bold('User-defined:'));
-        for (const name of userNames.sort()) {
-          const preset = allPresets.user[name];
+      const localUserNames = Object.keys(allPresets.localUser);
+      const globalUserNames = Object.keys(allPresets.globalUser);
+
+      if (localUserNames.length > 0) {
+        logger.info(chalk.bold('Local User-defined:'));
+        for (const name of localUserNames.sort()) {
+          const preset = allPresets.localUser[name];
           const pathCount = `(${preset.paths.length} path${preset.paths.length === 1 ? '' : 's'})`;
-          
+
           if (options.verbose) {
-            logger.info(`  ${chalk.green(name.padEnd(15))} ${chalk.gray('[custom]'.padEnd(15))} ${preset.description || pathCount}`);
+            logger.info(
+              `  ${chalk.green(name.padEnd(15))} ${chalk.gray('[local]'.padEnd(15))} ${preset.description || pathCount}`,
+            );
             if (preset.created) {
               logger.info(`    Created: ${preset.created.toLocaleDateString()}`);
             }
@@ -317,17 +362,54 @@ export class PresetCommand {
               logger.info(`    Last used: ${preset.lastUsed.toLocaleDateString()}`);
             }
           } else {
-            logger.info(`  ${chalk.green(name.padEnd(15))} ${chalk.gray('[custom]'.padEnd(15))} ${preset.description || pathCount}`);
+            logger.info(
+              `  ${chalk.green(name.padEnd(15))} ${chalk.gray('[local]'.padEnd(15))} ${preset.description || pathCount}`,
+            );
           }
         }
         logger.info('');
       }
 
-      if (builtinNames.length === 0 && userNames.length === 0) {
+      if (globalUserNames.length > 0) {
+        logger.info(chalk.bold('Global User-defined:'));
+        for (const name of globalUserNames.sort()) {
+          const preset = allPresets.globalUser[name];
+          const pathCount = `(${preset.paths.length} path${preset.paths.length === 1 ? '' : 's'})`;
+
+          if (options.verbose) {
+            logger.info(
+              `  ${chalk.yellow(name.padEnd(15))} ${chalk.gray('[global]'.padEnd(15))} ${preset.description || pathCount}`,
+            );
+            if (preset.created) {
+              logger.info(`    Created: ${preset.created.toLocaleDateString()}`);
+            }
+            if (preset.lastUsed) {
+              logger.info(`    Last used: ${preset.lastUsed.toLocaleDateString()}`);
+            }
+          } else {
+            logger.info(
+              `  ${chalk.yellow(name.padEnd(15))} ${chalk.gray('[global]'.padEnd(15))} ${preset.description || pathCount}`,
+            );
+          }
+        }
+        logger.info('');
+      }
+
+      if (
+        builtinNames.length === 0 &&
+        localUserNames.length === 0 &&
+        globalUserNames.length === 0
+      ) {
         logger.info('No presets available.');
-        logger.info('Use "pgit preset define <name> <path1> [path2]..." to create a custom preset.');
+        logger.info('Use "pgit preset define <name> <path1> [path2]..." to create a local preset.');
+        logger.info(
+          'Use "pgit preset define --global <name> <path1> [path2]..." to create a global preset.',
+        );
       } else {
-        logger.info(`Total: ${builtinNames.length} built-in, ${userNames.length} user-defined`);
+        const totalUser = localUserNames.length + globalUserNames.length;
+        logger.info(
+          `Total: ${builtinNames.length} built-in, ${totalUser} user-defined (${localUserNames.length} local, ${globalUserNames.length} global)`,
+        );
         logger.info('Use "pgit preset show <name>" to see details about a specific preset.');
       }
 
@@ -361,17 +443,17 @@ export class PresetCommand {
       const sourceLabel = source === 'builtin' ? 'Built-in' : 'User-defined';
 
       logger.info(`Preset: ${chalk.bold(presetName)} ${chalk.gray(`[${sourceLabel}]`)}`);
-      
+
       if (preset.category) {
         logger.info(`Category: ${preset.category}`);
       }
-      
+
       logger.info(`Description: ${preset.description}`);
-      
+
       if (preset.created) {
         logger.info(`Created: ${preset.created.toLocaleDateString()}`);
       }
-      
+
       if (preset.lastUsed) {
         logger.info(`Last used: ${preset.lastUsed.toLocaleDateString()}`);
       }
@@ -398,25 +480,100 @@ export class PresetCommand {
   }
 
   /**
-   * Apply preset paths using the add command
+   * Apply preset paths using bulk add command for atomic commit
    */
-  private async applyPresetPaths(paths: string[], options: CommandOptions): Promise<PresetApplyResult> {
+  private async applyPresetPathsBulk(
+    paths: string[],
+    options: CommandOptions,
+  ): Promise<PresetApplyResult> {
     const result: PresetApplyResult = {
       added: [],
       skipped: [],
       failed: [],
     };
 
+    if (paths.length === 0) {
+      return result;
+    }
+
+    try {
+      // Use AddCommand's bulk processing which handles atomic commits
+      const addResult = await this.addCommand.execute(paths, options);
+
+      if (addResult.success) {
+        // All paths were added successfully
+        result.added = [...paths];
+      } else {
+        // Handle different types of errors
+        if (addResult.error instanceof Error) {
+          const errorMessage = addResult.error.message;
+
+          // Check for batch operation errors which contain detailed path information
+          if (addResult.error instanceof BatchOperationError) {
+            const batchError = addResult.error;
+            result.added = batchError.successfulPaths;
+            result.failed = batchError.failedPaths.map((path: string) => ({
+              path,
+              error: 'Batch operation failed',
+            }));
+          } else if (errorMessage.includes('already tracked')) {
+            // All paths are already tracked
+            result.skipped = [...paths];
+          } else if (
+            errorMessage.includes('does not exist') ||
+            errorMessage.includes('not found')
+          ) {
+            // Some or all paths don't exist
+            result.failed = paths.map(path => ({
+              path,
+              error: 'Path does not exist',
+            }));
+          } else {
+            // Other errors - fallback to individual processing for better error reporting
+            return this.fallbackToIndividualProcessing(paths, options);
+          }
+        } else {
+          // Unknown error - fallback to individual processing
+          return this.fallbackToIndividualProcessing(paths, options);
+        }
+      }
+    } catch (error) {
+      // If bulk operation fails, fallback to individual processing for better error reporting
+      return this.fallbackToIndividualProcessing(paths, options);
+    }
+
+    return result;
+  }
+
+  /**
+   * Fallback to individual file processing when bulk operation fails
+   */
+  private async fallbackToIndividualProcessing(
+    paths: string[],
+    options: CommandOptions,
+  ): Promise<PresetApplyResult> {
+    const result: PresetApplyResult = {
+      added: [],
+      skipped: [],
+      failed: [],
+    };
+
+    if (options.verbose) {
+      logger.info('Falling back to individual file processing...');
+    }
+
     for (const path of paths) {
       try {
         const addResult = await this.addCommand.execute([path], options);
-        
+
         if (addResult.success) {
           result.added.push(path);
         } else {
           // Check if it was skipped (already tracked)
-          if (addResult.error?.message.includes('already tracked') || 
-              addResult.error?.message.includes('already being tracked')) {
+          if (
+            addResult.error?.message.includes('already tracked') ||
+            addResult.error?.message.includes('already being tracked')
+          ) {
             result.skipped.push(path);
           } else {
             result.failed.push({
@@ -462,7 +619,9 @@ export class PresetCommand {
     // Summary
     const total = result.added.length + result.skipped.length + result.failed.length;
     logger.info(`\nPreset '${presetName}' applied.`);
-    logger.info(`${result.added.length} added, ${result.skipped.length} skipped, ${result.failed.length} failed (${total} total).`);
+    logger.info(
+      `${result.added.length} added, ${result.skipped.length} skipped, ${result.failed.length} failed (${total} total).`,
+    );
   }
 
   /**
@@ -473,11 +632,11 @@ export class PresetCommand {
     const availableNames = Object.keys(allPresets.merged);
 
     let message = `Preset '${presetName}' not found.`;
-    
+
     if (availableNames.length > 0) {
       message += `\n\nAvailable presets: ${availableNames.sort().join(', ')}`;
     }
-    
+
     message += '\nUse \'pgit preset list\' to see all available presets.';
 
     return {
