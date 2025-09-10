@@ -1,10 +1,15 @@
 import chalk from 'chalk';
 
 export enum LogLevel {
+  // eslint-disable-next-line no-unused-vars
   NONE = 0,
+  // eslint-disable-next-line no-unused-vars
   ERROR = 1,
+  // eslint-disable-next-line no-unused-vars
   WARN = 2,
+  // eslint-disable-next-line no-unused-vars
   INFO = 3,
+  // eslint-disable-next-line no-unused-vars
   DEBUG = 4,
 }
 

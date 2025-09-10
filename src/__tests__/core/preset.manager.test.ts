@@ -13,9 +13,12 @@ describe('PresetManager', () => {
   let mockConfigManager: jest.Mocked<ConfigManager>;
 
   beforeEach(() => {
-    mockConfigManager = new ConfigManager('test', new FileSystemService()) as jest.Mocked<ConfigManager>;
+    mockConfigManager = new ConfigManager(
+      'test',
+      new FileSystemService(),
+    ) as jest.Mocked<ConfigManager>;
     presetManager = new PresetManager(mockConfigManager);
-    
+
     // Mock built-in presets loading
     const mockBuiltinPresets = {
       version: '1.0.0',
@@ -166,8 +169,8 @@ describe('PresetManager', () => {
 
       expect(result.builtin).toHaveProperty('test-preset');
       expect(result.builtin).toHaveProperty('another-preset');
-      expect(result.user).toHaveProperty('user-preset');
-      expect(result.user).toHaveProperty('test-preset');
+      expect(result.localUser).toHaveProperty('user-preset');
+      expect(result.localUser).toHaveProperty('test-preset');
       expect(result.merged['test-preset'].description).toBe('Overridden test preset');
     });
   });
@@ -217,9 +220,9 @@ describe('PresetManager', () => {
         PresetValidationError,
       );
 
-      await expect(
-        presetManager.saveUserPreset('a'.repeat(51), {} as Preset),
-      ).rejects.toThrow(PresetValidationError);
+      await expect(presetManager.saveUserPreset('a'.repeat(51), {} as Preset)).rejects.toThrow(
+        PresetValidationError,
+      );
     });
   });
 
@@ -314,7 +317,7 @@ describe('PresetManager', () => {
 
       const source = await presetManager.getPresetSource('user-preset');
 
-      expect(source).toBe('user');
+      expect(source).toBe('localUser');
     });
 
     it('should return "builtin" for built-in presets', async () => {

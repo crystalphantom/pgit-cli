@@ -432,7 +432,7 @@ describe('ResetCommand', () => {
 
       expect(result.success).toBe(true);
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Starting complete pgit reset'),
+        expect.stringContaining('🔄 Starting complete pgit reset'),
       );
 
       consoleSpy.mockRestore();
