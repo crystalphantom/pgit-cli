@@ -1,6 +1,6 @@
 {
   "name": "pgit-cli",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Private file tracking with dual git repositories",
   "main": "dist/index.js",
   "bin": {
