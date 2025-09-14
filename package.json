@@ -51,12 +51,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/jack-sparrow-1904/pgit-cli.git"
+    "url": "git+https://github.com/crystalphantom/pgit-cli.git"
   },
   "bugs": {
-    "url": "https://github.com/jack-sparrow-1904/pgit-cli/issues"
+    "url": "https://github.com/crystalphantom/pgit-cli/issues"
   },
-  "homepage": "https://github.com/jack-sparrow-1904/pgit-cli#readme",
+  "homepage": "https://github.com/crystalphantom/pgit-cli#readme",
   "dependencies": {
     "chalk": "^4.1.2",
     "commander": "^11.0.0",

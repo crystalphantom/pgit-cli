@@ -2,7 +2,7 @@ import { AddCommand } from '../../commands/add.command';
 import { ConfigManager } from '../../core/config.manager';
 import { FileSystemService } from '../../core/filesystem.service';
 import { GitService } from '../../core/git.service';
-import { GitExcludeSettings } from '../../types/config.types';
+import { GitExcludeSettings, PGIT_MARKER_COMMENT } from '../../types/config.types';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
@@ -76,7 +76,7 @@ describe('AddCommand - Configuration Integration', () => {
       const excludePath = path.join(tempDir, '.git', 'info', 'exclude');
       const content = await fs.readFile(excludePath, 'utf8');
 
-      expect(content).toContain('# pgit-cli managed exclusions');
+      expect(content).toContain(PGIT_MARKER_COMMENT);
       expect(content).toContain('test-file.txt');
     });
 
@@ -93,7 +93,7 @@ describe('AddCommand - Configuration Integration', () => {
       const excludePath = path.join(tempDir, '.git', 'info', 'exclude');
       const content = await fs.readFile(excludePath, 'utf8');
 
-      expect(content).toContain('# pgit-cli managed exclusions');
+      expect(content).toContain(PGIT_MARKER_COMMENT);
       for (const fileName of testFiles) {
         expect(content).toContain(fileName);
       }
@@ -133,7 +133,7 @@ describe('AddCommand - Configuration Integration', () => {
 
       expect(content).toContain('# custom test marker for pgit');
       expect(content).toContain('custom-test.txt');
-      expect(content).not.toContain('# pgit-cli managed exclusions');
+      expect(content).not.toContain(PGIT_MARKER_COMMENT);
     });
 
     it('should persist custom settings across multiple operations', async () => {
@@ -306,7 +306,7 @@ describe('AddCommand - Configuration Integration', () => {
       const content = await fs.readFile(excludePath, 'utf8');
 
       // Should use default marker comment
-      expect(content).toContain('# pgit-cli managed exclusions');
+      expect(content).toContain(PGIT_MARKER_COMMENT);
       expect(content).toContain('fallback-test.txt');
     });
 
@@ -325,7 +325,7 @@ describe('AddCommand - Configuration Integration', () => {
       const content = await fs.readFile(excludePath, 'utf8');
 
       // Should use default marker comment
-      expect(content).toContain('# pgit-cli managed exclusions');
+      expect(content).toContain(PGIT_MARKER_COMMENT);
       expect(content).toContain('missing-config-test.txt');
     });
   });

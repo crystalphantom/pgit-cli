@@ -4,6 +4,7 @@ import { ConfigManager } from '../../core/config.manager';
 import { GitService } from '../../core/git.service';
 import { SymlinkService } from '../../core/symlink.service';
 import { GitFileState } from '../../types/git.types';
+import { PGIT_MARKER_COMMENT } from '../../types/config.types';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
@@ -55,7 +56,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
         maxBackups: 5,
         gitExclude: {
           enabled: true,
-          markerComment: '# pgit-cli managed exclusions',
+          markerComment: PGIT_MARKER_COMMENT,
           fallbackBehavior: 'warn' as const,
           validateOperations: true,
         },
