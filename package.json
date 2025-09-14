@@ -44,7 +44,7 @@
     "symbolic-links",
     "dual-repository"
   ],
-  "author": "Vaishnav Agrawal",
+  "author": "crystalphantom",
   "license": "MIT",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"

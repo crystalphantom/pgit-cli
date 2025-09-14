@@ -21,7 +21,7 @@ We take the security of PGit CLI seriously. If you discover a security vulnerabi
 
 ### Preferred Method: GitHub Security Advisories
 
-1. Go to our [GitHub repository](https://github.com/your-org/pgit-cli)
+1. Go to our [GitHub repository](https://github.com/crystalphantom/pgit-cli)
 2. Click on "Security" tab
 3. Click "Report a vulnerability"
 4. Fill out the security advisory form
