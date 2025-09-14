@@ -11,7 +11,7 @@ We love your input! We want to make contributing to PGit CLI as easy and transpa
 ## 🚀 Quick Start
 
 1. Fork the repository
-2. Clone your fork: `git clone https://github.com/your-username/pgit-cli.git`
+2. Clone your fork: `git clone https://github.com/crystalphantom/pgit-cli.git`
 3. Install dependencies: `npm install`
 4. Create a branch: `git checkout -b feature/your-feature-name`
 5. Make your changes
@@ -31,7 +31,7 @@ We love your input! We want to make contributing to PGit CLI as easy and transpa
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/pgit-cli.git
+git clone https://github.com/crystalphantom/pgit-cli.git
 cd pgit-cli
 
 # Install dependencies
