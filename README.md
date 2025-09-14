@@ -404,7 +404,7 @@ We welcome contributions to the Private Git Tracking CLI! Here's how you can hel
 
 1. **Fork and Clone**
    ```bash
-   git clone https://github.com/your-username/pgit-cli.git
+   git clone https://github.com/crystalphantom/pgit-cli.git
    cd pgit-cli
    ```
 
