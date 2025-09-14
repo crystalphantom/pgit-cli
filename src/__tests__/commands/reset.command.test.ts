@@ -431,9 +431,7 @@ describe('ResetCommand', () => {
       const result = await resetCommand.execute(true, { verbose: true });
 
       expect(result.success).toBe(true);
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('📊 Reset Summary:'),
-      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('📊 Reset Summary:'));
 
       consoleSpy.mockRestore();
     });
@@ -468,7 +466,7 @@ describe('ResetCommand', () => {
  */
 function createMockConfig(trackedPaths: string[] = []): PrivateConfig {
   return {
-    version: '1.2.0',
+    version: '0.4.0',
     privateRepoPath: '.git-private',
     storagePath: '.private-storage',
     trackedPaths,
@@ -489,7 +487,7 @@ function createMockConfig(trackedPaths: string[] = []): PrivateConfig {
     metadata: {
       projectName: 'test-project',
       mainRepoPath: '/test/workspace',
-      cliVersion: '1.2.0',
+      cliVersion: '0.4.0',
       platform: 'test',
       lastModified: new Date(),
     },
