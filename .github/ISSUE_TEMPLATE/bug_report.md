@@ -1,6 +1,6 @@
 ---
 name: 🐛 Bug Report
-about: Create a report to help us improve PGit CLI
+about: Create a report to help us improve pgit-cli
 title: '[BUG] '
 labels: ['bug', 'triage']
 assignees: ''

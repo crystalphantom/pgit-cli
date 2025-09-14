@@ -3,7 +3,7 @@ import { ConfigManager } from '../../core/config.manager';
 import { FileSystemService } from '../../core/filesystem.service';
 import { SymlinkService } from '../../core/symlink.service';
 import { GitService, GitStatus } from '../../core/git.service';
-import { PrivateConfig } from '../../types/config.types';
+import { PrivateConfig, PGIT_MARKER_COMMENT } from '../../types/config.types';
 
 // Mock all dependencies
 jest.mock('../../core/config.manager');
@@ -136,7 +136,7 @@ describe('AddCommand', () => {
         maxBackups: 5,
         gitExclude: {
           enabled: true,
-          markerComment: '# pgit-cli managed exclusions',
+          markerComment: PGIT_MARKER_COMMENT,
           fallbackBehavior: 'warn' as const,
           validateOperations: true,
         },

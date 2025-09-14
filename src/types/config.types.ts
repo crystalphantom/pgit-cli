@@ -297,11 +297,16 @@ export interface ErrorInfo {
 }
 
 /**
+ * Marker comment used to identify pgit-cli managed exclusions in git exclude files
+ */
+export const PGIT_MARKER_COMMENT = '# pgit-cli managed exclusions';
+
+/**
  * Default git exclude settings
  */
 export const DEFAULT_GIT_EXCLUDE_SETTINGS: GitExcludeSettings = {
   enabled: true,
-  markerComment: '# pgit-cli managed exclusions',
+  markerComment: PGIT_MARKER_COMMENT,
   fallbackBehavior: 'warn',
   validateOperations: true,
 };

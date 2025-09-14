@@ -2,6 +2,7 @@ import { GitService } from '../../core/git.service';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
+import { PGIT_MARKER_COMMENT } from '../../types/config.types';
 
 describe('GitService - Exclude Integration Tests', () => {
   let gitService: GitService;
@@ -43,7 +44,7 @@ describe('GitService - Exclude Integration Tests', () => {
 
     // Verify exclude file structure
     const content = await fs.readFile(gitExcludePath, 'utf8');
-    expect(content).toContain('# pgit-cli managed exclusions');
+    expect(content).toContain(PGIT_MARKER_COMMENT);
     for (const file of testFiles) {
       expect(content).toContain(file);
     }
@@ -74,7 +75,7 @@ describe('GitService - Exclude Integration Tests', () => {
       '# Build artifacts',
       'dist/',
       'node_modules/',
-      ''
+      '',
     ];
     await fs.writeFile(gitExcludePath, existingEntries.join('\n'));
 
@@ -94,7 +95,7 @@ describe('GitService - Exclude Integration Tests', () => {
     const content = await fs.readFile(gitExcludePath, 'utf8');
     expect(content).toContain('.vscode/');
     expect(content).toContain('node_modules/');
-    expect(content).toContain('# pgit-cli managed exclusions');
+    expect(content).toContain(PGIT_MARKER_COMMENT);
 
     // Remove pgit files
     for (const file of pgitFiles) {
@@ -105,7 +106,7 @@ describe('GitService - Exclude Integration Tests', () => {
     const finalContent = await fs.readFile(gitExcludePath, 'utf8');
     expect(finalContent).toContain('.vscode/');
     expect(finalContent).toContain('node_modules/');
-    expect(finalContent).not.toContain('# pgit-cli managed exclusions');
+    expect(finalContent).not.toContain(PGIT_MARKER_COMMENT);
     for (const file of pgitFiles) {
       expect(finalContent).not.toContain(file);
     }

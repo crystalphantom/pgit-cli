@@ -12,7 +12,11 @@ import {
   GitExcludeValidationError,
 } from '../errors/git.error';
 import { GitFileState } from '../types/git.types';
-import { GitExcludeSettings, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../types/config.types';
+import {
+  GitExcludeSettings,
+  DEFAULT_GIT_EXCLUDE_SETTINGS,
+  PGIT_MARKER_COMMENT,
+} from '../types/config.types';
 
 /**
  * Git repository status information
@@ -1378,7 +1382,7 @@ export class GitService {
         }
 
         // Clean up empty pgit marker sections if no pgit-managed entries remain
-        const pgitMarker = '# pgit-cli managed exclusions';
+        const pgitMarker = PGIT_MARKER_COMMENT;
         const pgitMarkerIndex = filteredLines.findIndex(line => line.trim() === pgitMarker);
 
         if (pgitMarkerIndex !== -1) {
@@ -1586,7 +1590,7 @@ export class GitService {
       const lines = excludeContent.split('\n');
 
       // Find pgit marker
-      const pgitMarker = '# pgit-cli managed exclusions';
+      const pgitMarker = PGIT_MARKER_COMMENT;
       const pgitMarkerIndex = lines.findIndex(line => line.trim() === pgitMarker);
 
       if (pgitMarkerIndex === -1) {
@@ -1672,7 +1676,7 @@ export class GitService {
         }
 
         // Clean up empty pgit marker sections if no pgit-managed entries remain
-        const pgitMarker = '# pgit-cli managed exclusions';
+        const pgitMarker = PGIT_MARKER_COMMENT;
         const pgitMarkerIndex = filteredLines.findIndex(line => line.trim() === pgitMarker);
 
         if (pgitMarkerIndex !== -1) {
