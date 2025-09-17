@@ -1042,7 +1042,7 @@ export class GitService {
     try {
       const regex = new RegExp(regexPattern);
       return regex.test(filePath);
-    } catch (_error) {
+    } catch {
       // If regex is invalid, assume no match
       return false;
     }
