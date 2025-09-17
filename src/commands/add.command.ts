@@ -103,7 +103,7 @@ export class AddCommand {
         this.fileSystem,
         config.settings.gitExclude,
       );
-    } catch (_error) {
+    } catch {
       // If config loading fails, use default settings
       return new GitService(workingDir || this.workingDir, this.fileSystem);
     }
@@ -274,7 +274,7 @@ export class AddCommand {
     let config: PrivateConfig;
     try {
       config = await this.configManager.load();
-    } catch (_error) {
+    } catch {
       // If config loading fails, create a minimal fallback config
       console.warn('Warning: Could not load configuration. Using default settings for validation.');
       config = {
@@ -382,7 +382,7 @@ export class AddCommand {
     try {
       const gitService = await this.createGitService();
       return await gitService.getFileGitState(relativePath);
-    } catch (_error) {
+    } catch {
       // Return default state on error
       return {
         isTracked: false,
@@ -799,7 +799,7 @@ export class AddCommand {
             // Ignore errors during rollback
           }
         });
-      } catch (_configError) {
+      } catch {
         // If config is corrupted, log warning but continue
         console.warn(
           chalk.yellow(
@@ -943,7 +943,7 @@ export class AddCommand {
         try {
           await gitService.removeFromIndex(filesToRemove, true);
           result.successful.push(...filesToRemove);
-        } catch (_removeError) {
+        } catch {
           // If batch removal fails, try individual removals
           if (options.verbose) {
             console.log(chalk.gray('     Batch removal failed, trying individual removals...'));
