@@ -1,5 +1,25 @@
 # Changelog
 
+All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+
+
+# [0.5.0](https://github.com/crystalphantom/pgit-cli/compare/v0.4.1...v0.5.0) (2025-09-17)
+
+
+### Bug Fixes
+
+* correct Zod enum configuration in config schema ([3f2e031](https://github.com/crystalphantom/pgit-cli/commit/3f2e031b7527cd9bdb58f6adcbf2b3387ea3336b))
+* resolve CI/CD pipeline issues ([26eafee](https://github.com/crystalphantom/pgit-cli/commit/26eafee63674940b56cdf4cee24e9b7bc8d5d9f5))
+* resolve ESLint unused variable errors ([e1dd253](https://github.com/crystalphantom/pgit-cli/commit/e1dd25303455880f3a9943c8e83335af0d049f60))
+
+
+### Features
+
+* add .mcp.json to claude-flow preset ([75dcd74](https://github.com/crystalphantom/pgit-cli/commit/75dcd741ac1d80070a290fa7adb1d026f9316607))
+
+# Changelog
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
