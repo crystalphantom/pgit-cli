@@ -289,13 +289,13 @@ export class ResetCommand {
           try {
             await gitService.removeFromGitExclude(trackedPath);
             logger.debug(`Removed exclude entry: ${trackedPath}`);
-          } catch (error) {
+          } catch {
             result.warnings.push(`Failed to remove exclude entry for ${trackedPath}`);
           }
         }
         result.gitExcludesCleaned = true;
       }
-    } catch (error) {
+    } catch {
       result.warnings.push('Failed to clean git exclude entries');
     }
   }
@@ -375,7 +375,7 @@ export class ResetCommand {
           cleanedCount += await this.cleanupBackupFiles(fullPath);
         }
       }
-    } catch (error) {
+    } catch {
       // Ignore errors during backup cleanup - not critical
     }
 
