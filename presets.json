@@ -13,7 +13,8 @@
         "claude-flow.bat",
         "claude-flow.config.json",
         "claude-flow.ps1",
-        "memory/"
+        "memory/",
+        ".mcp.json"
       ]
     },
 
