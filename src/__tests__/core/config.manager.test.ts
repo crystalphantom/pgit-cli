@@ -151,9 +151,7 @@ describe('ConfigManager', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const invalidConfig = { version: '1.0.0-beta.1' } as any; // missing required fields
 
-      await expect(configManager.save(invalidConfig)).rejects.toThrow(
-        'Configuration data is invalid',
-      );
+      await expect(configManager.save(invalidConfig)).rejects.toThrow(/Invalid input/);
     });
 
     it('should throw error when file write fails', async () => {

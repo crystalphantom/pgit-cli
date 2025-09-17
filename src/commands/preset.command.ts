@@ -157,7 +157,7 @@ export class PresetCommand {
         // Basic path validation
         try {
           InputValidator.validatePath(trimmedPath);
-        } catch (error) {
+        } catch {
           throw new PresetValidationError(`Invalid path: ${trimmedPath}`);
         }
 
@@ -537,7 +537,7 @@ export class PresetCommand {
           return this.fallbackToIndividualProcessing(paths, options);
         }
       }
-    } catch (error) {
+    } catch {
       // If bulk operation fails, fallback to individual processing for better error reporting
       return this.fallbackToIndividualProcessing(paths, options);
     }

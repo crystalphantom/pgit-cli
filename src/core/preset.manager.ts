@@ -289,7 +289,7 @@ export class PresetManager {
     try {
       const config = await this.configManager.load();
       return config.presets || {};
-    } catch (error) {
+    } catch {
       // If config doesn't exist, return empty presets
       logger.debug('No local user presets available (config not found)');
       return {};
