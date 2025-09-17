@@ -18,6 +18,8 @@
 8. Update the pgit commit message to also include the files/folders metadata ( at least no of files)
 9. We should b able to update already added file or it should automatically handle this ( so if user has added a file to pgit , it should not come to git history and also should b always up to date in the pgit/repos.) . 
     should b able to do with the help of git hooks . Need to double down on this though.
+10. pgit remove command or re-add a already added file.
+11. When adding only the relative path works for now .
 
 
 <!-- below is the gitignore . Move this to git info -->
