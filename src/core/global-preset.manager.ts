@@ -1,9 +1,9 @@
 import path from 'path';
 import os from 'os';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { Preset } from '../types/config.types.js';
-import { BaseError } from '../errors/base.error.js';
-import { logger } from '../utils/logger.service.js';
+import { Preset } from '../types/config.types.ts';
+import { BaseError } from '../errors/base.error.ts';
+import { logger } from '../utils/logger.service.ts';
 
 /**
  * Global preset management errors
@@ -41,9 +41,9 @@ export class GlobalPresetManager {
   private cachedPresets: GlobalUserPresets | null = null;
 
   constructor() {
-    // Store global presets in ~/.pgit/presets.json
+    // Store global presets in ~/.pgit/presets.tson
     this.globalConfigDir = path.join(os.homedir(), '.pgit');
-    this.globalPresetsFile = path.join(this.globalConfigDir, 'presets.json');
+    this.globalPresetsFile = path.join(this.globalConfigDir, 'presets.tson');
   }
 
   /**

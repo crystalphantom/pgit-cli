@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { BaseError } from './base.error.js';
+import { BaseError } from './base.error.ts';
 
 /**
  * Recovery suggestion interface
@@ -133,7 +133,7 @@ export class EnhancedErrorHandler {
     console.log(`      ${chalk.gray('Ensure all required arguments are provided correctly')}`);
     console.log(`   2. ${chalk.cyan('Verify system requirements')}`);
     console.log(
-      `      ${chalk.gray('Make sure Node.js version is >= 18.0.0 and git is available')}`,
+      `      ${chalk.gray('Make sure Node.ts version is >= 18.0.0 and git is available')}`,
     );
     console.log(`   3. ${chalk.cyan('Run system diagnostics')}`);
     console.log(`      ${chalk.green('Run:')} ${chalk.white('private status -v')}`);
@@ -234,7 +234,7 @@ export class EnhancedErrorHandler {
         });
         suggestions.push({
           action: 'Manual cleanup',
-          description: 'Remove .private-config.json and reinitialize',
+          description: 'Remove .private-config.tson and reinitialize',
         });
         break;
 

@@ -1,6 +1,6 @@
-import { ConfigManager } from '../../core/config.manager.js';
-import { FileSystemService } from '../../core/filesystem.service.js';
-import { GitExcludeSettings, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../../types/config.types.js';
+import { ConfigManager } from '../../core/config.manager.ts';
+import { FileSystemService } from '../../core/filesystem.service.ts';
+import { GitExcludeSettings, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../../types/config.types.ts';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
@@ -142,7 +142,7 @@ describe('ConfigManager - Git Exclude Settings', () => {
   describe('configuration validation', () => {
     it('should validate exclude settings during config load', async () => {
       // Manually corrupt the config file with invalid exclude settings
-      const configPath = path.join(tempDir, '.private-config.json');
+      const configPath = path.join(tempDir, '.private-config.tson');
       const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
 
       config.settings.gitExclude = {
@@ -163,7 +163,7 @@ describe('ConfigManager - Git Exclude Settings', () => {
 
     it('should handle missing exclude settings in legacy config', async () => {
       // Create config without exclude settings (legacy format)
-      const configPath = path.join(tempDir, '.private-config.json');
+      const configPath = path.join(tempDir, '.private-config.tson');
       const config = JSON.parse(await fs.readFile(configPath, 'utf8'));
 
       delete config.settings.gitExclude;
@@ -186,7 +186,7 @@ describe('ConfigManager - Git Exclude Settings', () => {
 
     it('should allow overriding exclude settings during creation', async () => {
       // Remove existing config
-      await fs.remove(path.join(tempDir, '.private-config.json'));
+      await fs.remove(path.join(tempDir, '.private-config.tson'));
 
       // Create new config manager
       const newConfigManager = new ConfigManager(tempDir, fileSystem);

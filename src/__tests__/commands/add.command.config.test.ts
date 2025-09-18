@@ -1,8 +1,8 @@
-import { AddCommand } from '../../commands/add.command.js';
-import { ConfigManager } from '../../core/config.manager.js';
-import { FileSystemService } from '../../core/filesystem.service.js';
-import { GitService } from '../../core/git.service.js';
-import { GitExcludeSettings, PGIT_MARKER_COMMENT } from '../../types/config.types.js';
+import { AddCommand } from '../../commands/add.command.ts';
+import { ConfigManager } from '../../core/config.manager.ts';
+import { FileSystemService } from '../../core/filesystem.service.ts';
+import { GitService } from '../../core/git.service.ts';
+import { GitExcludeSettings, PGIT_MARKER_COMMENT } from '../../types/config.types.ts';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
@@ -293,7 +293,7 @@ describe('AddCommand - Configuration Integration', () => {
   describe('configuration loading fallback', () => {
     it('should use default settings when config loading fails', async () => {
       // Corrupt the config file
-      const configPath = path.join(tempDir, '.private-config.json');
+      const configPath = path.join(tempDir, '.private-config.tson');
       await fs.writeFile(configPath, 'invalid json');
 
       const testFile = path.join(tempDir, 'fallback-test.txt');
@@ -312,7 +312,7 @@ describe('AddCommand - Configuration Integration', () => {
 
     it('should handle missing config file gracefully', async () => {
       // Remove config file
-      const configPath = path.join(tempDir, '.private-config.json');
+      const configPath = path.join(tempDir, '.private-config.tson');
       await fs.remove(configPath);
 
       const testFile = path.join(tempDir, 'missing-config-test.txt');

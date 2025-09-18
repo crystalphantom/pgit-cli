@@ -1,9 +1,9 @@
-import { ResetCommand, NotInitializedError, ResetResult } from '../../commands/reset.command.js';
-import { ConfigManager } from '../../core/config.manager.js';
-import { FileSystemService } from '../../core/filesystem.service.js';
-import { SymlinkService } from '../../core/symlink.service.js';
-import { GitService } from '../../core/git.service.js';
-import { PrivateConfig } from '../../types/config.types.js';
+import { ResetCommand, NotInitializedError, ResetResult } from '../../commands/reset.command.ts';
+import { ConfigManager } from '../../core/config.manager.ts';
+import { FileSystemService } from '../../core/filesystem.service.ts';
+import { SymlinkService } from '../../core/symlink.service.ts';
+import { GitService } from '../../core/git.service.ts';
+import { PrivateConfig } from '../../types/config.types.ts';
 
 // Mock all dependencies
 jest.mock('../../core/config.manager');
@@ -349,7 +349,7 @@ describe('ResetCommand', () => {
 
       expect(mockFileSystem.remove).toHaveBeenCalledWith(`${testWorkingDir}/.git-private`);
       expect(mockFileSystem.remove).toHaveBeenCalledWith(`${testWorkingDir}/.private-storage`);
-      expect(mockFileSystem.remove).toHaveBeenCalledWith(`${testWorkingDir}/.private-config.json`);
+      expect(mockFileSystem.remove).toHaveBeenCalledWith(`${testWorkingDir}/.private-config.tson`);
       expect((result.data as ResetResult).removedDirectories).toContain('.git-private');
       expect((result.data as ResetResult).removedDirectories).toContain('.private-storage');
       expect((result.data as ResetResult).configRemoved).toBe(true);
