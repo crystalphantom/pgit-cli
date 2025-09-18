@@ -16,7 +16,11 @@ import { SymlinkService } from '../core/symlink.service.js';
 import { BaseError } from '../errors/base.error.js';
 import { GitExcludeError } from '../errors/git.error.js';
 import { InputValidator } from '../utils/input.validator.js';
-import { PathNotFoundError, UnsafePathError, InvalidInputError } from '../errors/specific.errors.js';
+import {
+  PathNotFoundError,
+  UnsafePathError,
+  InvalidInputError,
+} from '../errors/specific.errors.js';
 import { GitFileState, LegacyGitFileState } from '../types/git.types.js';
 
 /**
