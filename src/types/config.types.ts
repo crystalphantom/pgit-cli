@@ -33,7 +33,7 @@ export interface Preset {
 }
 
 /**
- * Built-in presets structure from presets.json
+ * Built-in presets structure from presetson
  */
 export interface BuiltinPresets {
   /** Version of the presets file format */
@@ -329,7 +329,7 @@ export const DEFAULT_SETTINGS: ConfigSettings = {
 export const DEFAULT_PATHS = {
   privateRepo: '.git-private',
   storage: '.private-storage',
-  config: '.private-config.json',
+  config: '.private-configon',
   gitignore: '.gitignore',
 } as const;
 
@@ -358,7 +358,7 @@ export const EXCLUDED_PATHS = [
   '.git',
   '.git-private',
   '.private-storage',
-  '.private-config.json',
+  '.private-configon',
   'node_modules',
   '.npm',
   '.cache',

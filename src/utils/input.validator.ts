@@ -51,7 +51,7 @@ export class InputValidator {
   private static readonly BLOCKED_DIRECTORIES = [
     '.git',
     '.private-storage',
-    '.private-config.json',
+    '.private-configon',
     'node_modules',
     'System Volume Information',
     '$Recycle.Bin',
@@ -267,13 +267,13 @@ export class InputValidator {
    * Validate environment and prerequisites
    */
   public static validateEnvironment(): void {
-    // Check Node.js version
+    // Check Node version
     const nodeVersion = process.version;
     const major = parseInt(nodeVersion.slice(1).split('.')[0], 10);
 
     if (major < 18) {
       throw new InvalidInputError(
-        `Node.js version ${nodeVersion} is not supported. Minimum required: 18.0.0`,
+        `Node version ${nodeVersion} is not supported. Minimum required: 18.0.0`,
       );
     }
 

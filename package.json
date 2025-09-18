@@ -2,12 +2,14 @@
   "name": "pgit-cli",
   "version": "0.5.0",
   "description": "Private file tracking with dual git repositories",
+  "type": "module",
   "main": "dist/index.js",
   "bin": {
     "pgit": "dist/cli.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run postbuild",
+    "postbuild": "node scripts/fix-imports.js",
     "dev": "ts-node src/cli.ts",
     "test": "jest",
     "test:watch": "jest --watchAll",

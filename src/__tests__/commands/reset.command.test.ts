@@ -349,7 +349,7 @@ describe('ResetCommand', () => {
 
       expect(mockFileSystem.remove).toHaveBeenCalledWith(`${testWorkingDir}/.git-private`);
       expect(mockFileSystem.remove).toHaveBeenCalledWith(`${testWorkingDir}/.private-storage`);
-      expect(mockFileSystem.remove).toHaveBeenCalledWith(`${testWorkingDir}/.private-config.json`);
+      expect(mockFileSystem.remove).toHaveBeenCalledWith(`${testWorkingDir}/.private-configon`);
       expect((result.data as ResetResult).removedDirectories).toContain('.git-private');
       expect((result.data as ResetResult).removedDirectories).toContain('.private-storage');
       expect((result.data as ResetResult).configRemoved).toBe(true);
