@@ -1,13 +1,13 @@
 // @ts-nocheck - Jest mock typing issues
-import { FileSystemService } from '../../core/filesystem.service';
+import { FileSystemService } from '../../core/filesystem.service.js';
 import * as fs from 'fs-extra';
-import { PlatformDetector } from '../../utils/platform.detector';
+import { PlatformDetector } from '../../utils/platform.detector.js';
 import {
   FileSystemError,
   InvalidPathError,
   FileNotFoundError,
   PermissionError,
-} from '../../errors/filesystem.error';
+} from '../../errors/filesystem.error.js';
 
 // Mock fs-extra
 jest.mock('fs-extra');

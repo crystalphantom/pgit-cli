@@ -1,10 +1,10 @@
-import { AddCommand } from '../../commands/add.command';
-import { ConfigManager } from '../../core/config.manager';
+import { AddCommand } from '../../commands/add.command.js';
+import { ConfigManager } from '../../core/config.manager.js';
 
-import { GitService } from '../../core/git.service';
-import { SymlinkService } from '../../core/symlink.service';
-import { GitFileState } from '../../types/git.types';
-import { PGIT_MARKER_COMMENT } from '../../types/config.types';
+import { GitService } from '../../core/git.service.js';
+import { SymlinkService } from '../../core/symlink.service.js';
+import { GitFileState } from '../../types/git.types.js';
+import { PGIT_MARKER_COMMENT } from '../../types/config.types.js';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
