@@ -49,12 +49,12 @@ jobs:
         env:
           CI: true
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          file: ./coverage/lcov.info
-          flags: unittests
-          name: codecov-umbrella
+       - name: Upload coverage to Codecov
+         uses: codecov/codecov-action@v5
+         with:
+           files: ./coverage/lcov.info
+           flags: unittests
+           name: codecov-umbrella
 
       - name: Test CLI installation and basic functionality
         run: |
