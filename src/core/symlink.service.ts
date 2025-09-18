@@ -1,9 +1,9 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { PlatformDetector } from '../utils/platform.detector.ts';
-import { FileSystemService } from './filesystem.service.ts';
-import { BaseError } from '../errors/base.error.ts';
-import { run_in_terminal } from '../utils/command.executor.ts';
+import { PlatformDetector } from '../utils/platform.detector';
+import { FileSystemService } from './filesystem.service';
+import { BaseError } from '../errors/base.error';
+import { run_in_terminal } from '../utils/command.executor';
 
 /**
  * Symbolic link service errors

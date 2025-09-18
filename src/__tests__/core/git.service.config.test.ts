@@ -1,7 +1,7 @@
-import { GitService } from '../../core/git.service.ts';
-import { FileSystemService } from '../../core/filesystem.service.ts';
-import { GitExcludeSettings, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../../types/config.types.ts';
-import { GitExcludeError } from '../../errors/git.error.ts';
+import { GitService } from '../../core/git.service';
+import { FileSystemService } from '../../core/filesystem.service';
+import { GitExcludeSettings, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../../types/config.types';
+import { GitExcludeError } from '../../errors/git.error';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';

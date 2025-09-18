@@ -1,4 +1,4 @@
-import { AddCommand } from '../../commands/add.command.ts';
+import { AddCommand } from '../../commands/add.command';
 
 describe('Enhanced Git State Detection Integration', () => {
   let addCommand: AddCommand;

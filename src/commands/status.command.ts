@@ -8,11 +8,11 @@ import {
   RepositoryStatus,
   SymlinkHealth,
   ConfigHealth,
-} from '../types/config.types.ts';
-import { ConfigManager } from '../core/config.manager.ts';
-import { FileSystemService } from '../core/filesystem.service.ts';
-import { GitService } from '../core/git.service.ts';
-import { BaseError } from '../errors/base.error.ts';
+} from '../types/config.types';
+import { ConfigManager } from '../core/config.manager';
+import { FileSystemService } from '../core/filesystem.service';
+import { GitService } from '../core/git.service';
+import { BaseError } from '../errors/base.error';
 
 /**
  * Status command specific errors

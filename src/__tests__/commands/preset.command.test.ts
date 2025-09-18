@@ -1,8 +1,8 @@
-import { PresetCommand } from '../../commands/preset.command.ts';
-import { ConfigManager } from '../../core/config.manager.ts';
-import { FileSystemService } from '../../core/filesystem.service.ts';
-import { PresetManager } from '../../core/preset.manager.ts';
-import { AddCommand } from '../../commands/add.command.ts';
+import { PresetCommand } from '../../commands/preset.command';
+import { ConfigManager } from '../../core/config.manager';
+import { FileSystemService } from '../../core/filesystem.service';
+import { PresetManager } from '../../core/preset.manager';
+import { AddCommand } from '../../commands/add.command';
 
 // Mock dependencies
 jest.mock('../../core/config.manager');

@@ -1,11 +1,11 @@
 import path from 'path';
 import { readFileSync } from 'fs';
-import { Preset, BuiltinPresets } from '../types/config.types.ts';
-import { BuiltinPresetsSchema } from '../types/config.schema.ts';
-import { ConfigManager } from './config.manager.ts';
-import { GlobalPresetManager } from './global-preset.manager.ts';
-import { BaseError } from '../errors/base.error.ts';
-import { logger } from '../utils/logger.service.ts';
+import { Preset, BuiltinPresets } from '../types/config.types';
+import { BuiltinPresetsSchema } from '../types/config.schema';
+import { ConfigManager } from './config.manager';
+import { GlobalPresetManager } from './global-preset.manager';
+import { BaseError } from '../errors/base.error';
+import { logger } from '../utils/logger.service';
 
 /**
  * Preset management errors
