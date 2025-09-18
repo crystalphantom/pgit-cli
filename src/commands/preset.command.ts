@@ -1,13 +1,13 @@
 import chalk from 'chalk';
-import { CommandResult, CommandOptions, Preset } from '../types/config.types.js';
-import { ConfigManager } from '../core/config.manager.js';
-import { FileSystemService } from '../core/filesystem.service.js';
-import { PresetManager } from '../core/preset.manager.js';
-import { AddCommand, BatchOperationError } from './add.command.js';
-import { BaseError } from '../errors/base.error.js';
-import { PresetNotFoundError, PresetValidationError } from '../core/preset.manager.js';
-import { InputValidator } from '../utils/input.validator.js';
-import { logger } from '../utils/logger.service.js';
+import { CommandResult, CommandOptions, Preset } from '../types/config.types.ts';
+import { ConfigManager } from '../core/config.manager.ts';
+import { FileSystemService } from '../core/filesystem.service.ts';
+import { PresetManager } from '../core/preset.manager.ts';
+import { AddCommand, BatchOperationError } from './add.command.ts';
+import { BaseError } from '../errors/base.error.ts';
+import { PresetNotFoundError, PresetValidationError } from '../core/preset.manager.ts';
+import { InputValidator } from '../utils/input.validator.ts';
+import { logger } from '../utils/logger.service.ts';
 
 /**
  * Preset command specific errors

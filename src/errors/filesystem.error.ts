@@ -1,4 +1,4 @@
-import { BaseError } from './base.error.js';
+import { BaseError } from './base.error.ts';
 
 /**
  * File system related errors

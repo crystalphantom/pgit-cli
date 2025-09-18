@@ -1,10 +1,10 @@
-import { ConfigManager } from '../../core/config.manager.js';
-import { FileSystemService } from '../../core/filesystem.service.js';
+import { ConfigManager } from '../../core/config.manager.ts';
+import { FileSystemService } from '../../core/filesystem.service.ts';
 import {
   PrivateConfig,
   DEFAULT_PATHS,
   DEFAULT_GIT_EXCLUDE_SETTINGS,
-} from '../../types/config.types.js';
+} from '../../types/config.types.ts';
 import * as path from 'path';
 
 // Mock FileSystemService

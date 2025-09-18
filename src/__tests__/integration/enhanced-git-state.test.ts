@@ -1,4 +1,4 @@
-import { AddCommand } from '../../commands/add.command.js';
+import { AddCommand } from '../../commands/add.command.ts';
 
 describe('Enhanced Git State Detection Integration', () => {
   let addCommand: AddCommand;
@@ -18,7 +18,7 @@ describe('Enhanced Git State Detection Integration', () => {
     it('should return default state when git operations fail', async () => {
       // Test the enhanced method with a non-existent file
       const result = await (addCommand as any).getEnhancedFileGitState('non-existent-file.txt');
-      
+
       expect(result).toEqual({
         isTracked: false,
         isStaged: false,
@@ -33,7 +33,7 @@ describe('Enhanced Git State Detection Integration', () => {
     it('should return legacy format for backward compatibility', async () => {
       // Test the legacy method with a non-existent file
       const result = await (addCommand as any).getFileGitState('non-existent-file.txt');
-      
+
       expect(result).toEqual({
         isTracked: false,
         isStaged: false,

@@ -35,3 +35,6 @@
 - Prefer readonly properties, explicit return types, and type guards
 - Use path.join() for cross-platform path handling
 - Implement atomic operations with rollback support for multi-step processes
+
+**IMPORTANT**
+- NEVER COMMIT OR PUSH CODE BEFORE RUNNING ALL THE GITHUB ACTIONS

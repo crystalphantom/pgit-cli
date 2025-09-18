@@ -6,7 +6,7 @@ import {
   MissingArgumentError,
   InvalidArgumentError,
   SecurityError,
-} from '../errors/specific.errors.js';
+} from '../errors/specific.errors.ts';
 
 /**
  * Path validation result
