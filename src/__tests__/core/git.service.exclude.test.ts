@@ -1,7 +1,7 @@
-import { GitService } from '../../core/git.service.ts';
-import { FileSystemService } from '../../core/filesystem.service.ts';
-import { GitOperationError, GitExcludeValidationError } from '../../errors/git.error.ts';
-import { PGIT_MARKER_COMMENT } from '../../types/config.types.ts';
+import { GitService } from '../../core/git.service';
+import { FileSystemService } from '../../core/filesystem.service';
+import { GitOperationError, GitExcludeValidationError } from '../../errors/git.error';
+import { PGIT_MARKER_COMMENT } from '../../types/config.types';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';

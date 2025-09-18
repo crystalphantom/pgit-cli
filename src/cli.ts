@@ -4,30 +4,30 @@ import { program } from 'commander';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { InitCommand } from './commands/init.command.ts';
-import { StatusCommand } from './commands/status.command.ts';
-import { AddCommand } from './commands/add.command.ts';
-import { CommitCommand } from './commands/commit.command.ts';
-import { GitOpsCommand } from './commands/gitops.command.ts';
-import { CleanupCommand } from './commands/cleanup.command.ts';
-import { ResetCommand } from './commands/reset.command.ts';
-import { PresetCommand } from './commands/preset.command.ts';
-import { EnhancedErrorHandler } from './errors/enhanced.error-handler.ts';
-import { logger, LogLevel } from './utils/logger.service.ts';
+import { InitCommand } from './commands/init.command';
+import { StatusCommand } from './commands/status.command';
+import { AddCommand } from './commands/add.command';
+import { CommitCommand } from './commands/commit.command';
+import { GitOpsCommand } from './commands/gitops.command';
+import { CleanupCommand } from './commands/cleanup.command';
+import { ResetCommand } from './commands/reset.command';
+import { PresetCommand } from './commands/preset.command';
+import { EnhancedErrorHandler } from './errors/enhanced.error-handler';
+import { logger, LogLevel } from './utils/logger.service';
 
 /**
  * Main CLI entry point
  */
 async function main(): Promise<void> {
-  // Read version from package.tson
+  // Read version from packageon
   let version = '1.0.0'; // fallback version
   try {
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const packageJsonPath = join(__dirname, '..', 'package.tson');
+    const packageJsonPath = join(__dirname, '..', 'packageon');
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
     version = packageJson.version;
   } catch {
-    logger.warn('Could not read package.tson for version, using fallback');
+    logger.warn('Could not read packageon for version, using fallback');
   }
 
   program
@@ -444,6 +444,6 @@ function handleError(error: unknown, command?: string): void {
 }
 
 // Run the CLI if this is the main module
-if (process.argv[1] && (process.argv[1].includes('cli.ts') || process.argv[1].includes('pgit'))) {
+if (process.argv[1] && (process.argv[1].includes('cli') || process.argv[1].includes('pgit'))) {
   main().catch(handleError);
 }

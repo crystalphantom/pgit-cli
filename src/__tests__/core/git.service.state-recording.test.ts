@@ -1,6 +1,6 @@
-import { GitService } from '../../core/git.service.ts';
-import { FileSystemService } from '../../core/filesystem.service.ts';
-import { GitFileState } from '../../types/git.types.ts';
+import { GitService } from '../../core/git.service';
+import { FileSystemService } from '../../core/filesystem.service';
+import { GitFileState } from '../../types/git.types';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as os from 'os';

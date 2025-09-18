@@ -8,20 +8,16 @@ import {
   DEFAULT_SETTINGS,
   DEFAULT_GIT_EXCLUDE_SETTINGS,
   CURRENT_CONFIG_VERSION,
-} from '../types/config.types.ts';
-import { ConfigManager } from '../core/config.manager.ts';
-import { FileSystemService } from '../core/filesystem.service.ts';
-import { GitService } from '../core/git.service.ts';
-import { SymlinkService } from '../core/symlink.service.ts';
-import { BaseError } from '../errors/base.error.ts';
-import { GitExcludeError } from '../errors/git.error.ts';
-import { InputValidator } from '../utils/input.validator.ts';
-import {
-  PathNotFoundError,
-  UnsafePathError,
-  InvalidInputError,
-} from '../errors/specific.errors.ts';
-import { GitFileState, LegacyGitFileState } from '../types/git.types.ts';
+} from '../types/config.types';
+import { ConfigManager } from '../core/config.manager';
+import { FileSystemService } from '../core/filesystem.service';
+import { GitService } from '../core/git.service';
+import { SymlinkService } from '../core/symlink.service';
+import { BaseError } from '../errors/base.error';
+import { GitExcludeError } from '../errors/git.error';
+import { InputValidator } from '../utils/input.validator';
+import { PathNotFoundError, UnsafePathError, InvalidInputError } from '../errors/specific.errors';
+import { GitFileState, LegacyGitFileState } from '../types/git.types';
 
 /**
  * Multi-path validation result interface

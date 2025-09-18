@@ -1,11 +1,11 @@
 import * as path from 'node:path';
 import chalk from 'chalk';
-import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types.ts';
-import { ConfigManager } from '../core/config.manager.ts';
-import { FileSystemService } from '../core/filesystem.service.ts';
-import { GitService } from '../core/git.service.ts';
-import { SymlinkService } from '../core/symlink.service.ts';
-import { BaseError } from '../errors/base.error.ts';
+import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types';
+import { ConfigManager } from '../core/config.manager';
+import { FileSystemService } from '../core/filesystem.service';
+import { GitService } from '../core/git.service';
+import { SymlinkService } from '../core/symlink.service';
+import { BaseError } from '../errors/base.error';
 
 /**
  * Cleanup command specific errors

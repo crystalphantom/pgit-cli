@@ -1,8 +1,8 @@
-import { AddCommand } from '../../commands/add.command.ts';
-import { ConfigManager } from '../../core/config.manager.ts';
-import { FileSystemService } from '../../core/filesystem.service.ts';
-import { GitService } from '../../core/git.service.ts';
-import { GitExcludeSettings, PGIT_MARKER_COMMENT } from '../../types/config.types.ts';
+import { AddCommand } from '../../commands/add.command';
+import { ConfigManager } from '../../core/config.manager';
+import { FileSystemService } from '../../core/filesystem.service';
+import { GitService } from '../../core/git.service';
+import { GitExcludeSettings, PGIT_MARKER_COMMENT } from '../../types/config.types';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';

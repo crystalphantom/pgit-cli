@@ -1,7 +1,7 @@
-import { PresetManager, PresetValidationError } from '../../core/preset.manager.ts';
-import { ConfigManager } from '../../core/config.manager.ts';
-import { FileSystemService } from '../../core/filesystem.service.ts';
-import { PrivateConfig, Preset, DEFAULT_SETTINGS } from '../../types/config.types.ts';
+import { PresetManager, PresetValidationError } from '../../core/preset.manager';
+import { ConfigManager } from '../../core/config.manager';
+import { FileSystemService } from '../../core/filesystem.service';
+import { PrivateConfig, Preset, DEFAULT_SETTINGS } from '../../types/config.types';
 
 // Mock dependencies
 jest.mock('../../core/config.manager');
