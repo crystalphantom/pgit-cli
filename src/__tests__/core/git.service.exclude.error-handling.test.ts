@@ -1,9 +1,9 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import { GitService } from '../../core/git.service';
-import { FileSystemService } from '../../core/filesystem.service';
-import { GitExcludeValidationError } from '../../errors/git.error';
-import { PGIT_MARKER_COMMENT } from '../../types/config.types';
+import { GitService } from '../../core/git.service.js';
+import { FileSystemService } from '../../core/filesystem.service.js';
+import { GitExcludeValidationError } from '../../errors/git.error.js';
+import { PGIT_MARKER_COMMENT } from '../../types/config.types.js';
 
 describe('GitService Exclude Error Handling', () => {
   let gitService: GitService;

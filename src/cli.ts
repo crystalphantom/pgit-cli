@@ -2,17 +2,18 @@
 
 import { program } from 'commander';
 import { readFileSync } from 'fs';
-import { join } from 'path';
-import { InitCommand } from './commands/init.command';
-import { StatusCommand } from './commands/status.command';
-import { AddCommand } from './commands/add.command';
-import { CommitCommand } from './commands/commit.command';
-import { GitOpsCommand } from './commands/gitops.command';
-import { CleanupCommand } from './commands/cleanup.command';
-import { ResetCommand } from './commands/reset.command';
-import { PresetCommand } from './commands/preset.command';
-import { EnhancedErrorHandler } from './errors/enhanced.error-handler';
-import { logger, LogLevel } from './utils/logger.service';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { InitCommand } from './commands/init.command.js';
+import { StatusCommand } from './commands/status.command.js';
+import { AddCommand } from './commands/add.command.js';
+import { CommitCommand } from './commands/commit.command.js';
+import { GitOpsCommand } from './commands/gitops.command.js';
+import { CleanupCommand } from './commands/cleanup.command.js';
+import { ResetCommand } from './commands/reset.command.js';
+import { PresetCommand } from './commands/preset.command.js';
+import { EnhancedErrorHandler } from './errors/enhanced.error-handler.js';
+import { logger, LogLevel } from './utils/logger.service.js';
 
 /**
  * Main CLI entry point
@@ -21,6 +22,7 @@ async function main(): Promise<void> {
   // Read version from package.json
   let version = '1.0.0'; // fallback version
   try {
+    const __dirname = dirname(fileURLToPath(import.meta.url));
     const packageJsonPath = join(__dirname, '..', 'package.json');
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
     version = packageJson.version;
@@ -150,7 +152,7 @@ async function main(): Promise<void> {
     .action(async (presetName, options) => {
       try {
         const presetCommand = new PresetCommand();
-        const result = await presetCommand.apply(presetName, { 
+        const result = await presetCommand.apply(presetName, {
           verbose: options.parent?.parent?.verbose || false,
         });
 
@@ -172,7 +174,7 @@ async function main(): Promise<void> {
     .action(async (presetName, paths, options) => {
       try {
         const presetCommand = new PresetCommand();
-        const result = await presetCommand.define(presetName, paths, { 
+        const result = await presetCommand.define(presetName, paths, {
           verbose: options.parent?.parent?.verbose || false,
           global: options.global || false,
         });
@@ -195,7 +197,7 @@ async function main(): Promise<void> {
     .action(async (presetName, options) => {
       try {
         const presetCommand = new PresetCommand();
-        const result = await presetCommand.undefine(presetName, { 
+        const result = await presetCommand.undefine(presetName, {
           verbose: options.parent?.parent?.verbose || false,
           global: options.global || false,
         });
@@ -214,10 +216,10 @@ async function main(): Promise<void> {
   presetCmd
     .command('list')
     .description('List all available presets')
-    .action(async (options) => {
+    .action(async options => {
       try {
         const presetCommand = new PresetCommand();
-        const result = await presetCommand.list({ 
+        const result = await presetCommand.list({
           verbose: options.parent?.parent?.verbose || false,
         });
 
@@ -236,7 +238,7 @@ async function main(): Promise<void> {
     .action(async (presetName, options) => {
       try {
         const presetCommand = new PresetCommand();
-        const result = await presetCommand.show(presetName, { 
+        const result = await presetCommand.show(presetName, {
           verbose: options.parent?.parent?.verbose || false,
         });
 
@@ -395,7 +397,7 @@ async function main(): Promise<void> {
     .action(async options => {
       try {
         const resetCommand = new ResetCommand();
-        const result = await resetCommand.execute(options.force, { 
+        const result = await resetCommand.execute(options.force, {
           verbose: options.verbose,
           dryRun: options.dryRun,
         });
@@ -419,7 +421,7 @@ async function main(): Promise<void> {
   }
 
   // Global error handler - only override for actual errors, not help/version
-  program.exitOverride((err) => {
+  program.exitOverride(err => {
     // Allow normal exit codes for help and version commands
     if (err.code === 'commander.version' || err.code === 'commander.helpDisplayed') {
       process.exit(0);
@@ -441,7 +443,7 @@ function handleError(error: unknown, command?: string): void {
   process.exit(1);
 }
 
-// Run the CLI
-if (require.main === module) {
+// Run the CLI if this is the main module
+if (process.argv[1] && (process.argv[1].includes('cli.js') || process.argv[1].includes('pgit'))) {
   main().catch(handleError);
 }

@@ -1,9 +1,9 @@
 import path from 'path';
 import os from 'os';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { Preset } from '../types/config.types';
-import { BaseError } from '../errors/base.error';
-import { logger } from '../utils/logger.service';
+import { Preset } from '../types/config.types.js';
+import { BaseError } from '../errors/base.error.js';
+import { logger } from '../utils/logger.service.js';
 
 /**
  * Global preset management errors

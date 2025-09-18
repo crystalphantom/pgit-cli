@@ -7,15 +7,15 @@
  * and a dual repository system.
  */
 
-export * from './cli';
-export * from './commands/init.command';
-export * from './commands/status.command';
-export * from './core/config.manager';
-export * from './core/filesystem.service';
-export * from './core/git.service';
-export * from './utils/platform.detector';
-export * from './types/config.types';
-export * from './types/config.schema';
-export * from './errors/base.error';
-export * from './errors/filesystem.error';
-export * from './errors/git.error';
+export * from './cli.js';
+export * from './commands/init.command.js';
+export * from './commands/status.command.js';
+export * from './core/config.manager.js';
+export * from './core/filesystem.service.js';
+export * from './core/git.service.js';
+export * from './utils/platform.detector.js';
+export * from './types/config.types.js';
+export * from './types/config.schema.js';
+export * from './errors/base.error.js';
+export * from './errors/filesystem.error.js';
+export * from './errors/git.error.js';

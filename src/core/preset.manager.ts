@@ -1,11 +1,11 @@
 import path from 'path';
 import { readFileSync } from 'fs';
-import { Preset, BuiltinPresets } from '../types/config.types';
-import { BuiltinPresetsSchema } from '../types/config.schema';
-import { ConfigManager } from './config.manager';
-import { GlobalPresetManager } from './global-preset.manager';
-import { BaseError } from '../errors/base.error';
-import { logger } from '../utils/logger.service';
+import { Preset, BuiltinPresets } from '../types/config.types.js';
+import { BuiltinPresetsSchema } from '../types/config.schema.js';
+import { ConfigManager } from './config.manager.js';
+import { GlobalPresetManager } from './global-preset.manager.js';
+import { BaseError } from '../errors/base.error.js';
+import { logger } from '../utils/logger.service.js';
 
 /**
  * Preset management errors
