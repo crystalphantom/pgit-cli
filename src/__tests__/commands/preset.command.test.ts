@@ -1,8 +1,8 @@
-import { PresetCommand } from '../../commands/preset.command.js';
-import { ConfigManager } from '../../core/config.manager.js';
-import { FileSystemService } from '../../core/filesystem.service.js';
-import { PresetManager } from '../../core/preset.manager.js';
-import { AddCommand } from '../../commands/add.command.js';
+import { PresetCommand } from '../../commands/preset.command.ts';
+import { ConfigManager } from '../../core/config.manager.ts';
+import { FileSystemService } from '../../core/filesystem.service.ts';
+import { PresetManager } from '../../core/preset.manager.ts';
+import { AddCommand } from '../../commands/add.command.ts';
 
 // Mock dependencies
 jest.mock('../../core/config.manager');
@@ -94,15 +94,15 @@ describe('PresetCommand', () => {
       mockConfigManager.exists.mockResolvedValue(true);
       mockPresetManager.getPreset.mockResolvedValue(mockPreset);
       mockPresetManager.markPresetUsed.mockResolvedValue();
-      
+
       // Import BatchOperationError for the test
       const { BatchOperationError } = require('../../commands/add.command');
       const batchError = new BatchOperationError(
         'Partial failure',
         ['path3'], // failed paths
-        ['path1']  // successful paths
+        ['path1'], // successful paths
       );
-      
+
       // First call: bulk operation fails with BatchOperationError
       // Then fallback to individual processing
       mockAddCommand.execute
@@ -152,7 +152,7 @@ describe('PresetCommand', () => {
           paths: ['path1', 'path2'],
           created: expect.any(Date),
         }),
-        undefined
+        undefined,
       );
     });
 

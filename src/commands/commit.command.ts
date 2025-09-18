@@ -1,12 +1,12 @@
 import * as path from 'node:path';
 import chalk from 'chalk';
-import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types.js';
-import { ConfigManager } from '../core/config.manager.js';
-import { FileSystemService } from '../core/filesystem.service.js';
-import { GitService } from '../core/git.service.js';
-import { BaseError } from '../errors/base.error.js';
-import { InputValidator } from '../utils/input.validator.js';
-import { InvalidArgumentError } from '../errors/specific.errors.js';
+import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types.ts';
+import { ConfigManager } from '../core/config.manager.ts';
+import { FileSystemService } from '../core/filesystem.service.ts';
+import { GitService } from '../core/git.service.ts';
+import { BaseError } from '../errors/base.error.ts';
+import { InputValidator } from '../utils/input.validator.ts';
+import { InvalidArgumentError } from '../errors/specific.errors.ts';
 
 /**
  * Commit command specific errors

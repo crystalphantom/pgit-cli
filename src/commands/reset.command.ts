@@ -1,13 +1,13 @@
 import * as path from 'node:path';
 import * as fs from 'fs-extra';
 import chalk from 'chalk';
-import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types.js';
-import { ConfigManager } from '../core/config.manager.js';
-import { FileSystemService } from '../core/filesystem.service.js';
-import { GitService } from '../core/git.service.js';
-import { SymlinkService } from '../core/symlink.service.js';
-import { BaseError } from '../errors/base.error.js';
-import { logger } from '../utils/logger.service.js';
+import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types.ts';
+import { ConfigManager } from '../core/config.manager.ts';
+import { FileSystemService } from '../core/filesystem.service.ts';
+import { GitService } from '../core/git.service.ts';
+import { SymlinkService } from '../core/symlink.service.ts';
+import { BaseError } from '../errors/base.error.ts';
+import { logger } from '../utils/logger.service.ts';
 
 /**
  * Reset command specific errors

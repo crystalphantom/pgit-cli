@@ -1,14 +1,14 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { PlatformDetector } from '../utils/platform.detector.js';
+import { PlatformDetector } from '../utils/platform.detector.ts';
 import {
   FileSystemError,
   InvalidPathError,
   PermissionError,
   FileNotFoundError,
   AtomicOperationError,
-} from '../errors/filesystem.error.js';
+} from '../errors/filesystem.error.ts';
 
 /**
  * Atomic file system operations with rollback capability

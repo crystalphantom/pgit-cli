@@ -1,9 +1,9 @@
-import { AddCommand } from '../../commands/add.command.js';
-import { ConfigManager } from '../../core/config.manager.js';
-import { FileSystemService } from '../../core/filesystem.service.js';
-import { SymlinkService } from '../../core/symlink.service.js';
-import { GitService, GitStatus } from '../../core/git.service.js';
-import { PrivateConfig, PGIT_MARKER_COMMENT } from '../../types/config.types.js';
+import { AddCommand } from '../../commands/add.command.ts';
+import { ConfigManager } from '../../core/config.manager.ts';
+import { FileSystemService } from '../../core/filesystem.service.ts';
+import { SymlinkService } from '../../core/symlink.service.ts';
+import { GitService, GitStatus } from '../../core/git.service.ts';
+import { PrivateConfig, PGIT_MARKER_COMMENT } from '../../types/config.types.ts';
 
 // Mock all dependencies
 jest.mock('../../core/config.manager');

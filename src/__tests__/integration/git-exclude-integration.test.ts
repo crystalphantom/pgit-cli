@@ -1,8 +1,8 @@
-import { GitService } from '../../core/git.service.js';
+import { GitService } from '../../core/git.service.ts';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
-import { PGIT_MARKER_COMMENT } from '../../types/config.types.js';
+import { PGIT_MARKER_COMMENT } from '../../types/config.types.ts';
 
 describe('GitService - Exclude Integration Tests', () => {
   let gitService: GitService;
@@ -79,7 +79,7 @@ describe('GitService - Exclude Integration Tests', () => {
     ];
     await fs.writeFile(gitExcludePath, existingEntries.join('\n'));
 
-    const pgitFiles = ['secret.key', 'config.local.json'];
+    const pgitFiles = ['secret.key', 'config.local.tson'];
 
     // Add pgit files
     for (const file of pgitFiles) {

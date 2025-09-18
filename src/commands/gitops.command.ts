@@ -1,10 +1,10 @@
 import * as path from 'node:path';
 import chalk from 'chalk';
-import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types.js';
-import { ConfigManager } from '../core/config.manager.js';
-import { FileSystemService } from '../core/filesystem.service.js';
-import { GitService, GitLogEntry } from '../core/git.service.js';
-import { BaseError } from '../errors/base.error.js';
+import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types.ts';
+import { ConfigManager } from '../core/config.manager.ts';
+import { FileSystemService } from '../core/filesystem.service.ts';
+import { GitService, GitLogEntry } from '../core/git.service.ts';
+import { BaseError } from '../errors/base.error.ts';
 
 /**
  * Git operations command specific errors

@@ -1,11 +1,11 @@
 import path from 'path';
 import { readFileSync } from 'fs';
-import { Preset, BuiltinPresets } from '../types/config.types.js';
-import { BuiltinPresetsSchema } from '../types/config.schema.js';
-import { ConfigManager } from './config.manager.js';
-import { GlobalPresetManager } from './global-preset.manager.js';
-import { BaseError } from '../errors/base.error.js';
-import { logger } from '../utils/logger.service.js';
+import { Preset, BuiltinPresets } from '../types/config.types.ts';
+import { BuiltinPresetsSchema } from '../types/config.schema.ts';
+import { ConfigManager } from './config.manager.ts';
+import { GlobalPresetManager } from './global-preset.manager.ts';
+import { BaseError } from '../errors/base.error.ts';
+import { logger } from '../utils/logger.service.ts';
 
 /**
  * Preset management errors
@@ -256,7 +256,7 @@ export class PresetManager {
   }
 
   /**
-   * Load built-in presets from presets.json
+   * Load built-in presets from presets.tson
    */
   private getBuiltinPresets(): BuiltinPresets {
     if (this.builtinPresets) {
@@ -264,8 +264,8 @@ export class PresetManager {
     }
 
     try {
-      // Find presets.json relative to this module
-      const presetsPath = path.join(__dirname, '../../presets.json');
+      // Find presets.tson relative to this module
+      const presetsPath = path.join(__dirname, '../../presets.tson');
       const presetsContent = readFileSync(presetsPath, 'utf-8');
       const presetsJson = JSON.parse(presetsContent);
 
