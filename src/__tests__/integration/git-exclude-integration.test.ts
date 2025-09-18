@@ -1,8 +1,8 @@
-import { GitService } from '../../core/git.service.ts';
+import { GitService } from '../../core/git.service';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
-import { PGIT_MARKER_COMMENT } from '../../types/config.types.ts';
+import { PGIT_MARKER_COMMENT } from '../../types/config.types';
 
 describe('GitService - Exclude Integration Tests', () => {
   let gitService: GitService;

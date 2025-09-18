@@ -1,10 +1,10 @@
-import { AddCommand } from '../../commands/add.command.ts';
-import { ConfigManager } from '../../core/config.manager.ts';
+import { AddCommand } from '../../commands/add.command';
+import { ConfigManager } from '../../core/config.manager';
 
-import { GitService } from '../../core/git.service.ts';
-import { SymlinkService } from '../../core/symlink.service.ts';
-import { GitFileState } from '../../types/git.types.ts';
-import { PGIT_MARKER_COMMENT } from '../../types/config.types.ts';
+import { GitService } from '../../core/git.service';
+import { SymlinkService } from '../../core/symlink.service';
+import { GitFileState } from '../../types/git.types';
+import { PGIT_MARKER_COMMENT } from '../../types/config.types';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';

@@ -1,7 +1,7 @@
 import { simpleGit, SimpleGit, StatusResult, LogResult } from 'simple-git';
 import * as path from 'path';
 import * as fs from 'fs-extra';
-import { FileSystemService } from './filesystem.service.ts';
+import { FileSystemService } from './filesystem.service';
 import {
   RepositoryNotFoundError,
   GitOperationError,
@@ -10,13 +10,13 @@ import {
   GitExcludeAccessError,
   GitExcludeCorruptionError,
   GitExcludeValidationError,
-} from '../errors/git.error.ts';
-import { GitFileState } from '../types/git.types.ts';
+} from '../errors/git.error';
+import { GitFileState } from '../types/git.types';
 import {
   GitExcludeSettings,
   DEFAULT_GIT_EXCLUDE_SETTINGS,
   PGIT_MARKER_COMMENT,
-} from '../types/config.types.ts';
+} from '../types/config.types';
 
 /**
  * Git repository status information
