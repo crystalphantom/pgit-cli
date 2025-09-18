@@ -7,10 +7,11 @@ import {
   DEFAULT_GIT_EXCLUDE_SETTINGS,
   DEFAULT_PATHS,
   CURRENT_CONFIG_VERSION,
+  ConfigHealth,
 } from '../types/config.types';
 import { PrivateConfigSchema, PrivateConfigJsonSchema } from '../types/config.schema';
 import { ZodError, ZodIssue } from 'zod';
-import type { ConfigHealth } from '../types/config.types';
+
 import { FileSystemService } from './filesystem.service';
 import { PlatformDetector } from '../utils/platform.detector';
 import { BaseError } from '../errors/base.error';

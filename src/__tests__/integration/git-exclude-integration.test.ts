@@ -30,7 +30,7 @@ describe('GitService - Exclude Integration Tests', () => {
   });
 
   it('should handle complete exclude lifecycle', async () => {
-    const testFiles = ['config.json', 'secrets.env', 'private/data.txt'];
+    const testFiles = ['config.txt', 'secrets.env', 'private/data.txt'];
 
     // Add all files to exclude
     for (const file of testFiles) {

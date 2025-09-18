@@ -1,4 +1,4 @@
-import * as path from 'path';
+import * as path from 'node:path';
 import chalk from 'chalk';
 import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types';
 import { ConfigManager } from '../core/config.manager';
