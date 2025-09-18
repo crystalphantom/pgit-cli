@@ -1,11 +1,11 @@
 import * as path from 'node:path';
 import chalk from 'chalk';
-import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types';
-import { ConfigManager } from '../core/config.manager';
-import { FileSystemService } from '../core/filesystem.service';
-import { GitService } from '../core/git.service';
-import { PlatformDetector } from '../utils/platform.detector';
-import { BaseError } from '../errors/base.error';
+import { CommandResult, CommandOptions, DEFAULT_PATHS } from '../types/config.types.js';
+import { ConfigManager } from '../core/config.manager.js';
+import { FileSystemService } from '../core/filesystem.service.js';
+import { GitService } from '../core/git.service.js';
+import { PlatformDetector } from '../utils/platform.detector.js';
+import { BaseError } from '../errors/base.error.js';
 
 /**
  * Init command specific errors

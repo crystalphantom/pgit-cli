@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { BaseError } from './base.error';
+import { BaseError } from './base.error.js';
 
 /**
  * Recovery suggestion interface

@@ -1,9 +1,9 @@
-import { ResetCommand, NotInitializedError, ResetResult } from '../../commands/reset.command';
-import { ConfigManager } from '../../core/config.manager';
-import { FileSystemService } from '../../core/filesystem.service';
-import { SymlinkService } from '../../core/symlink.service';
-import { GitService } from '../../core/git.service';
-import { PrivateConfig } from '../../types/config.types';
+import { ResetCommand, NotInitializedError, ResetResult } from '../../commands/reset.command.js';
+import { ConfigManager } from '../../core/config.manager.js';
+import { FileSystemService } from '../../core/filesystem.service.js';
+import { SymlinkService } from '../../core/symlink.service.js';
+import { GitService } from '../../core/git.service.js';
+import { PrivateConfig } from '../../types/config.types.js';
 
 // Mock all dependencies
 jest.mock('../../core/config.manager');

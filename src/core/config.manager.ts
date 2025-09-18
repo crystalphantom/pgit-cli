@@ -8,13 +8,13 @@ import {
   DEFAULT_PATHS,
   CURRENT_CONFIG_VERSION,
   ConfigHealth,
-} from '../types/config.types';
-import { PrivateConfigSchema, PrivateConfigJsonSchema } from '../types/config.schema';
+} from '../types/config.types.js';
+import { PrivateConfigSchema, PrivateConfigJsonSchema } from '../types/config.schema.js';
 import { ZodError, ZodIssue } from 'zod';
 
-import { FileSystemService } from './filesystem.service';
-import { PlatformDetector } from '../utils/platform.detector';
-import { BaseError } from '../errors/base.error';
+import { FileSystemService } from './filesystem.service.js';
+import { PlatformDetector } from '../utils/platform.detector.js';
+import { BaseError } from '../errors/base.error.js';
 
 /**
  * Configuration management errors

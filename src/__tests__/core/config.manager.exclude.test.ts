@@ -1,6 +1,6 @@
-import { ConfigManager } from '../../core/config.manager';
-import { FileSystemService } from '../../core/filesystem.service';
-import { GitExcludeSettings, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../../types/config.types';
+import { ConfigManager } from '../../core/config.manager.js';
+import { FileSystemService } from '../../core/filesystem.service.js';
+import { GitExcludeSettings, DEFAULT_GIT_EXCLUDE_SETTINGS } from '../../types/config.types.js';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
