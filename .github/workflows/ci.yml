@@ -44,17 +44,17 @@ jobs:
       - name: Build project
         run: npm run build
 
-       - name: Run tests
-         run: npm run test:ci
-         env:
-           CI: true
+      - name: Run tests
+        run: npm run test:ci
+        env:
+          CI: true
 
-       - name: Upload coverage to Codecov
-         uses: codecov/codecov-action@v5
-         with:
-           files: ./coverage/lcov.info
-           flags: unittests
-           name: codecov-umbrella
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
 
       - name: Test CLI installation and basic functionality
         run: |
