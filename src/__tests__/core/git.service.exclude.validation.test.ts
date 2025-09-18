@@ -121,7 +121,7 @@ describe('GitService - Exclude File Validation and Safety', () => {
       const validPaths = [
         'file.txt',
         'dir/file.txt',
-        'src/**/*.js',
+        'src/**/*',
         '*.log',
         'node_modules/',
         'build/output.txt',
