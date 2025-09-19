@@ -92,18 +92,44 @@ describe('FileSystemService', () => {
 
   describe('createDirectory', () => {
     it('should create directory successfully', async () => {
-      mockedFs.ensureDir.mockResolvedValue(undefined);
+      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.pathExists.mockResolvedValue(true);
       mockedFs.chmod.mockResolvedValue(undefined);
+      mockedPlatformDetector.isUnix.mockReturnValue(true);
       await fileSystemService.createDirectory('/test/newdir');
-      expect(mockedFs.ensureDir).toHaveBeenCalledWith('/test/newdir');
+      expect(mockedFs.mkdir).toHaveBeenCalledWith('/test/newdir', { recursive: true });
+      expect(mockedFs.pathExists).toHaveBeenCalledWith('/test/newdir');
     });
 
     it('should throw FileSystemError when directory creation fails', async () => {
       const error = new Error('Permission denied');
-      mockedFs.ensureDir.mockRejectedValue(error);
+      mockedFs.mkdir.mockRejectedValue(error);
       await expect(fileSystemService.createDirectory('/test/newdir')).rejects.toThrow(
         FileSystemError,
       );
+    });
+
+    it('should throw FileSystemError when directory verification fails', async () => {
+      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.pathExists.mockResolvedValue(false);
+      await expect(fileSystemService.createDirectory('/test/newdir')).rejects.toThrow(
+        FileSystemError,
+      );
+    });
+
+    it('should warn but not fail when chmod fails', async () => {
+      const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
+      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.pathExists.mockResolvedValue(true);
+      mockedFs.chmod.mockRejectedValue(new Error('Permission denied'));
+      mockedPlatformDetector.isUnix.mockReturnValue(true);
+      
+      await expect(fileSystemService.createDirectory('/test/newdir')).resolves.toBeUndefined();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Warning: Could not set permissions on /test/newdir'),
+      );
+      
+      consoleWarnSpy.mockRestore();
     });
   });
 
