@@ -103,11 +103,30 @@ export class FileSystemService {
     this.validatePathString(dirPath);
 
     try {
-      await fs.ensureDir(dirPath);
+      // Use fs.mkdir with recursive to ensure directory creation (more reliable than fs.ensureDir in CI environments)
+      await fs.mkdir(dirPath, { recursive: true });
+
+      // Verify directory was created
+      if (!(await fs.pathExists(dirPath))) {
+        throw new FileSystemError(
+          `Directory creation failed: ${dirPath} does not exist after creation attempt`,
+        );
+      }
 
       // Set appropriate permissions (readable/writable by owner only)
       if (PlatformDetector.isUnix()) {
-        await fs.chmod(dirPath, 0o700);
+        try {
+          await fs.chmod(dirPath, 0o700);
+        } catch (chmodError) {
+          // Log warning but don't fail if chmod fails (common in CI environments like Ubuntu/GitHub Actions)
+          // where the runner may have restricted permissions for setting directory ownership
+          // The directory exists and is functional, just with default permissions
+          console.warn(
+            `Warning: Could not set permissions on ${dirPath}: ${
+              chmodError instanceof Error ? chmodError.message : String(chmodError)
+            }`,
+          );
+        }
       }
     } catch (error) {
       throw new FileSystemError(
