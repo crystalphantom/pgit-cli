@@ -1,6 +1,9 @@
 // Global test setup
 import 'jest';
 
+// Set CI environment variable for tests that need to simulate CI behavior
+process.env['CI'] = 'true';
+
 // Mock chalk to avoid ESM issues
 jest.mock('chalk', () => ({
   default: {
