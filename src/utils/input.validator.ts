@@ -51,7 +51,7 @@ export class InputValidator {
   private static readonly BLOCKED_DIRECTORIES = [
     '.git',
     '.private-storage',
-    '.private-configon',
+    '.private-config.json',
     'node_modules',
     'System Volume Information',
     '$Recycle.Bin',

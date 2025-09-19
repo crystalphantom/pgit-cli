@@ -293,7 +293,7 @@ describe('AddCommand - Configuration Integration', () => {
   describe('configuration loading fallback', () => {
     it('should use default settings when config loading fails', async () => {
       // Corrupt the config file
-      const configPath = path.join(tempDir, '.private-config.tson');
+      const configPath = path.join(tempDir, '.private-config.json');
       await fs.writeFile(configPath, 'invalid json');
 
       const testFile = path.join(tempDir, 'fallback-test.txt');
@@ -312,7 +312,7 @@ describe('AddCommand - Configuration Integration', () => {
 
     it('should handle missing config file gracefully', async () => {
       // Remove config file
-      const configPath = path.join(tempDir, '.private-config.tson');
+      const configPath = path.join(tempDir, '.private-config.json');
       await fs.remove(configPath);
 
       const testFile = path.join(tempDir, 'missing-config-test.txt');
