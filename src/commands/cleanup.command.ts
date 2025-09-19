@@ -284,7 +284,7 @@ export class CleanupCommand {
         '# Private Git Tracking (auto-generated)',
         '.git-private',
         '.private-storage',
-        '.private-config.tson',
+        '.private-config.json',
       ];
 
       let gitignoreContent = '';

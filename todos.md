@@ -20,6 +20,7 @@
     should b able to do with the help of git hooks . Need to double down on this though.
 10. pgit remove command or re-add a already added file.
 11. When adding only the relative path works for now .
+12. When adding the files , add a parameter if we want to add the custom message !
 
 
 <!-- below is the gitignore . Move this to git info -->

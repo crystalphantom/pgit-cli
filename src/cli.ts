@@ -19,15 +19,15 @@ import { logger, LogLevel } from './utils/logger.service';
  * Main CLI entry point
  */
 async function main(): Promise<void> {
-  // Read version from packageon
+  // Read version from package.json
   let version = '1.0.0'; // fallback version
   try {
     const __dirname = dirname(fileURLToPath(import.meta.url));
-    const packageJsonPath = join(__dirname, '..', 'packageon');
+    const packageJsonPath = join(__dirname, '..', 'package.json');
     const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
     version = packageJson.version;
   } catch {
-    logger.warn('Could not read packageon for version, using fallback');
+    logger.warn('Could not read package.json for version, using fallback');
   }
 
   program

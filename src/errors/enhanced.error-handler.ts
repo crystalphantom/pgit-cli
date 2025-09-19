@@ -234,7 +234,7 @@ export class EnhancedErrorHandler {
         });
         suggestions.push({
           action: 'Manual cleanup',
-          description: 'Remove .private-config.tson and reinitialize',
+          description: 'Remove .private-config.json and reinitialize',
         });
         break;
 
