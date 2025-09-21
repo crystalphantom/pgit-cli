@@ -13,7 +13,7 @@ export enum LogLevel {
   DEBUG = 4,
 }
 
-class LoggerService {
+export class LoggerService {
   private level: LogLevel = LogLevel.INFO;
 
   public setLevel(level: LogLevel): void {

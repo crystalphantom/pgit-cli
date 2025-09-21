@@ -2,6 +2,7 @@ import { simpleGit, SimpleGit, StatusResult, LogResult } from 'simple-git';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import { FileSystemService } from './filesystem.service';
+import { LoggerService } from '../utils/logger.service';
 import {
   RepositoryNotFoundError,
   GitOperationError,
@@ -59,6 +60,7 @@ export class GitService {
     workingDir: string,
     fileSystem?: FileSystemService,
     excludeSettings?: GitExcludeSettings,
+    logger?: LoggerService,
   ) {
     this.workingDir = path.resolve(workingDir);
     this.git = simpleGit(this.workingDir);
@@ -66,6 +68,7 @@ export class GitService {
     this._excludeSettings = excludeSettings
       ? { ...excludeSettings }
       : { ...DEFAULT_GIT_EXCLUDE_SETTINGS };
+    this.logger = logger || new LoggerService();
   }
 
   /**
@@ -92,7 +95,34 @@ export class GitService {
    */
   public async initRepository(): Promise<void> {
     try {
+      console.log('Before git.init()');
       await this.git.init();
+      console.log('After git.init()');
+      this.logger.info(`Initialized or re-initialized git repository in ${this.workingDir}`);
+
+      // Ensure .git directory exists
+      const gitDir = path.join(this.workingDir, '.git');
+      console.log('Before fileSystem.ensureDir(gitDir)');
+      await this.fileSystem.ensureDir(gitDir);
+      console.log('After fileSystem.ensureDir(gitDir)');
+
+      // Ensure .git/info directory exists
+      const gitInfoDir = path.join(gitDir, 'info');
+      console.log('Before fileSystem.ensureDir(gitInfoDir)');
+      await this.fileSystem.ensureDir(gitInfoDir);
+      console.log('After fileSystem.ensureDir(gitInfoDir)');
+
+      // Ensure .git/info/exclude file exists
+      const gitExcludePath = path.join(gitInfoDir, 'exclude');
+      console.log('Before fileSystem.pathExists(gitExcludePath)');
+      if (!(await this.fileSystem.pathExists(gitExcludePath))) {
+        console.log('Before fileSystem.writeFile(gitExcludePath)');
+        await this.fileSystem.writeFile(gitExcludePath, '');
+        console.log('After fileSystem.writeFile(gitExcludePath)');
+        this.logger.info(
+          `Created empty .git/info/exclude file at ${gitExcludePath}`,
+        );
+      }
     } catch (error) {
       throw new GitOperationError(
         'Failed to initialize git repository',

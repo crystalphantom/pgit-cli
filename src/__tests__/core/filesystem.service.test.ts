@@ -92,25 +92,25 @@ describe('FileSystemService', () => {
 
   describe('createDirectory', () => {
     it('should create directory successfully', async () => {
-      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.ensureDir.mockResolvedValue(undefined);
       mockedFs.pathExists.mockResolvedValue(true);
       mockedFs.chmod.mockResolvedValue(undefined);
       mockedPlatformDetector.isUnix.mockReturnValue(true);
       await fileSystemService.createDirectory('/test/newdir');
-      expect(mockedFs.mkdir).toHaveBeenCalledWith('/test/newdir', { recursive: true });
+      expect(mockedFs.ensureDir).toHaveBeenCalledWith('/test/newdir');
       // In CI mode, pathExists verification is skipped
       expect(mockedFs.pathExists).not.toHaveBeenCalled();
     });
 
     it('should handle directory creation errors gracefully in CI', async () => {
       const error = new Error('Permission denied');
-      mockedFs.mkdir.mockRejectedValue(error);
+      mockedFs.ensureDir.mockRejectedValue(error);
       // In CI mode, errors are logged but don't throw
       await expect(fileSystemService.createDirectory('/test/newdir')).resolves.toBeUndefined();
     });
 
     it('should skip verification in CI mode', async () => {
-      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.ensureDir.mockResolvedValue(undefined);
       mockedFs.pathExists.mockResolvedValue(false);
       // In CI mode, verification is skipped so no error is thrown
       await expect(fileSystemService.createDirectory('/test/newdir')).resolves.toBeUndefined();
@@ -118,7 +118,7 @@ describe('FileSystemService', () => {
 
     it('should warn but not fail when chmod fails', async () => {
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.ensureDir.mockResolvedValue(undefined);
       mockedFs.pathExists.mockResolvedValue(true);
       mockedFs.chmod.mockRejectedValue(new Error('Permission denied'));
       mockedPlatformDetector.isUnix.mockReturnValue(true);
