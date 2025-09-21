@@ -336,7 +336,22 @@ export const DEFAULT_PATHS = {
 /**
  * Current configuration version
  */
-export const CURRENT_CONFIG_VERSION = '0.4.0';
+export const CURRENT_CONFIG_VERSION = '0.5.0';
+
+/**
+ * Current preset schema version
+ */
+export const CURRENT_PRESET_VERSION = '1.0.0';
+
+/**
+ * Fallback version when package.json cannot be read
+ */
+export const FALLBACK_VERSION = '1.0.0';
+
+/**
+ * Minimum required Node.js version
+ */
+export const MIN_NODE_VERSION = '18.0.0';
 
 /**
  * Supported file extensions for tracking

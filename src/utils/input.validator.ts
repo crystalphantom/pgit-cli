@@ -7,6 +7,7 @@ import {
   InvalidArgumentError,
   SecurityError,
 } from '../errors/specific.errors';
+import { MIN_NODE_VERSION } from '../types/config.types';
 
 /**
  * Path validation result
@@ -271,9 +272,9 @@ export class InputValidator {
     const nodeVersion = process.version;
     const major = parseInt(nodeVersion.slice(1).split('.')[0], 10);
 
-    if (major < 18) {
+    if (major < parseInt(MIN_NODE_VERSION.split('.')[0], 10)) {
       throw new InvalidInputError(
-        `Node version ${nodeVersion} is not supported. Minimum required: 18.0.0`,
+        `Node version ${nodeVersion} is not supported. Minimum required: ${MIN_NODE_VERSION}`,
       );
     }
 

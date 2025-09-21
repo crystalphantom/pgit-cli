@@ -4,6 +4,7 @@ import {
   PrivateConfig,
   DEFAULT_PATHS,
   DEFAULT_GIT_EXCLUDE_SETTINGS,
+  CURRENT_CONFIG_VERSION,
 } from '../../types/config.types';
 import * as path from 'path';
 
@@ -170,7 +171,7 @@ describe('ConfigManager', () => {
       const config = await configManager.create(testWorkingDir);
 
       expect(config).toEqual({
-        version: '0.4.0',
+        version: CURRENT_CONFIG_VERSION,
         privateRepoPath: DEFAULT_PATHS.privateRepo,
         storagePath: DEFAULT_PATHS.storage,
         trackedPaths: [],
@@ -186,7 +187,7 @@ describe('ConfigManager', () => {
         metadata: {
           projectName: 'workspace',
           mainRepoPath: testWorkingDir,
-          cliVersion: '0.4.0',
+          cliVersion: CURRENT_CONFIG_VERSION,
           platform: expect.any(String),
           lastModified: expect.any(Date),
         },
@@ -200,7 +201,7 @@ describe('ConfigManager', () => {
 
       const config = await configManager.create(testWorkingDir);
 
-      expect(config.version).toBe('0.4.0');
+      expect(config.version).toBe('0.5.0');
       expect(mockFileSystem.writeFileAtomic).toHaveBeenCalled();
     });
   });
@@ -311,7 +312,7 @@ describe('ConfigManager', () => {
   describe('getHealth', () => {
     it('should return healthy status for valid config', async () => {
       const validConfig: PrivateConfig = {
-        version: '0.4.0',
+        version: CURRENT_CONFIG_VERSION,
         privateRepoPath: DEFAULT_PATHS.privateRepo,
         storagePath: DEFAULT_PATHS.storage,
         trackedPaths: ['file1.txt'],
@@ -327,7 +328,7 @@ describe('ConfigManager', () => {
         metadata: {
           projectName: 'test-project',
           mainRepoPath: '/test/workspace',
-          cliVersion: '0.4.0',
+          cliVersion: CURRENT_CONFIG_VERSION,
           platform: 'test',
           lastModified: new Date('2024-01-01T00:00:00Z'),
         },
@@ -342,7 +343,7 @@ describe('ConfigManager', () => {
 
       expect(health.valid).toBe(true);
       expect(health.exists).toBe(true);
-      expect(health.currentVersion).toBe('0.4.0');
+      expect(health.currentVersion).toBe('0.5.0');
       expect(health.needsMigration).toBe(false);
     });
 
@@ -396,7 +397,7 @@ describe('ConfigManager', () => {
 
       expect(health.needsMigration).toBe(true);
       expect(health.currentVersion).toBe('0.9.0');
-      expect(health.targetVersion).toBe('0.4.0');
+      expect(health.targetVersion).toBe('0.5.0');
     });
   });
 

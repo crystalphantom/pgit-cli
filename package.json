@@ -59,13 +59,13 @@
     "url": "https://github.com/crystalphantom/pgit-cli/issues"
   },
   "homepage": "https://github.com/crystalphantom/pgit-cli#readme",
-  "type": "module",
   "dependencies": {
     "chalk": "^5.0.0",
     "commander": "^11.0.0",
     "fs-extra": "^11.1.0",
     "picomatch": "^4.0.3",
     "simple-git": "^3.19.0",
+    "signale": "^1.4.0",
     "zod": "^4.1.9"
   },
   "devDependencies": {
