@@ -174,7 +174,7 @@ export class FileSystemService {
 
     try {
       await fs.ensureDir(path.dirname(filePath));
-      await fs.writeFile(tempPath, content, 'utf8');
+      await fsPromises.writeFile(tempPath, content, 'utf8');
 
       // Remove target file if it exists to avoid 'dest already exists' error
       if (await fs.pathExists(filePath)) {
@@ -248,7 +248,7 @@ export class FileSystemService {
     this.validatePathString(filePath);
 
     try {
-      await fs.writeFile(filePath, content, 'utf8');
+      await fsPromises.writeFile(filePath, content, 'utf8');
     } catch (error) {
       throw new FileSystemError(
         `Failed to write file ${filePath}`,
@@ -264,7 +264,7 @@ export class FileSystemService {
     await this.validatePath(filePath);
 
     try {
-      return await fs.readFile(filePath, 'utf8');
+      return await fsPromises.readFile(filePath, 'utf8');
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
         throw new FileNotFoundError(`File not found: ${filePath}`);
@@ -319,7 +319,7 @@ export class FileSystemService {
     await this.validatePath(targetPath);
 
     try {
-      return await fs.stat(targetPath);
+      return await fsPromises.stat(targetPath);
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
         throw new FileNotFoundError(`Path not found: ${targetPath}`);
@@ -338,7 +338,7 @@ export class FileSystemService {
     this.validatePathString(targetPath);
 
     try {
-      return await fs.lstat(targetPath);
+      return await fsPromises.lstat(targetPath);
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
         throw new FileNotFoundError(`Path not found: ${targetPath}`);
