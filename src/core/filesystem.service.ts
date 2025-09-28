@@ -1,4 +1,5 @@
 import * as fs from 'fs-extra';
+import { promises as fsPromises } from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { PlatformDetector } from '../utils/platform.detector';
@@ -116,7 +117,7 @@ export class FileSystemService {
       // Set appropriate permissions (readable/writable by owner only)
       if (PlatformDetector.isUnix()) {
         try {
-          await fs.chmod(dirPath, 0o700);
+          await fsPromises.chmod(dirPath, 0o700);
         } catch (chmodError) {
           // Log warning but don't fail if chmod fails (common in CI environments like Ubuntu/GitHub Actions)
           // where the runner may have restricted permissions for setting directory ownership
@@ -210,7 +211,16 @@ export class FileSystemService {
 
       // Set appropriate permissions
       if (PlatformDetector.isUnix()) {
-        await fs.chmod(filePath, 0o600);
+        try {
+          await fsPromises.chmod(filePath, 0o600);
+        } catch (chmodError) {
+          // Log warning but don't fail if chmod fails (common in CI environments)
+          console.warn(
+            `Warning: Could not set permissions on ${filePath}: ${
+              chmodError instanceof Error ? chmodError.message : String(chmodError)
+            }`,
+          );
+        }
       }
 
       // Clean up backup on success
