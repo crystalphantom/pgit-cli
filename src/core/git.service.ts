@@ -96,30 +96,21 @@ export class GitService {
    */
   public async initRepository(): Promise<void> {
     try {
-      console.log('Before git.init()');
       await this.git.init();
-      console.log('After git.init()');
       this.logger.info(`Initialized or re-initialized git repository in ${this.workingDir}`);
 
       // Ensure .git directory exists
       const gitDir = path.join(this.workingDir, '.git');
-      console.log('Before fileSystem.ensureDir(gitDir)');
       await this.fileSystem.ensureDirectoryExists(gitDir);
-      console.log('After fileSystem.ensureDir(gitDir)');
 
       // Ensure .git/info directory exists
       const gitInfoDir = path.join(gitDir, 'info');
-      console.log('Before fileSystem.ensureDir(gitInfoDir)');
       await this.fileSystem.ensureDirectoryExists(gitInfoDir);
-      console.log('After fileSystem.ensureDir(gitInfoDir)');
 
       // Ensure .git/info/exclude file exists
       const gitExcludePath = path.join(gitInfoDir, 'exclude');
-      console.log('Before fileSystem.pathExists(gitExcludePath)');
       if (!(await this.fileSystem.pathExists(gitExcludePath))) {
-        console.log('Before fileSystem.writeFile(gitExcludePath)');
         await this.fileSystem.writeFile(gitExcludePath, '');
-        console.log('After fileSystem.writeFile(gitExcludePath)');
         this.logger.info(`Created empty .git/info/exclude file at ${gitExcludePath}`);
       }
     } catch (error) {
