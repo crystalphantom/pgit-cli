@@ -415,7 +415,7 @@ export class FileSystemService {
     const pathParts = normalizedPath.split(path.sep);
 
     for (const systemPath of systemPaths) {
-      if (process.env.NODE_ENV === 'test') {
+      if (process.env['NODE_ENV'] === 'test') {
         // Allow .git paths in test environment
         continue;
       }
