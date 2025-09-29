@@ -44,17 +44,12 @@ jest.mock('chalk', () => ({
 
 // Mock console methods to keep test output clean
 
-beforeEach(() => {
-  // Suppress console output during tests unless explicitly needed
-  jest.spyOn(console, 'log').mockImplementation(() => {});
-  jest.spyOn(console, 'warn').mockImplementation(() => {});
-  jest.spyOn(console, 'error').mockImplementation(() => {});
-  jest.spyOn(console, 'info').mockImplementation(() => {});
-});
+// Removed global console mocking to allow individual tests to spy on console methods
+// Tests that need to suppress console output should do so individually
 
 afterEach(() => {
-  // Restore console methods
-  jest.restoreAllMocks();
+  // Individual tests should restore their own mocks
+  // jest.restoreAllMocks(); // Commented out to avoid interfering with individual test spies
 });
 
 // Global test timeout

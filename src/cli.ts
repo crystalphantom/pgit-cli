@@ -14,13 +14,14 @@ import { ResetCommand } from './commands/reset.command';
 import { PresetCommand } from './commands/preset.command';
 import { EnhancedErrorHandler } from './errors/enhanced.error-handler';
 import { logger, LogLevel } from './utils/logger.service';
+import { FALLBACK_VERSION } from './types/config.types';
 
 /**
  * Main CLI entry point
  */
 async function main(): Promise<void> {
   // Read version from package.json
-  let version = '1.0.0'; // fallback version
+  let version = FALLBACK_VERSION; // fallback version
   try {
     const __dirname = dirname(fileURLToPath(import.meta.url));
     const packageJsonPath = join(__dirname, '..', 'package.json');
