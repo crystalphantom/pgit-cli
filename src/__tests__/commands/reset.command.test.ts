@@ -3,7 +3,7 @@ import { ConfigManager } from '../../core/config.manager';
 import { FileSystemService } from '../../core/filesystem.service';
 import { SymlinkService } from '../../core/symlink.service';
 import { GitService } from '../../core/git.service';
-import { PrivateConfig } from '../../types/config.types';
+import { PrivateConfig, CURRENT_CONFIG_VERSION } from '../../types/config.types';
 
 // Mock all dependencies
 jest.mock('../../core/config.manager');
@@ -466,7 +466,7 @@ describe('ResetCommand', () => {
  */
 function createMockConfig(trackedPaths: string[] = []): PrivateConfig {
   return {
-    version: '0.4.0',
+    version: CURRENT_CONFIG_VERSION,
     privateRepoPath: '.git-private',
     storagePath: '.private-storage',
     trackedPaths,
@@ -487,7 +487,7 @@ function createMockConfig(trackedPaths: string[] = []): PrivateConfig {
     metadata: {
       projectName: 'test-project',
       mainRepoPath: '/test/workspace',
-      cliVersion: '0.4.0',
+      cliVersion: CURRENT_CONFIG_VERSION,
       platform: 'test',
       lastModified: new Date(),
     },
