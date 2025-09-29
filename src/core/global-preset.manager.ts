@@ -1,6 +1,7 @@
 import path from 'path';
 import os from 'os';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
+import * as fs from 'fs-extra';
 import { Preset, CURRENT_PRESET_VERSION } from '../types/config.types';
 import { BaseError } from '../errors/base.error';
 import { logger } from '../utils/logger.service';
@@ -239,7 +240,7 @@ export class GlobalPresetManager {
   private ensureGlobalConfigDir(): void {
     try {
       if (!existsSync(this.globalConfigDir)) {
-        mkdirSync(this.globalConfigDir, { recursive: true });
+        fs.ensureDirSync(this.globalConfigDir);
         logger.debug(`Created global config directory: ${this.globalConfigDir}`);
       }
     } catch (error) {
