@@ -4,7 +4,7 @@ import { ConfigManager } from '../../core/config.manager';
 import { GitService } from '../../core/git.service';
 import { SymlinkService } from '../../core/symlink.service';
 import { GitFileState } from '../../types/git.types';
-import { PGIT_MARKER_COMMENT } from '../../types/config.types';
+import { PGIT_MARKER_COMMENT, CURRENT_CONFIG_VERSION } from '../../types/config.types';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 import * as os from 'os';
@@ -43,7 +43,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
 
     // Mock ConfigManager methods
     const mockConfig = {
-      version: '0.4.0',
+      version: CURRENT_CONFIG_VERSION,
       privateRepoPath: path.join(privateStorageDir, '.git'),
       storagePath: privateStorageDir,
       trackedPaths: [],
@@ -64,7 +64,7 @@ describe('AddCommand - Enhanced Rollback Functionality', () => {
       metadata: {
         projectName: 'test-project',
         mainRepoPath: tempDir,
-        cliVersion: '0.4.0',
+        cliVersion: CURRENT_CONFIG_VERSION,
         platform: 'test',
         lastModified: new Date(),
       },

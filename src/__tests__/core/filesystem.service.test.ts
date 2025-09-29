@@ -1,6 +1,7 @@
 // @ts-nocheck - Jest mock typing issues
 import { FileSystemService } from '../../core/filesystem.service';
 import * as fs from 'fs-extra';
+import { promises as fsPromises } from 'fs';
 import { PlatformDetector } from '../../utils/platform.detector';
 import {
   FileSystemError,
@@ -9,11 +10,25 @@ import {
   PermissionError,
 } from '../../errors/filesystem.error';
 
-// Mock fs-extra
+// Mock fs-extra and native fs.promises
 jest.mock('fs-extra');
+jest.mock('fs', () => {
+  const originalFs = jest.requireActual('fs');
+  return {
+    ...originalFs,
+    promises: {
+      readFile: jest.fn(),
+      writeFile: jest.fn(),
+      stat: jest.fn(),
+      lstat: jest.fn(),
+      chmod: jest.fn(),
+    },
+  };
+});
 jest.mock('../../utils/platform.detector');
 
 const mockedFs = jest.mocked(fs);
+const mockedFsPromises = jest.mocked(fsPromises);
 const mockedPlatformDetector = jest.mocked(PlatformDetector);
 
 describe('FileSystemService', () => {
@@ -50,11 +65,11 @@ describe('FileSystemService', () => {
   describe('readFile', () => {
     it('should read file content successfully', async () => {
       const content = 'test file content';
-      mockedFs.readFile.mockResolvedValue(content);
+      mockedFsPromises.readFile.mockResolvedValue(content);
       mockedFs.pathExists.mockResolvedValue(true);
       const result = await fileSystemService.readFile('/test/file.txt');
       expect(result).toBe(content);
-      expect(mockedFs.readFile).toHaveBeenCalledWith('/test/file.txt', 'utf8');
+      expect(mockedFsPromises.readFile).toHaveBeenCalledWith('/test/file.txt', 'utf8');
     });
 
     it('should throw FileNotFoundError when file does not exist', async () => {
@@ -76,14 +91,14 @@ describe('FileSystemService', () => {
 
   describe('writeFile', () => {
     it('should write file content successfully', async () => {
-      mockedFs.writeFile.mockResolvedValue(undefined);
+      mockedFsPromises.writeFile.mockResolvedValue(undefined);
       await fileSystemService.writeFile('/test/file.txt', 'content');
-      expect(mockedFs.writeFile).toHaveBeenCalledWith('/test/file.txt', 'content', 'utf8');
+      expect(mockedFsPromises.writeFile).toHaveBeenCalledWith('/test/file.txt', 'content', 'utf8');
     });
 
     it('should throw FileSystemError when write fails', async () => {
       const error = new Error('Permission denied');
-      mockedFs.writeFile.mockRejectedValue(error);
+      mockedFsPromises.writeFile.mockRejectedValue(error);
       await expect(fileSystemService.writeFile('/test/file.txt', 'content')).rejects.toThrow(
         FileSystemError,
       );
@@ -92,25 +107,25 @@ describe('FileSystemService', () => {
 
   describe('createDirectory', () => {
     it('should create directory successfully', async () => {
-      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.ensureDir.mockResolvedValue(undefined);
       mockedFs.pathExists.mockResolvedValue(true);
-      mockedFs.chmod.mockResolvedValue(undefined);
+      mockedFsPromises.chmod.mockResolvedValue(undefined);
       mockedPlatformDetector.isUnix.mockReturnValue(true);
       await fileSystemService.createDirectory('/test/newdir');
-      expect(mockedFs.mkdir).toHaveBeenCalledWith('/test/newdir', { recursive: true });
+      expect(mockedFs.ensureDir).toHaveBeenCalledWith('/test/newdir');
       // In CI mode, pathExists verification is skipped
       expect(mockedFs.pathExists).not.toHaveBeenCalled();
     });
 
     it('should handle directory creation errors gracefully in CI', async () => {
       const error = new Error('Permission denied');
-      mockedFs.mkdir.mockRejectedValue(error);
+      mockedFs.ensureDir.mockRejectedValue(error);
       // In CI mode, errors are logged but don't throw
       await expect(fileSystemService.createDirectory('/test/newdir')).resolves.toBeUndefined();
     });
 
     it('should skip verification in CI mode', async () => {
-      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.ensureDir.mockResolvedValue(undefined);
       mockedFs.pathExists.mockResolvedValue(false);
       // In CI mode, verification is skipped so no error is thrown
       await expect(fileSystemService.createDirectory('/test/newdir')).resolves.toBeUndefined();
@@ -118,9 +133,9 @@ describe('FileSystemService', () => {
 
     it('should warn but not fail when chmod fails', async () => {
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
-      mockedFs.mkdir.mockResolvedValue(undefined);
+      mockedFs.ensureDir.mockResolvedValue(undefined);
       mockedFs.pathExists.mockResolvedValue(true);
-      mockedFs.chmod.mockRejectedValue(new Error('Permission denied'));
+      mockedFsPromises.chmod.mockRejectedValue(new Error('Permission denied'));
       mockedPlatformDetector.isUnix.mockReturnValue(true);
       
       await expect(fileSystemService.createDirectory('/test/newdir')).resolves.toBeUndefined();

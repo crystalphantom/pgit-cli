@@ -1,7 +1,7 @@
 import path from 'path';
 import os from 'os';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { Preset } from '../types/config.types';
+import { Preset, CURRENT_PRESET_VERSION } from '../types/config.types';
 import { BaseError } from '../errors/base.error';
 import { logger } from '../utils/logger.service';
 
@@ -179,7 +179,7 @@ export class GlobalPresetManager {
       if (!existsSync(this.globalPresetsFile)) {
         // Return empty preset structure if file doesn't exist
         const emptyPresets: GlobalUserPresets = {
-          version: '1.0.0',
+          version: CURRENT_PRESET_VERSION,
           presets: {},
         };
         this.cachedPresets = emptyPresets;
@@ -210,7 +210,7 @@ export class GlobalPresetManager {
       logger.warn(`Failed to load global presets from ${this.globalPresetsFile}: ${error}`);
       // Return empty preset structure on error
       const emptyPresets: GlobalUserPresets = {
-        version: '1.0.0',
+        version: CURRENT_PRESET_VERSION,
         presets: {},
       };
       this.cachedPresets = emptyPresets;
