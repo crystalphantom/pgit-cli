@@ -1,6 +1,6 @@
 import path from 'path';
 import os from 'os';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import * as fs from 'fs-extra';
 import { Preset, CURRENT_PRESET_VERSION } from '../types/config.types';
 import { BaseError } from '../errors/base.error';
 import { logger } from '../utils/logger.service';
@@ -176,7 +176,7 @@ export class GlobalPresetManager {
     }
 
     try {
-      if (!existsSync(this.globalPresetsFile)) {
+      if (!fs.existsSync(this.globalPresetsFile)) {
         // Return empty preset structure if file doesn't exist
         const emptyPresets: GlobalUserPresets = {
           version: CURRENT_PRESET_VERSION,
@@ -186,7 +186,7 @@ export class GlobalPresetManager {
         return emptyPresets;
       }
 
-      const content = readFileSync(this.globalPresetsFile, 'utf-8');
+      const content = fs.readFileSync(this.globalPresetsFile, 'utf-8');
       const presets = JSON.parse(content) as GlobalUserPresets;
 
       // Validate structure
@@ -225,7 +225,7 @@ export class GlobalPresetManager {
     try {
       this.ensureGlobalConfigDir();
       const content = JSON.stringify(presets, null, 2);
-      writeFileSync(this.globalPresetsFile, content, 'utf-8');
+      fs.writeFileSync(this.globalPresetsFile, content, 'utf-8');
     } catch (error) {
       throw new GlobalPresetError(
         `Failed to save global presets to ${this.globalPresetsFile}: ${error}`,
@@ -238,8 +238,8 @@ export class GlobalPresetManager {
    */
   private ensureGlobalConfigDir(): void {
     try {
-      if (!existsSync(this.globalConfigDir)) {
-        mkdirSync(this.globalConfigDir, { recursive: true });
+      if (!fs.existsSync(this.globalConfigDir)) {
+        fs.ensureDirSync(this.globalConfigDir);
         logger.debug(`Created global config directory: ${this.globalConfigDir}`);
       }
     } catch (error) {
