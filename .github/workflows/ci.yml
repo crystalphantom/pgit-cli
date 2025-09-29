@@ -68,6 +68,8 @@ jobs:
 
       - name: Test symbolic link functionality
         run: |
+          # Clean up any existing test directory to ensure fresh state
+          rm -rf test-repo
           mkdir -p test-repo
           cd test-repo
           git init

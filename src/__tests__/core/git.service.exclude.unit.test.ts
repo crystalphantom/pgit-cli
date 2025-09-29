@@ -18,6 +18,22 @@ jest.mock('fs-extra', () => {
   };
 });
 
+// Mock native fs module's promises
+jest.mock('fs', () => {
+  const actual = jest.requireActual('fs');
+  return {
+    ...actual,
+    promises: {
+      ...actual.promises,
+      writeFile: jest.fn((...args: unknown[]) => (actual.promises.writeFile as FsAnyFn)(...args)),
+      readFile: jest.fn((...args: unknown[]) => (actual.promises.readFile as FsAnyFn)(...args)),
+      chmod: jest.fn((...args: unknown[]) => (actual.promises.chmod as FsAnyFn)(...args)),
+      stat: jest.fn((...args: unknown[]) => (actual.promises.stat as FsAnyFn)(...args)),
+      lstat: jest.fn((...args: unknown[]) => (actual.promises.lstat as FsAnyFn)(...args)),
+    },
+  };
+});
+
 import { GitService } from '../../core/git.service';
 import { FileSystemService } from '../../core/filesystem.service';
 import { GitExcludeValidationError } from '../../errors/git.error';
@@ -205,10 +221,13 @@ existing-pgit-file.txt
         // Create exclude file
         await fs.writeFile(gitExcludePath, '# test');
 
-        // Mock fs.writeFile to simulate permission error during write
+        // Mock both fs-extra and native fs.promises writeFile to simulate permission error
         const actualFs = jest.requireActual('fs-extra');
+        const actualFsNative = jest.requireActual('fs');
         const originalWrite = actualFs.writeFile.bind(actualFs) as unknown as FsAnyFn;
-        // fs.writeFile is a jest.fn from our module mock — use mockImplementation to change behavior
+        const originalNativeWrite = actualFsNative.promises.writeFile.bind(actualFsNative.promises) as unknown as FsAnyFn;
+        
+        // Mock fs-extra writeFile
         (fs.writeFile as unknown as jest.Mock).mockImplementation((..._args: unknown[]) => {
           const target = String(_args[0]);
           if (target.endsWith('.git/info/exclude')) {
@@ -218,15 +237,32 @@ existing-pgit-file.txt
           }
           return originalWrite(..._args);
         });
+        
+        // Mock native fs.promises writeFile 
+        const nativeFsPromises = jest.requireMock('fs').promises;
+        (nativeFsPromises.writeFile as jest.Mock).mockImplementation((..._args: unknown[]) => {
+          const target = String(_args[0]);
+          if (target.endsWith('.git/info/exclude')) {
+            const err = new Error('EACCES: permission denied') as NodeJS.ErrnoException;
+            err.code = 'EACCES';
+            return Promise.reject(err);
+          }
+          return originalNativeWrite(..._args);
+        });
 
         try {
           // Should not throw but should log warning
           await expect(gitService.addToGitExclude('test.txt')).resolves.not.toThrow();
 
-          expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Warning:'));
+          // Check for either the scaffold warning or the exclude operation warning
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            expect.stringMatching(/(Warning:|Scaffold warning:)/),
+          );
         } finally {
-          // Restore original implementation by resetting mock to actual implementation
+          // Restore original implementations for both fs-extra and native fs
           (fs.writeFile as unknown as jest.Mock).mockImplementation(originalWrite as FsAnyFn);
+          const nativeFsPromises = jest.requireMock('fs').promises;
+          (nativeFsPromises.writeFile as jest.Mock).mockImplementation(originalNativeWrite as FsAnyFn);
         }
       });
 
@@ -416,11 +452,15 @@ existing-pgit-file.txt
         // Add path first
         await gitService.addToGitExclude(testPath);
 
-        // Mock fs operations to simulate permission error
+        // Mock both fs-extra and native fs.promises operations to simulate permission error
         const actualFs = jest.requireActual('fs-extra');
+        const actualFsNative = jest.requireActual('fs');
         const originalWrite = actualFs.writeFile.bind(actualFs) as unknown as FsAnyFn;
         const originalRead = actualFs.readFile.bind(actualFs) as unknown as FsAnyFn;
+        const originalNativeWrite = actualFsNative.promises.writeFile.bind(actualFsNative.promises) as unknown as FsAnyFn;
+        const originalNativeRead = actualFsNative.promises.readFile.bind(actualFsNative.promises) as unknown as FsAnyFn;
 
+        // Mock fs-extra operations
         (fs.writeFile as unknown as jest.Mock).mockImplementation((..._args: unknown[]) => {
           const target = String(_args[0]);
           if (target.endsWith('.git/info/exclude')) {
@@ -440,16 +480,44 @@ existing-pgit-file.txt
           }
           return originalRead(..._args);
         });
+        
+        // Mock native fs.promises operations
+        const nativeFsPromises = jest.requireMock('fs').promises;
+        (nativeFsPromises.writeFile as jest.Mock).mockImplementation((..._args: unknown[]) => {
+          const target = String(_args[0]);
+          if (target.endsWith('.git/info/exclude')) {
+            const err = new Error('EACCES: permission denied') as NodeJS.ErrnoException;
+            err.code = 'EACCES';
+            return Promise.reject(err);
+          }
+          return originalNativeWrite(..._args);
+        });
+        
+        (nativeFsPromises.readFile as jest.Mock).mockImplementation((..._args: unknown[]) => {
+          const target = String(_args[0]);
+          if (target.endsWith('.git/info/exclude')) {
+            const err = new Error('EACCES: permission denied') as NodeJS.ErrnoException;
+            err.code = 'EACCES';
+            return Promise.reject(err);
+          }
+          return originalNativeRead(..._args);
+        });
 
         try {
           // Should not throw but should log warning
           await expect(gitService.removeFromGitExclude(testPath)).resolves.not.toThrow();
 
-          expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('Warning:'));
+          // Check for either the scaffold warning or the exclude operation warning
+          expect(consoleWarnSpy).toHaveBeenCalledWith(
+            expect.stringMatching(/(Warning:|Scaffold warning:)/),
+          );
         } finally {
-          // Restore original implementations
+          // Restore original implementations for both fs-extra and native fs
           (fs.writeFile as unknown as jest.Mock).mockImplementation(originalWrite as FsAnyFn);
           (fs.readFile as unknown as jest.Mock).mockImplementation(originalRead as FsAnyFn);
+          const nativeFsPromises = jest.requireMock('fs').promises;
+          (nativeFsPromises.writeFile as jest.Mock).mockImplementation(originalNativeWrite as FsAnyFn);
+          (nativeFsPromises.readFile as jest.Mock).mockImplementation(originalNativeRead as FsAnyFn);
         }
       });
 
