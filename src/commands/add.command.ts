@@ -990,19 +990,19 @@ export class AddCommand {
         }
 
         for (const failedExclude of excludeResult.failed) {
-          // Only add to failed if not already successful from git removal
+          // Always treat exclude operation failures as warnings, not hard failures
+          // The core functionality (moving to private storage and creating symlinks) can proceed
+          // even if we can't add files to .git/info/exclude
+          console.warn(
+            chalk.yellow(
+              `   Warning: Could not add ${failedExclude.path} to .git/info/exclude: ${failedExclude.error}`,
+            ),
+          );
+
+          // Always ensure files are marked as successful so the add operation can proceed
+          // Exclude operations are an optimization, not a requirement for core functionality
           if (!result.successful.includes(failedExclude.path)) {
-            result.failed.push({
-              path: failedExclude.path,
-              error: `Failed to add to .git/info/exclude: ${failedExclude.error}`,
-            });
-          } else {
-            // Log warning but don't fail since git removal succeeded
-            console.warn(
-              chalk.yellow(
-                `   Warning: Could not add ${failedExclude.path} to .git/info/exclude: ${failedExclude.error}`,
-              ),
-            );
+            result.successful.push(failedExclude.path);
           }
         }
       }

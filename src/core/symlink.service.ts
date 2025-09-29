@@ -1,4 +1,4 @@
-import * as fs from 'fs-extra';
+import { promises as fs } from 'fs';
 import * as path from 'path';
 import { PlatformDetector } from '../utils/platform.detector';
 import { FileSystemService } from './filesystem.service';

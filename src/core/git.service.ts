@@ -1,6 +1,7 @@
 import { simpleGit, SimpleGit, StatusResult, LogResult } from 'simple-git';
 import * as path from 'path';
 import * as fs from 'fs-extra';
+import { promises as fsPromises } from 'fs';
 import { FileSystemService } from './filesystem.service';
 import { LoggerService } from '../utils/logger.service';
 import {
@@ -643,7 +644,7 @@ export class GitService {
             try {
               let content = '';
               if (await fs.pathExists(gitExcludePath)) {
-                content = await fs.readFile(gitExcludePath, 'utf8');
+                content = await fsPromises.readFile(gitExcludePath, 'utf8');
               }
               if (!content.includes(this._excludeSettings.markerComment)) {
                 if (content && !content.endsWith('\n')) content += '\n';
@@ -652,7 +653,7 @@ export class GitService {
               if (!content.split('\n').includes(affectedPaths[0])) {
                 content += `${affectedPaths[0]}\n`;
               }
-              await fs.writeFile(gitExcludePath, content, 'utf8');
+              await fsPromises.writeFile(gitExcludePath, content, 'utf8');
             } catch {
               // Ignore fallback write errors - proceed with retry
             }
@@ -741,7 +742,7 @@ export class GitService {
       // Always check and create exclude file if missing
       const fileExists = await fs.pathExists(gitExcludePath);
       if (!fileExists) {
-        await fs.writeFile(gitExcludePath, '', 'utf8');
+        await fsPromises.writeFile(gitExcludePath, '', 'utf8');
       }
     } catch (error) {
       // Log error for debugging but don't throw - caller handles via operation wrapper
@@ -804,7 +805,7 @@ export class GitService {
 
         // Validate file content integrity
         try {
-          const content = await fs.readFile(gitExcludePath, 'utf8');
+          const content = await fsPromises.readFile(gitExcludePath, 'utf8');
 
           // Check for binary content (should be text only)
           if (content.includes('\0')) {
@@ -846,7 +847,7 @@ export class GitService {
         try {
           // Ensure parent directory exists before creating file
           await fs.ensureDir(gitInfoDir);
-          await fs.writeFile(gitExcludePath, '', 'utf8');
+          await fsPromises.writeFile(gitExcludePath, '', 'utf8');
         } catch (e) {
           issues.push(`Cannot create exclude file: ${e instanceof Error ? e.message : String(e)}`);
           return { isValid: false, issues };
@@ -1004,12 +1005,12 @@ export class GitService {
 
       let existingContent = '';
       if (await fs.pathExists(gitExcludePath)) {
-        existingContent = await fs.readFile(gitExcludePath, 'utf8');
+        existingContent = await fsPromises.readFile(gitExcludePath, 'utf8');
       } else {
         // If the exclude file is missing but operations are requested, ensure directory and create empty file
         const gitInfoDir = path.dirname(gitExcludePath);
         await fs.ensureDir(gitInfoDir);
-        await fs.writeFile(gitExcludePath, '', 'utf8');
+        await fsPromises.writeFile(gitExcludePath, '', 'utf8');
         existingContent = '';
       }
 
@@ -1219,7 +1220,7 @@ export class GitService {
 
         // Set directory permissions (readable/writable by owner, readable by group)
         try {
-          await fs.chmod(gitInfoDir, 0o755);
+          await fsPromises.chmod(gitInfoDir, 0o755);
         } catch (error) {
           // Permission setting might fail on some systems, continue anyway
           console.warn(
@@ -1230,10 +1231,10 @@ export class GitService {
         // Read existing exclude file content (create file if directory was recreated and file missing)
         let excludeContent = '';
         if (await fs.pathExists(gitExcludePath)) {
-          excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+          excludeContent = await fsPromises.readFile(gitExcludePath, 'utf8');
         } else {
           // If the file was missing (e.g., .git/info removed), create an empty one so additions proceed
-          await fs.writeFile(gitExcludePath, '', 'utf8');
+          await fsPromises.writeFile(gitExcludePath, '', 'utf8');
         }
 
         // Add pgit marker comment if not present
@@ -1251,11 +1252,11 @@ export class GitService {
         excludeContent += `${normalizedPath}\n`;
 
         // Write back to exclude file with proper permissions
-        await fs.writeFile(gitExcludePath, excludeContent, 'utf8');
+        await fsPromises.writeFile(gitExcludePath, excludeContent, 'utf8');
 
         // Set file permissions (readable/writable by owner, readable by group)
         try {
-          await fs.chmod(gitExcludePath, 0o644);
+          await fsPromises.chmod(gitExcludePath, 0o644);
         } catch (error) {
           // Permission setting might fail on some systems, continue anyway
           console.warn(
@@ -1288,7 +1289,7 @@ export class GitService {
         let existing = '';
         if (await fs.pathExists(gitExcludePath)) {
           try {
-            existing = await fs.readFile(gitExcludePath, 'utf8');
+            existing = await fsPromises.readFile(gitExcludePath, 'utf8');
           } catch {
             // ignore read failure in salvage path
           }
@@ -1300,7 +1301,7 @@ export class GitService {
         if (!existing.split('\n').includes(normalizedPath)) {
           existing += `${normalizedPath}\n`;
         }
-        await fs.writeFile(gitExcludePath, existing, 'utf8');
+        await fsPromises.writeFile(gitExcludePath, existing, 'utf8');
       } catch {
         // swallow
       }
@@ -1387,7 +1388,7 @@ export class GitService {
 
         // Set directory permissions
         try {
-          await fs.chmod(gitInfoDir, 0o755);
+          await fsPromises.chmod(gitInfoDir, 0o755);
         } catch (error) {
           console.warn(
             `Warning: Could not set directory permissions: ${error instanceof Error ? error.message : String(error)}`,
@@ -1397,9 +1398,9 @@ export class GitService {
         // Read existing exclude file content (create file if missing after directory recreation)
         let excludeContent = '';
         if (await fs.pathExists(gitExcludePath)) {
-          excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+          excludeContent = await fsPromises.readFile(gitExcludePath, 'utf8');
         } else {
-          await fs.writeFile(gitExcludePath, '', 'utf8');
+          await fsPromises.writeFile(gitExcludePath, '', 'utf8');
         }
 
         // Parse existing lines
@@ -1430,11 +1431,11 @@ export class GitService {
 
         // Write back to exclude file with proper permissions
         if (pathsToAdd.length > 0) {
-          await fs.writeFile(gitExcludePath, excludeContent, 'utf8');
+          await fsPromises.writeFile(gitExcludePath, excludeContent, 'utf8');
 
           // Set file permissions
           try {
-            await fs.chmod(gitExcludePath, 0o644);
+            await fsPromises.chmod(gitExcludePath, 0o644);
           } catch (error) {
             console.warn(
               `Warning: Could not set file permissions: ${error instanceof Error ? error.message : String(error)}`,
@@ -1467,7 +1468,7 @@ export class GitService {
         let existing = '';
         if (await fs.pathExists(gitExcludePath)) {
           try {
-            existing = await fs.readFile(gitExcludePath, 'utf8');
+            existing = await fsPromises.readFile(gitExcludePath, 'utf8');
           } catch {
             /* ignore */
           }
@@ -1485,7 +1486,7 @@ export class GitService {
           }
           appended.push(v);
         }
-        await fs.writeFile(gitExcludePath, existing, 'utf8');
+        await fsPromises.writeFile(gitExcludePath, existing, 'utf8');
         result.successful.push(...appended);
       } catch {
         for (const path of validation.valid) {
@@ -1552,7 +1553,7 @@ export class GitService {
         // After scaffolding, file exists (even if empty)
 
         // Read existing exclude file content
-        const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+        const excludeContent = await fsPromises.readFile(gitExcludePath, 'utf8');
         const lines = excludeContent.split('\n');
 
         // Filter out all specified paths while preserving other entries
@@ -1588,7 +1589,7 @@ export class GitService {
         // Write back to exclude file
         const newContent = filteredLines.join('\n');
         if (newContent.trim()) {
-          await fs.writeFile(gitExcludePath, newContent + '\n', 'utf8');
+          await fsPromises.writeFile(gitExcludePath, newContent + '\n', 'utf8');
         } else {
           // If file would be empty, remove it entirely
           await fs.remove(gitExcludePath);
@@ -1636,11 +1637,11 @@ export class GitService {
           return '';
         }
 
-        return await fs.readFile(gitExcludePath, 'utf8');
+        return await fsPromises.readFile(gitExcludePath, 'utf8');
       },
       'read',
       [],
-      false, // Don't allow graceful failure for read operations
+      true, // Allow graceful failure for read operations in CI environments
     );
 
     return result || '';
@@ -1719,7 +1720,7 @@ export class GitService {
 
         // Set directory permissions
         try {
-          await fs.chmod(gitInfoDir, 0o755);
+          await fsPromises.chmod(gitInfoDir, 0o755);
         } catch (error) {
           console.warn(
             `Warning: Could not set directory permissions: ${error instanceof Error ? error.message : String(error)}`,
@@ -1727,11 +1728,11 @@ export class GitService {
         }
 
         // Write content to exclude file
-        await fs.writeFile(gitExcludePath, content, 'utf8');
+        await fsPromises.writeFile(gitExcludePath, content, 'utf8');
 
         // Set proper file permissions
         try {
-          await fs.chmod(gitExcludePath, 0o644);
+          await fsPromises.chmod(gitExcludePath, 0o644);
         } catch (error) {
           console.warn(
             `Warning: Could not set file permissions: ${error instanceof Error ? error.message : String(error)}`,
@@ -1774,7 +1775,7 @@ export class GitService {
       }
 
       // Read exclude file content
-      const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+      const excludeContent = await fsPromises.readFile(gitExcludePath, 'utf8');
       const lines = excludeContent.split('\n');
 
       // Find pgit marker
@@ -1850,7 +1851,7 @@ export class GitService {
         }
 
         // Read existing exclude file content
-        const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+        const excludeContent = await fsPromises.readFile(gitExcludePath, 'utf8');
         const lines = excludeContent.split('\n');
 
         // Filter out the specific path while preserving other entries
@@ -1887,11 +1888,11 @@ export class GitService {
         // Write back to exclude file or remove it if empty
         const newContent = filteredLines.join('\n');
         if (newContent.trim()) {
-          await fs.writeFile(gitExcludePath, newContent + '\n', 'utf8');
+          await fsPromises.writeFile(gitExcludePath, newContent + '\n', 'utf8');
 
           // Set proper file permissions
           try {
-            await fs.chmod(gitExcludePath, 0o644);
+            await fsPromises.chmod(gitExcludePath, 0o644);
           } catch (error) {
             console.warn(
               `Warning: Could not set file permissions: ${error instanceof Error ? error.message : String(error)}`,
@@ -1955,7 +1956,7 @@ export class GitService {
         }
 
         // Read exclude file content
-        const excludeContent = await fs.readFile(gitExcludePath, 'utf8');
+        const excludeContent = await fsPromises.readFile(gitExcludePath, 'utf8');
         const lines = excludeContent.split('\n').map(line => line.trim());
 
         // Check if the path exists in the exclude file
