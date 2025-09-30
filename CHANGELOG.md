@@ -3,6 +3,14 @@
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.5.2](https://github.com/crystalphantom/pgit-cli/compare/v0.5.1...v0.5.2) (2025-09-30)
+
+### 🐛 Bug Fixes
+* enable preset loading from global npm installs and any directory ([e3f6aa4](https://github.com/crystalphantom/pgit-cli/commit/e3f6aa40d4665d9c8da49ef4003444934c84ac5a))
+
+### ♻️ Code Refactoring  
+* improve preset command UX: rename define/undefine to add/remove ([0025194](https://github.com/crystalphantom/pgit-cli/commit/0025194e8c6b0e6f58b4a0e3e7b7bb8c7e1c7b0e))
+* fix preset list command to work from any directory ([5ee9d0d](https://github.com/crystalphantom/pgit-cli/commit/5ee9d0de8c6b0e6f58b4a0e3e7b7bb8c7e1c7b0e))
 
 ## [0.5.1](https://github.com/crystalphantom/pgit-cli/compare/v0.5.0...v0.5.1) (2025-09-30)
 
