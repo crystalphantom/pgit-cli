@@ -175,7 +175,7 @@ async function main(): Promise<void> {
     .action(async (presetName, paths, options) => {
       try {
         const presetCommand = new PresetCommand();
-        const result = await presetCommand.define(presetName, paths, {
+        const result = await presetCommand.add(presetName, paths, {
           verbose: options.parent?.parent?.verbose || false,
           global: options.global || false,
         });
@@ -198,7 +198,7 @@ async function main(): Promise<void> {
     .action(async (presetName, options) => {
       try {
         const presetCommand = new PresetCommand();
-        const result = await presetCommand.undefine(presetName, {
+        const result = await presetCommand.remove(presetName, {
           verbose: options.parent?.parent?.verbose || false,
           global: options.global || false,
         });
