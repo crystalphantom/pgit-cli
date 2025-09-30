@@ -111,19 +111,24 @@ export class PresetCommand {
   /**
    * Define a new user preset
    */
+  /**
+   * Define a new user preset
+   */
   public async define(
     presetName: string,
     paths: string[],
     options: CommandOptions & { global?: boolean } = {},
   ): Promise<CommandResult> {
     try {
-      // For apply operations, we still need pgit to be initialized
-      // But for global presets, we don't need initialization
+      // Global presets don't require pgit initialization - they are stored in ~/.pgit/presets.json
+      // Local presets require initialization since they are stored in the project
       if (!options.global) {
         // Check if pgit is initialized for local presets
         if (!(await this.configManager.exists())) {
+          // For local presets, we need pgit to be initialized
+          // But we can provide better guidance by suggesting global presets
           throw new NotInitializedError(
-            'Private git tracking is not initialized. Run "pgit init" first, or use --global flag to create a global preset.',
+            'Private git tracking is not initialized. Run "pgit init" first, or use --global flag to create a global preset that works across all projects.',
           );
         }
       }
@@ -306,6 +311,27 @@ export class PresetCommand {
         exitCode: 1,
       };
     }
+  }
+
+  /**
+   * Add a new user preset (alias for define)
+   */
+  public async add(
+    presetName: string,
+    paths: string[],
+    options: CommandOptions & { global?: boolean } = {},
+  ): Promise<CommandResult> {
+    return this.define(presetName, paths, options);
+  }
+
+  /**
+   * Remove a user-defined preset (alias for undefine)
+   */
+  public async remove(
+    presetName: string,
+    options: CommandOptions & { global?: boolean } = {},
+  ): Promise<CommandResult> {
+    return this.undefine(presetName, options);
   }
 
   /**

@@ -19,6 +19,11 @@ describe('PresetManager', () => {
     ) as jest.Mocked<ConfigManager>;
     presetManager = new PresetManager(mockConfigManager);
 
+    // Mock the ConfigManager.getConfigPath to return a test path
+    mockConfigManager.getConfigPath = jest
+      .fn()
+      .mockReturnValue('/test/workspace/.pgit/config.json');
+
     // Mock built-in presets loading
     const mockBuiltinPresets = {
       version: '1.0.0',
@@ -35,9 +40,13 @@ describe('PresetManager', () => {
       },
     };
 
-    // Mock fs.readFileSync
+    // Mock fs.readFileSync and fs.existsSync
     const fs = require('fs');
     fs.readFileSync = jest.fn().mockReturnValue(JSON.stringify(mockBuiltinPresets));
+    fs.existsSync = jest.fn().mockImplementation((filePath: string) => {
+      // Mock existsSync to return true for the expected presets.json path
+      return filePath.endsWith('presets.json');
+    });
   });
 
   afterEach(() => {
