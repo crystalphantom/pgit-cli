@@ -1,11 +1,110 @@
 import path from 'path';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, realpathSync } from 'fs';
+import { fileURLToPath } from 'url';
 import { Preset, BuiltinPresets } from '../types/config.types';
 import { BuiltinPresetsSchema } from '../types/config.schema';
 import { ConfigManager } from './config.manager';
 import { GlobalPresetManager } from './global-preset.manager';
 import { BaseError } from '../errors/base.error';
 import { logger } from '../utils/logger.service';
+
+// Determine the current file's directory in a cross-environment way
+const getModuleDirname = (): string => {
+  // In CommonJS environments (Jest, ts-node), use __dirname
+  if (typeof __dirname !== 'undefined') {
+    return __dirname;
+  }
+
+  // In ES module environments, try to use import.meta.url
+  try {
+    const meta = new Function('return import.meta')();
+    if (meta && meta.url) {
+      return path.dirname(fileURLToPath(meta.url));
+    }
+  } catch {
+    // Continue to fallback
+  }
+
+  // For global installs, use the CLI path to find the module directory
+  try {
+    const cliPath = process.argv[1] || '';
+    if (cliPath) {
+      const realCliPath = realpathSync(cliPath);
+      // For global install structure like:
+      // /usr/local/lib/node_modules/pgit-cli/dist/cli.js (main entry)
+      // We need to find /usr/local/lib/node_modules/pgit-cli/dist/core/
+      const cliDir = path.dirname(realCliPath);
+      if (cliDir.includes('node_modules') && cliDir.includes('pgit-cli')) {
+        // Extract the package root, then add dist/core
+        const pgitIndex = cliDir.indexOf('pgit-cli');
+        if (pgitIndex !== -1) {
+          const packageRoot = cliDir.substring(0, pgitIndex + 'pgit-cli'.length);
+          return path.join(packageRoot, 'dist', 'core');
+        }
+      }
+    }
+  } catch {
+    // Continue to fallback
+  }
+
+  // Fallback: Use require.resolve if available
+  try {
+    const thisModulePath = require.resolve('../core/preset.manager');
+    return path.dirname(thisModulePath);
+  } catch {
+    // Continue to next fallback
+  }
+
+  // Last resort fallback
+  return process.cwd();
+};
+
+const getModuleFilename = (): string => {
+  // In CommonJS environments (Jest, ts-node), use __filename
+  if (typeof __filename !== 'undefined') {
+    return __filename;
+  }
+
+  // In ES module environments, try to use import.meta.url
+  try {
+    const meta = new Function('return import.meta')();
+    if (meta && meta.url) {
+      return fileURLToPath(meta.url);
+    }
+  } catch {
+    // Continue to fallback
+  }
+
+  // For global installs, use the CLI path to find the module file
+  try {
+    const cliPath = process.argv[1] || '';
+    if (cliPath) {
+      const realCliPath = realpathSync(cliPath);
+      const cliDir = path.dirname(realCliPath);
+      if (cliDir.includes('node_modules') && cliDir.includes('pgit-cli')) {
+        // Extract the package root, then add dist/core/preset.manager.js
+        const pgitIndex = cliDir.indexOf('pgit-cli');
+        if (pgitIndex !== -1) {
+          const packageRoot = cliDir.substring(0, pgitIndex + 'pgit-cli'.length);
+          return path.join(packageRoot, 'dist', 'core', 'preset.manager.js');
+        }
+      }
+    }
+  } catch {
+    // Continue to fallback
+  }
+
+  // Fallback: Use require.resolve if available
+  try {
+    const thisModulePath = require.resolve('../core/preset.manager');
+    return thisModulePath;
+  } catch {
+    // Continue to next fallback
+  }
+
+  // Last resort fallback
+  return path.join(process.cwd(), 'preset.manager.js');
+};
 
 /**
  * Preset management errors
@@ -264,10 +363,74 @@ export class PresetManager {
     }
 
     try {
-      // Find presets.json from the pgit project root directory
-      // We need to find the directory that contains pgit configuration
-      const projectRoot = this.findProjectRoot();
-      const presetsPath = path.join(projectRoot, 'presets.json');
+      // Find presets.json relative to this package's installation
+      let presetsPath: string;
+      let packageRoot: string; // Move this outside the conditional block
+
+      // In development (when running from source), look in current directory
+      if (
+        process.env['NODE_ENV'] === 'development' ||
+        existsSync(path.join(process.cwd(), 'src')) ||
+        getModuleFilename().includes('/src/') || // Running from TypeScript source
+        process.env['JEST_WORKER_ID'] // Running in Jest test environment
+      ) {
+        presetsPath = path.join(process.cwd(), 'presets.json');
+        packageRoot = process.cwd(); // Set for debug output
+      } else {
+        // In production (global install), find presets.json relative to this module
+
+        try {
+          // Method 1: Use the actual module location from getModuleDirname()
+          // For compiled JS in global install, this will be something like:
+          // /usr/local/lib/node_modules/pgit-cli/dist/core/ -> /usr/local/lib/node_modules/pgit-cli/
+          const moduleDir = getModuleDirname();
+          if (moduleDir.includes('node_modules') && moduleDir.includes('pgit-cli')) {
+            // Extract the package root from the module path
+            const pgitIndex = moduleDir.indexOf('pgit-cli');
+            if (pgitIndex !== -1) {
+              packageRoot = moduleDir.substring(0, pgitIndex + 'pgit-cli'.length);
+            } else {
+              // Fallback: Go up from dist/core to package root
+              packageRoot = path.resolve(moduleDir, '..', '..');
+            }
+          } else {
+            // Fallback: Go up from dist/core to package root
+            packageRoot = path.resolve(moduleDir, '..', '..');
+          }
+        } catch {
+          // Method 2: Use process.argv[1] (the CLI script path) to find package root
+          const cliPath = process.argv[1] || '';
+          try {
+            const realCliPath = realpathSync(cliPath);
+            // For global install, CLI is usually in bin/ directory, so go up one level
+            const cliDir = path.dirname(realCliPath);
+            if (cliDir.includes('node_modules') && cliDir.includes('pgit-cli')) {
+              // Extract the package root from the CLI path
+              const pgitIndex = cliDir.indexOf('pgit-cli');
+              if (pgitIndex !== -1) {
+                packageRoot = cliDir.substring(0, pgitIndex + 'pgit-cli'.length);
+              } else {
+                packageRoot = path.resolve(cliDir, '..');
+              }
+            } else {
+              packageRoot = path.resolve(cliDir, '..');
+            }
+          } catch {
+            // Final fallback
+            packageRoot = path.dirname(cliPath);
+          }
+        }
+
+        presetsPath = path.join(packageRoot, 'presets.json');
+      }
+
+      if (!existsSync(presetsPath)) {
+        const currentDirname = getModuleDirname();
+        const currentFilename = getModuleFilename();
+        const debugInfo = `currentDirname: ${currentDirname}, currentFilename: ${currentFilename}, cwd: ${process.cwd()}, argv[1]: ${process.argv[1]}, packageRoot: ${packageRoot}, presetsPath: ${presetsPath}`;
+        throw new PresetError(`Could not find presets.json at ${presetsPath}. Debug: ${debugInfo}`);
+      }
+
       const presetsContent = readFileSync(presetsPath, 'utf-8');
       const presetsJson = JSON.parse(presetsContent);
 
@@ -284,56 +447,6 @@ export class PresetManager {
       }
       throw new PresetError(`Failed to load built-in presets: ${error}`);
     }
-  }
-
-  /**
-   * Find the pgit project root directory by looking for presets.json
-   * Start from ConfigManager's working directory and walk up
-   */
-  private findProjectRoot(): string {
-    // First, try the ConfigManager's working directory (extracted from configPath)
-    const configPath = this.configManager.getConfigPath();
-    const workingDir = path.dirname(configPath);
-
-    // Walk up directories to find presets.json
-    let currentDir = workingDir;
-    const maxDepth = 10; // Prevent infinite loops
-    let depth = 0;
-
-    while (depth < maxDepth) {
-      const presetsPath = path.join(currentDir, 'presets.json');
-      if (existsSync(presetsPath)) {
-        logger.debug(`Found pgit project root at: ${currentDir}`);
-        return currentDir;
-      }
-
-      const parentDir = path.dirname(currentDir);
-      if (parentDir === currentDir) {
-        // Reached filesystem root
-        break;
-      }
-      currentDir = parentDir;
-      depth++;
-    }
-
-    // Fallback: look for presets.json in common locations
-    const fallbackPaths = [
-      process.cwd(), // Current working directory
-      path.join(__dirname, '..', '..'), // Assuming we're in src/core and need to go to project root
-      path.join(__dirname, '..', '..', '..'), // In case we're in dist/core
-    ];
-
-    for (const fallbackPath of fallbackPaths) {
-      const presetsPath = path.join(fallbackPath, 'presets.json');
-      if (existsSync(presetsPath)) {
-        logger.debug(`Found pgit project root at fallback location: ${fallbackPath}`);
-        return fallbackPath;
-      }
-    }
-
-    throw new PresetError(
-      `Could not find presets.json in project directories. Searched from ${workingDir} up to filesystem root and common fallback locations.`,
-    );
   }
 
   /**
