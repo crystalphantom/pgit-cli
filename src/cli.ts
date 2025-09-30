@@ -145,7 +145,7 @@ async function main(): Promise<void> {
   // Preset commands
   const presetCmd = program
     .command('preset')
-    .description('Manage file presets for common workflows (apply|define|undefine|list|show)');
+    .description('Manage file presets for common workflows (apply|add|remove|list|show)');
 
   presetCmd
     .command('apply <preset-name>')
@@ -169,13 +169,13 @@ async function main(): Promise<void> {
     });
 
   presetCmd
-    .command('define <preset-name> <paths...>')
-    .description('Define a new user preset with specified paths')
+    .command('add <preset-name> <paths...>')
+    .description('Add a new user preset with specified paths')
     .option('-g, --global', 'Create a global preset (available across all projects)')
     .action(async (presetName, paths, options) => {
       try {
         const presetCommand = new PresetCommand();
-        const result = await presetCommand.define(presetName, paths, {
+        const result = await presetCommand.add(presetName, paths, {
           verbose: options.parent?.parent?.verbose || false,
           global: options.global || false,
         });
@@ -183,7 +183,7 @@ async function main(): Promise<void> {
         if (result.success) {
           // Success message is handled by the command itself
         } else {
-          logger.error(result.message || 'Failed to define preset');
+          logger.error(result.message || 'Failed to add preset');
           process.exit(result.exitCode);
         }
       } catch (error) {
@@ -192,13 +192,13 @@ async function main(): Promise<void> {
     });
 
   presetCmd
-    .command('undefine <preset-name>')
+    .command('remove <preset-name>')
     .description('Remove a user-defined preset')
     .option('-g, --global', 'Remove a global preset')
     .action(async (presetName, options) => {
       try {
         const presetCommand = new PresetCommand();
-        const result = await presetCommand.undefine(presetName, {
+        const result = await presetCommand.remove(presetName, {
           verbose: options.parent?.parent?.verbose || false,
           global: options.global || false,
         });
@@ -245,52 +245,6 @@ async function main(): Promise<void> {
 
         if (!result.success) {
           logger.error(result.message || 'Failed to show preset');
-          process.exit(result.exitCode);
-        }
-      } catch (error) {
-        handleError(error);
-      }
-    });
-
-  presetCmd
-    .command('add <preset-name> <paths...>')
-    .description('Add a new user preset with specified paths (alias for define)')
-    .option('-g, --global', 'Create a global preset (available across all projects)')
-    .action(async (presetName, paths, options) => {
-      try {
-        const presetCommand = new PresetCommand();
-        const result = await presetCommand.add(presetName, paths, {
-          verbose: options.parent?.parent?.verbose || false,
-          global: options.global || false,
-        });
-
-        if (result.success) {
-          // Success message is handled by the command itself
-        } else {
-          logger.error(result.message || 'Failed to add preset');
-          process.exit(result.exitCode);
-        }
-      } catch (error) {
-        handleError(error);
-      }
-    });
-
-  presetCmd
-    .command('remove <preset-name>')
-    .description('Remove a user-defined preset (alias for undefine)')
-    .option('-g, --global', 'Remove a global preset')
-    .action(async (presetName, options) => {
-      try {
-        const presetCommand = new PresetCommand();
-        const result = await presetCommand.remove(presetName, {
-          verbose: options.parent?.parent?.verbose || false,
-          global: options.global || false,
-        });
-
-        if (result.success) {
-          // Success message is handled by the command itself
-        } else {
-          logger.error(result.message || 'Failed to remove preset');
           process.exit(result.exitCode);
         }
       } catch (error) {

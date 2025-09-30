@@ -136,13 +136,13 @@ describe('PresetCommand', () => {
     });
   });
 
-  describe('define', () => {
-    it('should define preset successfully', async () => {
+  describe('add', () => {
+    it('should add preset successfully', async () => {
       mockConfigManager.exists.mockResolvedValue(true);
       mockPresetManager.getPresetSource.mockResolvedValue('none');
       mockPresetManager.saveUserPreset.mockResolvedValue();
 
-      const result = await presetCommand.define('new-preset', ['path1', 'path2']);
+      const result = await presetCommand.add('new-preset', ['path1', 'path2']);
 
       expect(result.success).toBe(true);
       expect(mockPresetManager.saveUserPreset).toHaveBeenCalledWith(
@@ -159,7 +159,7 @@ describe('PresetCommand', () => {
     it('should fail when pgit is not initialized', async () => {
       mockConfigManager.exists.mockResolvedValue(false);
 
-      const result = await presetCommand.define('new-preset', ['path1']);
+      const result = await presetCommand.add('new-preset', ['path1']);
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('not initialized');
@@ -168,19 +168,19 @@ describe('PresetCommand', () => {
     it('should fail with invalid preset name', async () => {
       mockConfigManager.exists.mockResolvedValue(true);
 
-      const result = await presetCommand.define('', ['path1']);
+      const result = await presetCommand.add('', ['path1']);
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('Failed to define preset');
+      expect(result.message).toContain('Failed to add preset');
     });
 
     it('should fail with no paths', async () => {
       mockConfigManager.exists.mockResolvedValue(true);
 
-      const result = await presetCommand.define('new-preset', []);
+      const result = await presetCommand.add('new-preset', []);
 
       expect(result.success).toBe(false);
-      expect(result.message).toContain('Failed to define preset');
+      expect(result.message).toContain('Failed to add preset');
     });
 
     it('should warn when overriding built-in preset', async () => {
@@ -188,20 +188,20 @@ describe('PresetCommand', () => {
       mockPresetManager.getPresetSource.mockResolvedValue('builtin');
       mockPresetManager.saveUserPreset.mockResolvedValue();
 
-      const result = await presetCommand.define('builtin-preset', ['path1']);
+      const result = await presetCommand.add('builtin-preset', ['path1']);
 
       expect(result.success).toBe(true);
       expect(mockPresetManager.saveUserPreset).toHaveBeenCalled();
     });
   });
 
-  describe('undefine', () => {
+  describe('remove', () => {
     it('should remove user preset successfully', async () => {
       mockConfigManager.exists.mockResolvedValue(true);
       mockPresetManager.getPresetSource.mockResolvedValue('localUser');
       mockPresetManager.removeUserPreset.mockResolvedValue(true);
 
-      const result = await presetCommand.undefine('user-preset');
+      const result = await presetCommand.remove('user-preset');
 
       expect(result.success).toBe(true);
       expect(mockPresetManager.removeUserPreset).toHaveBeenCalledWith('user-preset', false);
@@ -211,7 +211,7 @@ describe('PresetCommand', () => {
       mockConfigManager.exists.mockResolvedValue(true);
       mockPresetManager.getPresetSource.mockResolvedValue('builtin');
 
-      const result = await presetCommand.undefine('builtin-preset');
+      const result = await presetCommand.remove('builtin-preset');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Cannot remove built-in preset');
@@ -221,7 +221,7 @@ describe('PresetCommand', () => {
       mockConfigManager.exists.mockResolvedValue(true);
       mockPresetManager.getPresetSource.mockResolvedValue('none');
 
-      const result = await presetCommand.undefine('nonexistent');
+      const result = await presetCommand.remove('nonexistent');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('not found');
