@@ -422,9 +422,11 @@ export class PresetCommand {
         exitCode: 0,
       };
     } catch (error) {
+      // Always show the detailed error message for debugging
+      const errorMessage = error instanceof Error ? error.message : String(error);
       return {
         success: false,
-        message: 'Failed to list presets',
+        message: `DEBUG_ERROR: ${errorMessage}`,
         error: error instanceof Error ? error : new Error(String(error)),
         exitCode: 1,
       };
