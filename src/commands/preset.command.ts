@@ -109,12 +109,9 @@ export class PresetCommand {
   }
 
   /**
-   * Define a new user preset
+   * Add a new user preset
    */
-  /**
-   * Define a new user preset
-   */
-  public async define(
+  public async add(
     presetName: string,
     paths: string[],
     options: CommandOptions & { global?: boolean } = {},
@@ -204,7 +201,7 @@ export class PresetCommand {
 
       return {
         success: true,
-        message: `Preset '${presetName}' defined successfully`,
+        message: `Preset '${presetName}' added successfully`,
         data: preset,
         exitCode: 0,
       };
@@ -220,7 +217,7 @@ export class PresetCommand {
 
       return {
         success: false,
-        message: `Failed to define preset '${presetName}'`,
+        message: `Failed to add preset '${presetName}'`,
         error: error instanceof Error ? error : new Error(String(error)),
         exitCode: 1,
       };
@@ -230,7 +227,7 @@ export class PresetCommand {
   /**
    * Remove a user-defined preset
    */
-  public async undefine(
+  public async remove(
     presetName: string,
     options: CommandOptions & { global?: boolean } = {},
   ): Promise<CommandResult> {
@@ -311,27 +308,6 @@ export class PresetCommand {
         exitCode: 1,
       };
     }
-  }
-
-  /**
-   * Add a new user preset (alias for define)
-   */
-  public async add(
-    presetName: string,
-    paths: string[],
-    options: CommandOptions & { global?: boolean } = {},
-  ): Promise<CommandResult> {
-    return this.define(presetName, paths, options);
-  }
-
-  /**
-   * Remove a user-defined preset (alias for undefine)
-   */
-  public async remove(
-    presetName: string,
-    options: CommandOptions & { global?: boolean } = {},
-  ): Promise<CommandResult> {
-    return this.undefine(presetName, options);
   }
 
   /**
@@ -427,9 +403,9 @@ export class PresetCommand {
         globalUserNames.length === 0
       ) {
         logger.info('No presets available.');
-        logger.info('Use "pgit preset define <name> <path1> [path2]..." to create a local preset.');
+        logger.info('Use "pgit preset add <name> <path1> [path2]..." to create a local preset.');
         logger.info(
-          'Use "pgit preset define --global <name> <path1> [path2]..." to create a global preset.',
+          'Use "pgit preset add --global <name> <path1> [path2]..." to create a global preset.',
         );
       } else {
         const totalUser = localUserNames.length + globalUserNames.length;
