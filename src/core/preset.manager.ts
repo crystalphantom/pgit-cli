@@ -1,5 +1,5 @@
 import path from 'path';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { Preset, BuiltinPresets } from '../types/config.types';
 import { BuiltinPresetsSchema } from '../types/config.schema';
 import { ConfigManager } from './config.manager';
@@ -264,15 +264,19 @@ export class PresetManager {
     }
 
     try {
-      // Find presets.tson relative to this module
-      const presetsPath = path.join(__dirname, '../../presets.tson');
+      // Find presets.json from the pgit project root directory
+      // We need to find the directory that contains pgit configuration
+      const projectRoot = this.findProjectRoot();
+      const presetsPath = path.join(projectRoot, 'presets.json');
       const presetsContent = readFileSync(presetsPath, 'utf-8');
       const presetsJson = JSON.parse(presetsContent);
 
       // Validate the structure
       this.builtinPresets = BuiltinPresetsSchema.parse(presetsJson);
 
-      logger.debug(`Loaded ${Object.keys(this.builtinPresets.presets).length} built-in presets`);
+      logger.debug(
+        `Loaded ${Object.keys(this.builtinPresets.presets).length} built-in presets from ${presetsPath}`,
+      );
       return this.builtinPresets;
     } catch (error) {
       if (error instanceof Error && error.name === 'ZodError') {
@@ -280,6 +284,56 @@ export class PresetManager {
       }
       throw new PresetError(`Failed to load built-in presets: ${error}`);
     }
+  }
+
+  /**
+   * Find the pgit project root directory by looking for presets.json
+   * Start from ConfigManager's working directory and walk up
+   */
+  private findProjectRoot(): string {
+    // First, try the ConfigManager's working directory (extracted from configPath)
+    const configPath = this.configManager.getConfigPath();
+    const workingDir = path.dirname(configPath);
+
+    // Walk up directories to find presets.json
+    let currentDir = workingDir;
+    const maxDepth = 10; // Prevent infinite loops
+    let depth = 0;
+
+    while (depth < maxDepth) {
+      const presetsPath = path.join(currentDir, 'presets.json');
+      if (existsSync(presetsPath)) {
+        logger.debug(`Found pgit project root at: ${currentDir}`);
+        return currentDir;
+      }
+
+      const parentDir = path.dirname(currentDir);
+      if (parentDir === currentDir) {
+        // Reached filesystem root
+        break;
+      }
+      currentDir = parentDir;
+      depth++;
+    }
+
+    // Fallback: look for presets.json in common locations
+    const fallbackPaths = [
+      process.cwd(), // Current working directory
+      path.join(__dirname, '..', '..'), // Assuming we're in src/core and need to go to project root
+      path.join(__dirname, '..', '..', '..'), // In case we're in dist/core
+    ];
+
+    for (const fallbackPath of fallbackPaths) {
+      const presetsPath = path.join(fallbackPath, 'presets.json');
+      if (existsSync(presetsPath)) {
+        logger.debug(`Found pgit project root at fallback location: ${fallbackPath}`);
+        return fallbackPath;
+      }
+    }
+
+    throw new PresetError(
+      `Could not find presets.json in project directories. Searched from ${workingDir} up to filesystem root and common fallback locations.`,
+    );
   }
 
   /**

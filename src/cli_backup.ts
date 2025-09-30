@@ -252,52 +252,6 @@ async function main(): Promise<void> {
       }
     });
 
-  presetCmd
-    .command('add <preset-name> <paths...>')
-    .description('Add a new user preset with specified paths (alias for define)')
-    .option('-g, --global', 'Create a global preset (available across all projects)')
-    .action(async (presetName, paths, options) => {
-      try {
-        const presetCommand = new PresetCommand();
-        const result = await presetCommand.add(presetName, paths, {
-          verbose: options.parent?.parent?.verbose || false,
-          global: options.global || false,
-        });
-
-        if (result.success) {
-          // Success message is handled by the command itself
-        } else {
-          logger.error(result.message || 'Failed to add preset');
-          process.exit(result.exitCode);
-        }
-      } catch (error) {
-        handleError(error);
-      }
-    });
-
-  presetCmd
-    .command('remove <preset-name>')
-    .description('Remove a user-defined preset (alias for undefine)')
-    .option('-g, --global', 'Remove a global preset')
-    .action(async (presetName, options) => {
-      try {
-        const presetCommand = new PresetCommand();
-        const result = await presetCommand.remove(presetName, {
-          verbose: options.parent?.parent?.verbose || false,
-          global: options.global || false,
-        });
-
-        if (result.success) {
-          // Success message is handled by the command itself
-        } else {
-          logger.error(result.message || 'Failed to remove preset');
-          process.exit(result.exitCode);
-        }
-      } catch (error) {
-        handleError(error);
-      }
-    });
-
   // Git log command
   program
     .command('log')
