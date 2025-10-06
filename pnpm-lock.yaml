@@ -27,11 +27,11 @@ importers:
         specifier: ^3.19.0
         version: 3.28.0
       zod:
-        specifier: ^4.1.9
+        specifier: ^4.1.11
         version: 4.1.11
     devDependencies:
       '@eslint/js':
-        specifier: ^9.35.0
+        specifier: ^9.36.0
         version: 9.36.0
       '@release-it/conventional-changelog':
         specifier: ^10.0.1
@@ -43,7 +43,7 @@ importers:
         specifier: ^30.0.0
         version: 30.0.0
       '@types/node':
-        specifier: ^24.3.3
+        specifier: ^24.5.2
         version: 24.5.2
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.43.0
@@ -67,7 +67,7 @@ importers:
         specifier: ^3.0.0
         version: 3.6.2
       release-it:
-        specifier: ^19.0.4
+        specifier: ^19.0.5
         version: 19.0.5(@types/node@24.5.2)
       semver:
         specifier: ^7.7.2
