@@ -84,8 +84,20 @@ export interface PrivateConfigAddResult {
   commitHash?: string;
 }
 
+export interface PrivateConfigRemoveResult {
+  projectId: string;
+  entries: PrivateConfigEntry[];
+  removedPrivatePaths: string[];
+}
+
 export interface PrivateConfigAddOptions {
   noCommit?: boolean;
+}
+
+interface PrivateConfigAddCandidate {
+  repoPath: string;
+  absoluteRepoPath: string;
+  type: PrivateConfigEntryType;
 }
 
 interface GitIdentity {
@@ -121,32 +133,27 @@ export class PrivateConfigSyncManager {
     repoPathInput: string | string[],
     options: PrivateConfigAddOptions = {},
   ): Promise<PrivateConfigAddResult> {
+    const candidates = await this.validateAddCandidates(repoPathInput);
     const manifest = await this.loadOrCreateManifest();
-    const inputs = Array.isArray(repoPathInput) ? repoPathInput : [repoPathInput];
-    const uniqueInputs = [...new Set(inputs)];
     const entries: PrivateConfigEntry[] = [];
     const untrackedFromMainGit: string[] = [];
 
-    for (const input of uniqueInputs) {
-      const repoPath = this.normalizeRepoPath(input);
-      const absoluteRepoPath = path.join(this.workingDir, repoPath);
-
-      if (!(await fs.pathExists(absoluteRepoPath))) {
-        throw new PrivateConfigSyncError(`Path does not exist: ${repoPath}`);
-      }
-
-      const stats = await fs.stat(absoluteRepoPath);
-      const type: PrivateConfigEntryType = stats.isDirectory() ? 'directory' : 'file';
-      const privatePath = this.getPrivatePath(manifest.projectId, repoPath);
+    for (const candidate of candidates) {
+      const privatePath = this.getPrivatePath(manifest.projectId, candidate.repoPath);
 
       await fs.ensureDir(path.dirname(privatePath));
-      await fs.copy(absoluteRepoPath, privatePath, { overwrite: true, errorOnExist: false });
+      await fs.copy(candidate.absoluteRepoPath, privatePath, {
+        overwrite: true,
+        errorOnExist: false,
+      });
 
-      const removedPaths = await this.removeTrackedPathsFromMainGit(repoPath);
+      const removedPaths = await this.removeTrackedPathsFromMainGit(candidate.repoPath);
       untrackedFromMainGit.push(...removedPaths);
 
-      const entry = await this.buildEntry(manifest.projectId, repoPath, type);
-      const existingIndex = manifest.entries.findIndex(item => item.repoPath === repoPath);
+      const entry = await this.buildEntry(manifest.projectId, candidate.repoPath, candidate.type);
+      const existingIndex = manifest.entries.findIndex(
+        item => item.repoPath === candidate.repoPath,
+      );
 
       if (existingIndex >= 0) {
         manifest.entries[existingIndex] = entry;
@@ -169,9 +176,39 @@ export class PrivateConfigSyncManager {
     return {
       projectId: manifest.projectId,
       entries,
-      untrackedPaths: uniqueInputs.map(input => this.normalizeRepoPath(input)),
+      untrackedPaths: candidates.map(candidate => candidate.repoPath),
       untrackedFromMainGit: [...new Set(untrackedFromMainGit)],
       commitHash,
+    };
+  }
+
+  public async remove(repoPathInput: string | string[]): Promise<PrivateConfigRemoveResult> {
+    const manifest = await this.loadManifest();
+    const repoPaths = this.normalizeRepoPathInputs(repoPathInput);
+    const entries = repoPaths
+      .map(repoPath => manifest.entries.find(entry => entry.repoPath === repoPath))
+      .filter((entry): entry is PrivateConfigEntry => Boolean(entry));
+    const missing = repoPaths.filter(
+      repoPath => !entries.some(entry => entry.repoPath === repoPath),
+    );
+
+    if (missing.length > 0) {
+      throw new PrivateConfigSyncError(`Private config path is not tracked: ${missing.join(', ')}`);
+    }
+
+    manifest.entries = manifest.entries.filter(entry => !repoPaths.includes(entry.repoPath));
+    for (const entry of entries) {
+      await fs.remove(entry.privatePath);
+    }
+
+    await this.saveManifest(manifest);
+    await this.saveCheckoutState(manifest);
+    await this.installHooks();
+
+    return {
+      projectId: manifest.projectId,
+      entries,
+      removedPrivatePaths: entries.map(entry => entry.privatePath),
     };
   }
 
@@ -220,8 +257,7 @@ export class PrivateConfigSyncManager {
 
   public async installHooks(): Promise<void> {
     const manifest = await this.loadOrCreateManifest();
-    const gitDir = await this.getGitDir();
-    const hooksDir = path.join(gitDir, 'hooks');
+    const hooksDir = await this.getHooksDir();
     await fs.ensureDir(hooksDir);
 
     await fs.writeFile(path.join(hooksDir, 'pre-commit'), this.preCommitHook(manifest.projectId), {
@@ -422,6 +458,32 @@ export class PrivateConfigSyncManager {
     return value.replace(/[^a-zA-Z0-9._-]/g, '-').replace(/^-+|-+$/g, '') || 'project';
   }
 
+  private async validateAddCandidates(
+    repoPathInput: string | string[],
+  ): Promise<PrivateConfigAddCandidate[]> {
+    const repoPaths = this.normalizeRepoPathInputs(repoPathInput);
+    const candidates: PrivateConfigAddCandidate[] = [];
+
+    for (const repoPath of repoPaths) {
+      const absoluteRepoPath = path.join(this.workingDir, ...repoPath.split('/'));
+
+      if (!(await fs.pathExists(absoluteRepoPath))) {
+        throw new PrivateConfigSyncError(`Path does not exist: ${repoPath}`);
+      }
+
+      const stats = await fs.stat(absoluteRepoPath);
+      const type: PrivateConfigEntryType = stats.isDirectory() ? 'directory' : 'file';
+      candidates.push({ repoPath, absoluteRepoPath, type });
+    }
+
+    return candidates;
+  }
+
+  private normalizeRepoPathInputs(repoPathInput: string | string[]): string[] {
+    const inputs = Array.isArray(repoPathInput) ? repoPathInput : [repoPathInput];
+    return [...new Set(inputs.map(input => this.normalizeRepoPath(input)))];
+  }
+
   private normalizeRepoPath(repoPathInput: string): string {
     const absolute = path.resolve(this.workingDir, repoPathInput);
     const relative = path.relative(this.workingDir, absolute);
@@ -587,9 +649,19 @@ export class PrivateConfigSyncManager {
     return match?.[1] || '';
   }
 
-  private async getGitDir(): Promise<string> {
-    const gitDir = await this.gitOutput(['rev-parse', '--git-dir']);
-    return path.isAbsolute(gitDir) ? gitDir : path.resolve(this.workingDir, gitDir);
+  private async getHooksDir(): Promise<string> {
+    const repoRoot = await this.gitOutput(['rev-parse', '--show-toplevel']);
+    const hooksPath = await this.gitOutput(['config', '--get', 'core.hooksPath']).catch(() => '');
+
+    if (hooksPath) {
+      return path.isAbsolute(hooksPath) ? hooksPath : path.resolve(repoRoot, hooksPath);
+    }
+
+    const commonGitDir = await this.gitOutput(['rev-parse', '--git-common-dir']);
+    const resolvedCommonGitDir = path.isAbsolute(commonGitDir)
+      ? commonGitDir
+      : path.resolve(repoRoot, commonGitDir);
+    return path.join(resolvedCommonGitDir, 'hooks');
   }
 
   private async gitOutput(args: string[]): Promise<string> {

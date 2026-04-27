@@ -1,8 +1,10 @@
 import { ConfigCommand } from '../../commands/config.command';
 import { CentralizedConfigManager } from '../../core/centralized-config.manager';
+import { PrivateConfigSyncManager } from '../../core/private-config-sync.manager';
 
 // Mock dependencies
 jest.mock('../../core/centralized-config.manager');
+jest.mock('../../core/private-config-sync.manager');
 jest.mock('../../utils/logger.service', () => ({
   logger: {
     error: jest.fn(),
@@ -17,10 +19,14 @@ jest.mock('fs-extra', () => ({
 const MockedCentralizedConfigManager = CentralizedConfigManager as jest.MockedClass<
   typeof CentralizedConfigManager
 >;
+const MockedPrivateConfigSyncManager = PrivateConfigSyncManager as jest.MockedClass<
+  typeof PrivateConfigSyncManager
+>;
 
 describe('ConfigCommand', () => {
   let configCommand: ConfigCommand;
   let mockCentralizedConfigManager: jest.Mocked<CentralizedConfigManager>;
+  let mockPrivateConfigSyncManager: jest.Mocked<PrivateConfigSyncManager>;
   let consoleSpy: jest.SpyInstance;
   let consoleErrorSpy: jest.SpyInstance;
 
@@ -47,6 +53,14 @@ describe('ConfigCommand', () => {
 
     // Mock constructor to return our mocked instance
     MockedCentralizedConfigManager.mockImplementation(() => mockCentralizedConfigManager);
+
+    mockPrivateConfigSyncManager = new MockedPrivateConfigSyncManager(
+      '',
+    ) as jest.Mocked<PrivateConfigSyncManager>;
+    mockPrivateConfigSyncManager.add = jest.fn();
+    mockPrivateConfigSyncManager.remove = jest.fn();
+    mockPrivateConfigSyncManager.syncPush = jest.fn();
+    MockedPrivateConfigSyncManager.mockImplementation(() => mockPrivateConfigSyncManager);
 
     configCommand = new ConfigCommand('/test/workspace');
   });
@@ -304,6 +318,106 @@ describe('ConfigCommand', () => {
       expect(result.exitCode).toBe(1);
       expect(result.error).toBe(error);
       expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error: Info retrieval failed');
+    });
+  });
+
+  describe('executePrivateAdd', () => {
+    it('should add private config and sync push by default', async () => {
+      mockPrivateConfigSyncManager.add.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        untrackedPaths: ['rules.md'],
+        untrackedFromMainGit: [],
+      });
+      mockPrivateConfigSyncManager.syncPush.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [{ repoPath: 'rules.md', type: 'file', state: 'up-to-date' }],
+        backups: [],
+      });
+
+      const result = await configCommand.executePrivateAdd('rules.md');
+
+      expect(result.success).toBe(true);
+      expect(mockPrivateConfigSyncManager.add).toHaveBeenCalledWith('rules.md', { noCommit: false });
+      expect(mockPrivateConfigSyncManager.syncPush).toHaveBeenCalled();
+    });
+
+    it('should skip sync push when disabled', async () => {
+      mockPrivateConfigSyncManager.add.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        untrackedPaths: ['rules.md'],
+        untrackedFromMainGit: [],
+      });
+
+      const result = await configCommand.executePrivateAdd('rules.md', false, false);
+
+      expect(result.success).toBe(true);
+      expect(mockPrivateConfigSyncManager.syncPush).not.toHaveBeenCalled();
+    });
+
+    it('should fail clearly when sync push fails after add succeeds', async () => {
+      const addResult = {
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file' as const,
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        untrackedPaths: ['rules.md'],
+        untrackedFromMainGit: [],
+      };
+      mockPrivateConfigSyncManager.add.mockResolvedValue(addResult);
+      mockPrivateConfigSyncManager.syncPush.mockRejectedValue(new Error('Sync conflict'));
+
+      const result = await configCommand.executePrivateAdd('rules.md');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Private config added, but sync push failed: Sync conflict');
+      expect(result.data).toBe(addResult);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        '❌ Error: Private config was added, but automatic sync push failed: Sync conflict',
+      );
+    });
+  });
+
+  describe('executePrivateRemove', () => {
+    it('should remove private config tracking', async () => {
+      mockPrivateConfigSyncManager.remove.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        removedPrivatePaths: ['/private/rules.md'],
+      });
+
+      const result = await configCommand.executePrivateRemove('rules.md');
+
+      expect(result.success).toBe(true);
+      expect(mockPrivateConfigSyncManager.remove).toHaveBeenCalledWith('rules.md');
+      expect(result.message).toBe('Private config removed: rules.md');
     });
   });
 
