@@ -5,6 +5,7 @@ import { Preset, BuiltinPresets } from '../types/config.types';
 import { BuiltinPresetsSchema } from '../types/config.schema';
 import { ConfigManager } from './config.manager';
 import { GlobalPresetManager } from './global-preset.manager';
+import { CentralizedConfigManager } from './centralized-config.manager';
 import { BaseError } from '../errors/base.error';
 import { logger } from '../utils/logger.service';
 
@@ -128,35 +129,243 @@ export class PresetValidationError extends BaseError {
  * Manager for handling built-in and user-defined presets
  */
 export class PresetManager {
-  private builtinPresets: BuiltinPresets | null = null;
   private readonly configManager: ConfigManager;
   private readonly globalPresetManager: GlobalPresetManager;
+  private readonly centralizedConfigManager: CentralizedConfigManager;
+  private readonly workingDirectory: string;
 
-  constructor(configManager: ConfigManager) {
+  constructor(configManager: ConfigManager, workingDirectory?: string) {
     this.configManager = configManager;
     this.globalPresetManager = new GlobalPresetManager();
+    this.workingDirectory = workingDirectory || process.cwd();
+    this.centralizedConfigManager = new CentralizedConfigManager(this.workingDirectory);
   }
 
   /**
    * Get a specific preset by name
-   * Priority: Local user presets > Global user presets > Built-in presets
+   * Priority: Project-specific > Global user > Package built-in
    */
   public async getPreset(name: string): Promise<Preset | undefined> {
-    // First check local user presets (project-specific)
-    const localUserPresets = await this.getLocalUserPresets();
+    try {
+      await this.centralizedConfigManager.initializeGlobalConfig();
+      return await this.centralizedConfigManager.getPreset(name);
+    } catch (error) {
+      logger.warn(`Failed to get preset from centralized config, falling back to legacy: ${error}`);
+      return this.getLegacyPreset(name);
+    }
+  }
+
+  /**
+   * Get all available presets from all sources
+   * Priority: Project-specific > Global user > Package built-in
+   */
+  public async getAllPresets(): Promise<{
+    builtin: Record<string, Preset>;
+    localUser: Record<string, Preset>;
+    globalUser: Record<string, Preset>;
+    merged: Record<string, Preset>;
+  }> {
+    try {
+      await this.centralizedConfigManager.initializeGlobalConfig();
+      const allPresets = await this.centralizedConfigManager.getAllPresets();
+
+      return {
+        builtin: allPresets.package || {},
+        localUser: allPresets.project || {},
+        globalUser: allPresets.global || {},
+        merged: allPresets.merged || {},
+      };
+    } catch (error) {
+      logger.warn(
+        `Failed to get all presets from centralized config, falling back to legacy: ${error}`,
+      );
+      return this.getLegacyAllPresets();
+    }
+  }
+
+  /**
+   * Save a user-defined preset (project-specific or global)
+   */
+  public async saveUserPreset(
+    name: string,
+    preset: Preset,
+    global: boolean = false,
+  ): Promise<void> {
+    try {
+      await this.centralizedConfigManager.initializeGlobalConfig();
+      const scope = global ? 'global' : 'project';
+      await this.centralizedConfigManager.savePreset(name, preset, scope);
+    } catch (error) {
+      logger.warn(`Failed to save preset via centralized config, falling back to legacy: ${error}`);
+      if (global) {
+        return this.saveGlobalUserPreset(name, preset);
+      } else {
+        return this.saveLocalUserPreset(name, preset);
+      }
+    }
+  }
+
+  /**
+   * Save a project-specific user-defined preset
+   */
+  public async saveLocalUserPreset(name: string, preset: Preset): Promise<void> {
+    try {
+      await this.centralizedConfigManager.initializeGlobalConfig();
+      await this.centralizedConfigManager.savePreset(name, preset, 'project');
+    } catch (error) {
+      logger.warn(
+        `Failed to save project preset via centralized config, falling back to legacy: ${error}`,
+      );
+      return this.saveLegacyLocalUserPreset(name, preset);
+    }
+  }
+
+  /**
+   * Save a global user-defined preset
+   */
+  public async saveGlobalUserPreset(name: string, preset: Preset): Promise<void> {
+    try {
+      await this.centralizedConfigManager.initializeGlobalConfig();
+      await this.centralizedConfigManager.savePreset(name, preset, 'global');
+    } catch (error) {
+      logger.warn(
+        `Failed to save global preset via centralized config, falling back to legacy: ${error}`,
+      );
+      this.globalPresetManager.savePreset(name, preset);
+    }
+  }
+
+  /**
+   * Remove a user-defined preset (project-specific or global)
+   */
+  public async removeUserPreset(name: string, global: boolean = false): Promise<boolean> {
+    try {
+      await this.centralizedConfigManager.initializeGlobalConfig();
+      const scope = global ? 'global' : 'project';
+      await this.centralizedConfigManager.removePreset(name, scope);
+      return true;
+    } catch (error) {
+      logger.warn(
+        `Failed to remove preset via centralized config, falling back to legacy: ${error}`,
+      );
+      if (global) {
+        return this.removeGlobalUserPreset(name);
+      } else {
+        return this.removeLocalUserPreset(name);
+      }
+    }
+  }
+
+  /**
+   * Remove a project-specific user-defined preset
+   */
+  public async removeLocalUserPreset(name: string): Promise<boolean> {
+    try {
+      await this.centralizedConfigManager.initializeGlobalConfig();
+      await this.centralizedConfigManager.removePreset(name, 'project');
+      return true;
+    } catch (error) {
+      logger.warn(
+        `Failed to remove project preset via centralized config, falling back to legacy: ${error}`,
+      );
+      return this.removeLegacyLocalUserPreset(name);
+    }
+  }
+
+  /**
+   * Remove a global user-defined preset
+   */
+  public removeGlobalUserPreset(name: string): boolean {
+    try {
+      this.centralizedConfigManager
+        .initializeGlobalConfig()
+        .then(() => {
+          return this.centralizedConfigManager.removePreset(name, 'global');
+        })
+        .catch(error => {
+          logger.warn(
+            `Failed to remove global preset via centralized config, falling back to legacy: ${error}`,
+          );
+          return this.globalPresetManager.removePreset(name);
+        });
+      return true;
+    } catch (error) {
+      logger.warn(
+        `Failed to remove global preset via centralized config, falling back to legacy: ${error}`,
+      );
+      return this.globalPresetManager.removePreset(name);
+    }
+  }
+
+  /**
+   * Check if a preset exists
+   */
+  public async presetExists(name: string): Promise<boolean> {
+    const preset = await this.getPreset(name);
+    return preset !== undefined;
+  }
+
+  /**
+   * Get preset source type
+   */
+  public async getPresetSource(
+    name: string,
+  ): Promise<'localUser' | 'globalUser' | 'builtin' | 'none'> {
+    try {
+      await this.centralizedConfigManager.initializeGlobalConfig();
+      const source = await this.centralizedConfigManager.getPresetSource(name);
+
+      // Map centralized config sources to legacy names
+      switch (source) {
+        case 'project':
+          return 'localUser';
+        case 'global':
+          return 'globalUser';
+        case 'package':
+          return 'builtin';
+        case 'none':
+          return 'none';
+        default:
+          return 'none';
+      }
+    } catch (error) {
+      logger.warn(
+        `Failed to get preset source from centralized config, falling back to legacy: ${error}`,
+      );
+      return this.getLegacyPresetSource(name);
+    }
+  }
+
+  /**
+   * Update last used timestamp for a preset
+   */
+  public async markPresetUsed(name: string): Promise<void> {
+    try {
+      await this.centralizedConfigManager.initializeGlobalConfig();
+      await this.centralizedConfigManager.markPresetUsed(name);
+    } catch (error) {
+      logger.warn(
+        `Failed to mark preset used via centralized config, falling back to legacy: ${error}`,
+      );
+      return this.markLegacyPresetUsed(name);
+    }
+  }
+
+  // Legacy fallback methods for backward compatibility
+
+  private async getLegacyPreset(name: string): Promise<Preset | undefined> {
+    const localUserPresets = await this.getLegacyLocalUserPresets();
     if (localUserPresets[name]) {
       logger.debug(`Found local user preset: ${name}`);
       return localUserPresets[name];
     }
 
-    // Then check global user presets
     const globalPreset = this.globalPresetManager.getPreset(name);
     if (globalPreset) {
       logger.debug(`Found global user preset: ${name}`);
       return globalPreset;
     }
 
-    // Finally check built-in presets
     const builtinPresets = this.getBuiltinPresets();
     if (builtinPresets.presets[name]) {
       logger.debug(`Found built-in preset: ${name}`);
@@ -166,21 +375,16 @@ export class PresetManager {
     return undefined;
   }
 
-  /**
-   * Get all available presets (local user, global user, and built-in)
-   * Priority: Local user presets > Global user presets > Built-in presets
-   */
-  public async getAllPresets(): Promise<{
+  private async getLegacyAllPresets(): Promise<{
     builtin: Record<string, Preset>;
     localUser: Record<string, Preset>;
     globalUser: Record<string, Preset>;
     merged: Record<string, Preset>;
   }> {
     const builtinPresets = this.getBuiltinPresets();
-    const localUserPresets = await this.getLocalUserPresets();
+    const localUserPresets = await this.getLegacyLocalUserPresets();
     const globalUserPresets = this.globalPresetManager.getAllPresets();
 
-    // Merge presets with local user presets taking highest precedence
     const merged = {
       ...builtinPresets.presets,
       ...globalUserPresets,
@@ -195,27 +399,8 @@ export class PresetManager {
     };
   }
 
-  /**
-   * Save a user-defined preset (local or global)
-   */
-  public async saveUserPreset(
-    name: string,
-    preset: Preset,
-    global: boolean = false,
-  ): Promise<void> {
-    if (global) {
-      return this.saveGlobalUserPreset(name, preset);
-    } else {
-      return this.saveLocalUserPreset(name, preset);
-    }
-  }
-
-  /**
-   * Save a local user-defined preset (project-specific)
-   */
-  public async saveLocalUserPreset(name: string, preset: Preset): Promise<void> {
+  private async saveLegacyLocalUserPreset(name: string, preset: Preset): Promise<void> {
     try {
-      // Validate preset name
       if (!name || name.trim().length === 0) {
         throw new PresetValidationError('Preset name cannot be empty');
       }
@@ -224,24 +409,18 @@ export class PresetManager {
         throw new PresetValidationError('Preset name too long (max 50 characters)');
       }
 
-      // Add created timestamp if not present
       const presetToSave: Preset = {
         ...preset,
         created: preset.created || new Date(),
       };
 
-      // Get current config
       const config = await this.configManager.load();
 
-      // Initialize presets if not exists
       if (!config.presets) {
         config.presets = {};
       }
 
-      // Save the preset
       config.presets[name] = presetToSave;
-
-      // Save config
       await this.configManager.save(config);
 
       logger.debug(`Local user preset '${name}' saved to project configuration`);
@@ -253,28 +432,7 @@ export class PresetManager {
     }
   }
 
-  /**
-   * Save a global user-defined preset
-   */
-  public saveGlobalUserPreset(name: string, preset: Preset): void {
-    return this.globalPresetManager.savePreset(name, preset);
-  }
-
-  /**
-   * Remove a user-defined preset (local or global)
-   */
-  public async removeUserPreset(name: string, global: boolean = false): Promise<boolean> {
-    if (global) {
-      return this.removeGlobalUserPreset(name);
-    } else {
-      return this.removeLocalUserPreset(name);
-    }
-  }
-
-  /**
-   * Remove a local user-defined preset
-   */
-  public async removeLocalUserPreset(name: string): Promise<boolean> {
+  private async removeLegacyLocalUserPreset(name: string): Promise<boolean> {
     try {
       const config = await this.configManager.load();
 
@@ -292,28 +450,20 @@ export class PresetManager {
     }
   }
 
-  /**
-   * Remove a global user-defined preset
-   */
-  public removeGlobalUserPreset(name: string): boolean {
-    return this.globalPresetManager.removePreset(name);
+  private async getLegacyLocalUserPresets(): Promise<Record<string, Preset>> {
+    try {
+      const config = await this.configManager.load();
+      return config.presets || {};
+    } catch {
+      logger.debug('No local user presets available (config not found)');
+      return {};
+    }
   }
 
-  /**
-   * Check if a preset exists (local user, global user, or built-in)
-   */
-  public async presetExists(name: string): Promise<boolean> {
-    const preset = await this.getPreset(name);
-    return preset !== undefined;
-  }
-
-  /**
-   * Get preset source type
-   */
-  public async getPresetSource(
+  private async getLegacyPresetSource(
     name: string,
   ): Promise<'localUser' | 'globalUser' | 'builtin' | 'none'> {
-    const localUserPresets = await this.getLocalUserPresets();
+    const localUserPresets = await this.getLegacyLocalUserPresets();
     if (localUserPresets[name]) {
       return 'localUser';
     }
@@ -331,13 +481,9 @@ export class PresetManager {
     return 'none';
   }
 
-  /**
-   * Update last used timestamp for a preset
-   */
-  public async markPresetUsed(name: string): Promise<void> {
-    const source = await this.getPresetSource(name);
+  private async markLegacyPresetUsed(name: string): Promise<void> {
+    const source = await this.getLegacyPresetSource(name);
 
-    // Update timestamp for user presets
     if (source === 'localUser') {
       try {
         const config = await this.configManager.load();
@@ -346,7 +492,6 @@ export class PresetManager {
           await this.configManager.save(config);
         }
       } catch (error) {
-        // Don't throw error for timestamp update failures
         logger.warn(`Failed to update last used timestamp for local preset '${name}': ${error}`);
       }
     } else if (source === 'globalUser') {
@@ -355,7 +500,7 @@ export class PresetManager {
   }
 
   /**
-   * Load built-in presets from presets.tson
+   * Load built-in presets from presets.json
    */
   private getBuiltinPresets(): BuiltinPresets {
     if (this.builtinPresets) {
@@ -363,49 +508,29 @@ export class PresetManager {
     }
 
     try {
-      // Find presets.json relative to this package's installation
       let presetsPath: string;
-      let packageRoot: string; // Move this outside the conditional block
+      let packageRoot: string;
 
-      // In development (when running from source), look in current directory
       if (
         process.env['NODE_ENV'] === 'development' ||
         existsSync(path.join(process.cwd(), 'src')) ||
-        getModuleFilename().includes('/src/') || // Running from TypeScript source
-        process.env['JEST_WORKER_ID'] // Running in Jest test environment
+        getModuleFilename().includes('/src/') ||
+        process.env['JEST_WORKER_ID']
       ) {
         presetsPath = path.join(process.cwd(), 'presets.json');
-        packageRoot = process.cwd(); // Set for debug output
+        packageRoot = process.cwd();
       } else {
-        // In production (global install), find presets.json relative to this module
-
+        // Try to resolve the pgit-cli package location using module resolution
         try {
-          // Method 1: Use the actual module location from getModuleDirname()
-          // For compiled JS in global install, this will be something like:
-          // /usr/local/lib/node_modules/pgit-cli/dist/core/ -> /usr/local/lib/node_modules/pgit-cli/
           const moduleDir = getModuleDirname();
-          if (moduleDir.includes('node_modules') && moduleDir.includes('pgit-cli')) {
-            // Extract the package root from the module path
-            const pgitIndex = moduleDir.indexOf('pgit-cli');
-            if (pgitIndex !== -1) {
-              packageRoot = moduleDir.substring(0, pgitIndex + 'pgit-cli'.length);
-            } else {
-              // Fallback: Go up from dist/core to package root
-              packageRoot = path.resolve(moduleDir, '..', '..');
-            }
-          } else {
-            // Fallback: Go up from dist/core to package root
-            packageRoot = path.resolve(moduleDir, '..', '..');
-          }
+          packageRoot = path.dirname(path.dirname(moduleDir)); // Go up two levels from dist/core to package root
+          presetsPath = path.join(packageRoot, 'presets.json');
         } catch {
-          // Method 2: Use process.argv[1] (the CLI script path) to find package root
           const cliPath = process.argv[1] || '';
           try {
             const realCliPath = realpathSync(cliPath);
-            // For global install, CLI is usually in bin/ directory, so go up one level
             const cliDir = path.dirname(realCliPath);
             if (cliDir.includes('node_modules') && cliDir.includes('pgit-cli')) {
-              // Extract the package root from the CLI path
               const pgitIndex = cliDir.indexOf('pgit-cli');
               if (pgitIndex !== -1) {
                 packageRoot = cliDir.substring(0, pgitIndex + 'pgit-cli'.length);
@@ -416,12 +541,10 @@ export class PresetManager {
               packageRoot = path.resolve(cliDir, '..');
             }
           } catch {
-            // Final fallback
             packageRoot = path.dirname(cliPath);
           }
+          presetsPath = path.join(packageRoot, 'presets.json');
         }
-
-        presetsPath = path.join(packageRoot, 'presets.json');
       }
 
       if (!existsSync(presetsPath)) {
@@ -434,7 +557,6 @@ export class PresetManager {
       const presetsContent = readFileSync(presetsPath, 'utf-8');
       const presetsJson = JSON.parse(presetsContent);
 
-      // Validate the structure
       this.builtinPresets = BuiltinPresetsSchema.parse(presetsJson);
 
       logger.debug(
@@ -449,17 +571,5 @@ export class PresetManager {
     }
   }
 
-  /**
-   * Load local user-defined presets from config
-   */
-  private async getLocalUserPresets(): Promise<Record<string, Preset>> {
-    try {
-      const config = await this.configManager.load();
-      return config.presets || {};
-    } catch {
-      // If config doesn't exist, return empty presets
-      logger.debug('No local user presets available (config not found)');
-      return {};
-    }
-  }
+  private builtinPresets: BuiltinPresets | null = null;
 }

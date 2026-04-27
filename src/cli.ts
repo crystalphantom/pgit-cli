@@ -12,6 +12,7 @@ import { GitOpsCommand } from './commands/gitops.command';
 import { CleanupCommand } from './commands/cleanup.command';
 import { ResetCommand } from './commands/reset.command';
 import { PresetCommand } from './commands/preset.command';
+import { ConfigCommand } from './commands/config.command';
 import { EnhancedErrorHandler } from './errors/enhanced.error-handler';
 import { logger, LogLevel } from './utils/logger.service';
 import { FALLBACK_VERSION } from './types/config.types';
@@ -413,6 +414,10 @@ async function main(): Promise<void> {
         handleError(error);
       }
     });
+
+  // Config commands
+  const configCommand = new ConfigCommand();
+  configCommand.register(program);
 
   // Handle help command specially to ensure proper exit codes
   const args = process.argv.slice(2);
