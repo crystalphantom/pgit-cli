@@ -93,8 +93,23 @@ export class ConfigCommand {
       .command('add <paths...>')
       .description('Add root-path private config files or directories')
       .option('--no-commit', 'Do not auto-commit removal of already-tracked main Git paths')
+      .option('--no-sync-push', 'Do not automatically push private config changes after add')
       .action(async (targetPaths, options) => {
-        const result = await this.executePrivateAdd(targetPaths, options.noCommit);
+        const result = await this.executePrivateAdd(
+          targetPaths,
+          options.noCommit,
+          options.syncPush,
+        );
+        if (!result.success) {
+          process.exit(result.exitCode);
+        }
+      });
+
+    configCmd
+      .command('remove <paths...>')
+      .description('Remove root-path private config files or directories from pgit tracking')
+      .action(async targetPaths => {
+        const result = await this.executePrivateRemove(targetPaths);
         if (!result.success) {
           process.exit(result.exitCode);
         }
@@ -343,6 +358,7 @@ export class ConfigCommand {
   public async executePrivateAdd(
     targetPaths: string | string[],
     noCommit: boolean = false,
+    syncPush: boolean = true,
   ): Promise<CommandResult> {
     try {
       const result = await this.privateConfigSyncManager.add(targetPaths, { noCommit });
@@ -370,6 +386,31 @@ export class ConfigCommand {
         }
       }
 
+      if (syncPush) {
+        try {
+          const syncResult = await this.privateConfigSyncManager.syncPush();
+          console.log(
+            `✅ Private config pushed: ${syncResult.entries.length} entr${syncResult.entries.length === 1 ? 'y' : 'ies'}`,
+          );
+          this.printBackups(syncResult.backups);
+        } catch (syncError) {
+          const syncMessage = syncError instanceof Error ? syncError.message : String(syncError);
+          logger.error(`Failed to auto-push private config after add: ${syncMessage}`);
+          console.error(
+            `❌ Error: Private config was added, but automatic sync push failed: ${syncMessage}`,
+          );
+          console.error('Resolve the conflict or run: pgit config sync push --force');
+
+          return {
+            success: false,
+            message: `Private config added, but sync push failed: ${syncMessage}`,
+            data: result,
+            error: syncError instanceof Error ? syncError : new Error(String(syncError)),
+            exitCode: 1,
+          };
+        }
+      }
+
       return {
         success: true,
         message: `Private config added: ${result.entries.map(entry => entry.repoPath).join(', ')}`,
@@ -378,6 +419,30 @@ export class ConfigCommand {
       };
     } catch (error) {
       return this.handleConfigError(error, 'Failed to add private config');
+    }
+  }
+
+  public async executePrivateRemove(targetPaths: string | string[]): Promise<CommandResult> {
+    try {
+      const result = await this.privateConfigSyncManager.remove(targetPaths);
+
+      console.log(
+        `✅ Private config removed: ${result.entries.map(entry => entry.repoPath).join(', ')}`,
+      );
+      console.log(`📁 Project ID: ${result.projectId}`);
+      console.log('🛡️  Hooks updated: pre-commit, pre-push');
+      console.log(
+        'Repository files were left untouched and are no longer protected by pgit hooks.',
+      );
+
+      return {
+        success: true,
+        message: `Private config removed: ${result.entries.map(entry => entry.repoPath).join(', ')}`,
+        data: result,
+        exitCode: 0,
+      };
+    } catch (error) {
+      return this.handleConfigError(error, 'Failed to remove private config');
     }
   }
 
