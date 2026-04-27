@@ -1,0 +1,367 @@
+import { ConfigCommand } from '../../commands/config.command';
+import { CentralizedConfigManager } from '../../core/centralized-config.manager';
+
+// Mock dependencies
+jest.mock('../../core/centralized-config.manager');
+jest.mock('../../utils/logger.service', () => ({
+  logger: {
+    error: jest.fn(),
+  },
+}));
+
+// Mock fs-extra
+jest.mock('fs-extra', () => ({
+  copy: jest.fn(),
+}));
+
+const MockedCentralizedConfigManager = CentralizedConfigManager as jest.MockedClass<
+  typeof CentralizedConfigManager
+>;
+
+describe('ConfigCommand', () => {
+  let configCommand: ConfigCommand;
+  let mockCentralizedConfigManager: jest.Mocked<CentralizedConfigManager>;
+  let consoleSpy: jest.SpyInstance;
+  let consoleErrorSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Setup console spies
+    consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+    consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    // Mock CentralizedConfigManager
+    mockCentralizedConfigManager = new MockedCentralizedConfigManager(
+      '',
+    ) as jest.Mocked<CentralizedConfigManager>;
+    mockCentralizedConfigManager.initializeGlobalConfig = jest.fn();
+    mockCentralizedConfigManager.getConfigLocation = jest.fn();
+    mockCentralizedConfigManager.getGlobalPresetsFile = jest.fn();
+    mockCentralizedConfigManager.getProjectPresetsFile = jest.fn();
+    mockCentralizedConfigManager.isGlobalConfigInitialized = jest.fn();
+    mockCentralizedConfigManager.openConfigInEditor = jest.fn();
+    mockCentralizedConfigManager.resetGlobalConfig = jest.fn();
+    mockCentralizedConfigManager.getAllPresets = jest.fn();
+    mockCentralizedConfigManager.getPresetSource = jest.fn();
+
+    // Mock constructor to return our mocked instance
+    MockedCentralizedConfigManager.mockImplementation(() => mockCentralizedConfigManager);
+
+    configCommand = new ConfigCommand('/test/workspace');
+  });
+
+  afterEach(() => {
+    consoleSpy.mockRestore();
+    consoleErrorSpy.mockRestore();
+  });
+
+  describe('constructor', () => {
+    it('should initialize with default working directory when none provided', () => {
+      const originalCwd = process.cwd;
+      process.cwd = jest.fn().mockReturnValue('/default/dir');
+
+      const command = new ConfigCommand();
+      expect(command).toBeInstanceOf(ConfigCommand);
+
+      process.cwd = originalCwd;
+    });
+
+    it('should initialize with provided working directory', () => {
+      const command = new ConfigCommand('/custom/dir');
+      expect(command).toBeInstanceOf(ConfigCommand);
+    });
+  });
+
+  describe('executeInit', () => {
+    it('should initialize global configuration successfully', async () => {
+      mockCentralizedConfigManager.getConfigLocation.mockReturnValue('/home/user/.config/pgit');
+      mockCentralizedConfigManager.getGlobalPresetsFile.mockReturnValue(
+        '/home/user/.config/pgit/presets.json',
+      );
+
+      const result = await configCommand.executeInit();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Global configuration initialized');
+      expect(result.exitCode).toBe(0);
+      expect(mockCentralizedConfigManager.initializeGlobalConfig).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalledWith('✅ Global configuration initialized successfully!');
+      expect(consoleSpy).toHaveBeenCalledWith('📁 Config directory: /home/user/.config/pgit');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '📝 Presets file: /home/user/.config/pgit/presets.json',
+      );
+    });
+
+    it('should handle initialization errors', async () => {
+      const error = new Error('Initialization failed');
+      mockCentralizedConfigManager.initializeGlobalConfig.mockRejectedValue(error);
+
+      const result = await configCommand.executeInit();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Initialization failed');
+      expect(result.exitCode).toBe(1);
+      expect(result.error).toBe(error);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error: Initialization failed');
+    });
+
+    it('should handle non-Error values in initialization', async () => {
+      mockCentralizedConfigManager.initializeGlobalConfig.mockRejectedValue('String error');
+
+      const result = await configCommand.executeInit();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('String error');
+      expect(result.exitCode).toBe(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error: String error');
+    });
+  });
+
+  describe('executeLocation', () => {
+    it('should show configuration locations when initialized', async () => {
+      mockCentralizedConfigManager.getConfigLocation.mockReturnValue('/home/user/.config/pgit');
+      mockCentralizedConfigManager.getGlobalPresetsFile.mockReturnValue(
+        '/home/user/.config/pgit/presets.json',
+      );
+      mockCentralizedConfigManager.getProjectPresetsFile.mockReturnValue(
+        '/test/workspace/presets.json',
+      );
+      mockCentralizedConfigManager.isGlobalConfigInitialized.mockReturnValue(true);
+
+      const result = await configCommand.executeLocation();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Configuration location displayed');
+      expect(result.exitCode).toBe(0);
+      expect(consoleSpy).toHaveBeenCalledWith('📁 Configuration Locations:');
+      expect(consoleSpy).toHaveBeenCalledWith('   Global config: /home/user/.config/pgit ✅');
+    });
+
+    it('should show not initialized status when config is not initialized', async () => {
+      mockCentralizedConfigManager.getConfigLocation.mockReturnValue('/home/user/.config/pgit');
+      mockCentralizedConfigManager.getGlobalPresetsFile.mockReturnValue(
+        '/home/user/.config/pgit/presets.json',
+      );
+      mockCentralizedConfigManager.getProjectPresetsFile.mockReturnValue(
+        '/test/workspace/presets.json',
+      );
+      mockCentralizedConfigManager.isGlobalConfigInitialized.mockReturnValue(false);
+
+      const result = await configCommand.executeLocation();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Configuration location displayed');
+      expect(result.exitCode).toBe(0);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '   Global config: /home/user/.config/pgit ❌ (not initialized)',
+      );
+      expect(consoleSpy).toHaveBeenCalledWith('💡 Initialize with: pgit config init');
+    });
+
+    it('should handle errors when getting configuration location', async () => {
+      const error = new Error('Location access failed');
+      mockCentralizedConfigManager.getConfigLocation.mockImplementation(() => {
+        throw error;
+      });
+
+      const result = await configCommand.executeLocation();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Location access failed');
+      expect(result.exitCode).toBe(1);
+      expect(result.error).toBe(error);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error: Location access failed');
+    });
+  });
+
+  describe('executeEdit', () => {
+    it('should open editor when configuration is initialized', async () => {
+      mockCentralizedConfigManager.isGlobalConfigInitialized.mockReturnValue(true);
+
+      const result = await configCommand.executeEdit();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Configuration edited');
+      expect(result.exitCode).toBe(0);
+      expect(mockCentralizedConfigManager.openConfigInEditor).toHaveBeenCalled();
+    });
+
+    it('should initialize configuration before opening editor when not initialized', async () => {
+      mockCentralizedConfigManager.isGlobalConfigInitialized.mockReturnValue(false);
+
+      const result = await configCommand.executeEdit();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Configuration edited');
+      expect(result.exitCode).toBe(0);
+      expect(mockCentralizedConfigManager.initializeGlobalConfig).toHaveBeenCalled();
+      expect(mockCentralizedConfigManager.openConfigInEditor).toHaveBeenCalled();
+    });
+
+    it('should handle errors when opening editor', async () => {
+      const error = new Error('Editor open failed');
+      mockCentralizedConfigManager.isGlobalConfigInitialized.mockReturnValue(true);
+      mockCentralizedConfigManager.openConfigInEditor.mockRejectedValue(error);
+
+      const result = await configCommand.executeEdit();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Editor open failed');
+      expect(result.exitCode).toBe(1);
+      expect(result.error).toBe(error);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error: Editor open failed');
+    });
+  });
+
+  describe('executeReset', () => {
+    it('should require force flag for reset', async () => {
+      const result = await configCommand.executeReset(false);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Reset cancelled - use --force to confirm');
+      expect(result.exitCode).toBe(1);
+      expect(mockCentralizedConfigManager.resetGlobalConfig).not.toHaveBeenCalled();
+    });
+
+    it('should reset configuration when force flag is provided', async () => {
+      const result = await configCommand.executeReset(true);
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Configuration reset');
+      expect(result.exitCode).toBe(0);
+      expect(mockCentralizedConfigManager.resetGlobalConfig).toHaveBeenCalled();
+    });
+
+    it('should handle errors during reset', async () => {
+      const error = new Error('Reset failed');
+      mockCentralizedConfigManager.resetGlobalConfig.mockRejectedValue(error);
+
+      const result = await configCommand.executeReset(true);
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Reset failed');
+      expect(result.exitCode).toBe(1);
+      expect(result.error).toBe(error);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error: Reset failed');
+    });
+  });
+
+  describe('executeInfo', () => {
+    it('should show configuration info when initialized', async () => {
+      mockCentralizedConfigManager.isGlobalConfigInitialized.mockReturnValue(true);
+      mockCentralizedConfigManager.getConfigLocation.mockReturnValue('/home/user/.config/pgit');
+      mockCentralizedConfigManager.getAllPresets.mockResolvedValue({
+        package: {
+          preset1: { description: 'Package preset 1', paths: [] },
+        },
+        global: {
+          preset2: { description: 'Global preset 2', paths: [] },
+        },
+        project: {
+          preset3: { description: 'Project preset 3', paths: [] },
+        },
+        merged: {
+          preset1: { description: 'Package preset 1', paths: [] },
+          preset2: { description: 'Global preset 2', paths: [] },
+          preset3: { description: 'Project preset 3', paths: [] },
+        },
+      });
+
+      const result = await configCommand.executeInfo();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Configuration information displayed');
+      expect(result.exitCode).toBe(0);
+    });
+
+    it('should show not initialized status', async () => {
+      mockCentralizedConfigManager.isGlobalConfigInitialized.mockReturnValue(false);
+      mockCentralizedConfigManager.getConfigLocation.mockReturnValue('/home/user/.config/pgit');
+
+      const result = await configCommand.executeInfo();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Configuration information displayed');
+      expect(result.exitCode).toBe(0);
+      expect(consoleSpy).toHaveBeenCalledWith('ℹ️  Configuration Information:');
+      expect(consoleSpy).toHaveBeenCalledWith('   Status: Not initialized ❌');
+      expect(consoleSpy).toHaveBeenCalledWith('   Location: /home/user/.config/pgit');
+      expect(consoleSpy).toHaveBeenCalledWith('💡 Initialize with: pgit config init');
+    });
+
+    it('should handle errors when getting configuration info', async () => {
+      const error = new Error('Info retrieval failed');
+      mockCentralizedConfigManager.isGlobalConfigInitialized.mockReturnValue(true);
+      mockCentralizedConfigManager.getConfigLocation.mockImplementation(() => {
+        throw error;
+      });
+
+      const result = await configCommand.executeInfo();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Info retrieval failed');
+      expect(result.exitCode).toBe(1);
+      expect(result.error).toBe(error);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error: Info retrieval failed');
+    });
+  });
+
+  describe('executeBackup', () => {
+    const mockFs = require('fs-extra');
+
+    it('should create backup when configuration is initialized', async () => {
+      mockCentralizedConfigManager.isGlobalConfigInitialized.mockReturnValue(true);
+      mockCentralizedConfigManager.getConfigLocation.mockReturnValue('/home/user/.config/pgit');
+
+      const result = await configCommand.executeBackup();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Configuration backed up');
+      expect(result.exitCode).toBe(0);
+      expect(mockFs.copy).toHaveBeenCalled();
+    });
+
+    it('should fail when configuration is not initialized', async () => {
+      mockCentralizedConfigManager.isGlobalConfigInitialized.mockReturnValue(false);
+
+      const result = await configCommand.executeBackup();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Configuration not initialized');
+      expect(result.exitCode).toBe(1);
+      expect(mockFs.copy).not.toHaveBeenCalled();
+    });
+
+    it('should handle errors during backup', async () => {
+      const error = new Error('Backup failed');
+      mockCentralizedConfigManager.isGlobalConfigInitialized.mockReturnValue(true);
+      mockCentralizedConfigManager.getConfigLocation.mockReturnValue('/home/user/.config/pgit');
+      mockFs.copy.mockRejectedValue(error);
+
+      const result = await configCommand.executeBackup();
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Backup failed');
+      expect(result.exitCode).toBe(1);
+      expect(result.error).toBe(error);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error: Backup failed');
+    });
+  });
+
+  describe('register', () => {
+    it('should register config command and subcommands', () => {
+      const mockProgram = {
+        command: jest.fn().mockReturnThis(),
+        description: jest.fn().mockReturnThis(),
+        action: jest.fn().mockReturnThis(),
+        option: jest.fn().mockReturnThis(),
+      };
+
+      configCommand.register(mockProgram as any);
+
+      expect(mockProgram.command).toHaveBeenCalledWith('config');
+      expect(mockProgram.description).toHaveBeenCalledWith('Manage pgit configuration');
+    });
+  });
+});

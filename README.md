@@ -155,9 +155,20 @@ pgit log --oneline
 
 | Command | Description | Options | Example |
 |---------|-------------|---------|---------|
-| `pgit add <path>` | Add file/directory to pgit tracking with automatic git protection | `<path>` (required) | `pgit add .env` |
+| `pgit add <path>` | Add file/directory to legacy pgit tracking with automatic git protection | `<path>` (required) | `pgit add .env` |
 | `pgit status` | Show status of both repositories | `--verbose`, `-v` | `pgit status -v` |
 | `pgit-status` | Show detailed pgit repository status | `--verbose`, `-v` | `pgit-status -v` |
+
+### Agent-Visible Private Config Commands
+
+Use these when coding agents must discover private files at their real repo paths. PGit copies files to a private store and keeps real files in the repo working tree. It does not write private file names to `.gitignore` or `.git/info/exclude`.
+
+| Command | Description | Options | Example |
+|---------|-------------|---------|---------|
+| `pgit config add <paths...>` | Track private config files/directories at repo paths; auto-commits already-tracked removals | `--no-commit` | `pgit config add research docs specs` |
+| `pgit config sync pull` | Copy private-store files into repo paths | `--force`, `-f` | `pgit config sync pull` |
+| `pgit config sync push` | Copy repo-path files back to private store | `--force`, `-f` | `pgit config sync push --force` |
+| `pgit config sync status` | Show private config sync status | none | `pgit config sync status` |
 
 ### Preset Commands
 
@@ -222,6 +233,35 @@ pgit preset undefine backend-secrets
 | `pgit cleanup` | Fix and repair pgit git tracking | `--force` | `pgit cleanup` |
 
 ## 💡 Usage Examples
+
+### Agent-Visible Private Config
+
+```bash
+# Track a private rules file without symlinks or gitignore entries
+pgit config add my-rules.md
+
+# Track nested private directories/files together
+pgit config add .claude/private/ research docs/private-notes.md
+
+# Restore private config into a fresh checkout/worktree
+pgit config sync pull
+
+# Save repo-local edits back to private store
+pgit config sync push
+
+# Check drift/conflicts
+pgit config sync status
+```
+
+Behavior:
+
+- Files stay as real files at repo-relative paths, so coding agents can discover them.
+- Private copies live in `~/.pgit/private-config/<repo-name>-<hash>/files/`.
+- If paths are already tracked by main Git, `pgit config add` runs `git rm --cached -r <path>` so files stay local and commits the shared-Git removal by default.
+- Use `--no-commit` to leave staged removals for manual commit. In that mode, do not run `git add .` before committing or Git can re-add the files.
+- Local `pre-commit` and `pre-push` hooks block private paths from re-entering shared Git history.
+- Native `git status` may show private file names because files are intentionally not ignored.
+- `--force` resolves sync conflicts and creates backups under `.backups/` before overwrite.
 
 ### Managing Environment Files
 
