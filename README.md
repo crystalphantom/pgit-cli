@@ -165,7 +165,8 @@ Use these when coding agents must discover private files at their real repo path
 
 | Command | Description | Options | Example |
 |---------|-------------|---------|---------|
-| `pgit config add <paths...>` | Track private config files/directories at repo paths; auto-commits already-tracked removals | `--no-commit` | `pgit config add research docs specs` |
+| `pgit config add <paths...>` | Track private config files/directories at repo paths; auto-validates all paths before mutation, auto-commits already-tracked removals, and pushes repo-local contents to private store | `--no-commit`, `--no-sync-push` | `pgit config add research docs specs` |
+| `pgit config remove <paths...>` | Stop tracking private config files/directories and remove their private-store copies without deleting repo-local files | none | `pgit config remove research docs` |
 | `pgit config sync pull` | Copy private-store files into repo paths | `--force`, `-f` | `pgit config sync pull` |
 | `pgit config sync push` | Copy repo-path files back to private store | `--force`, `-f` | `pgit config sync push --force` |
 | `pgit config sync status` | Show private config sync status | none | `pgit config sync status` |
@@ -243,6 +244,9 @@ pgit config add my-rules.md
 # Track nested private directories/files together
 pgit config add .claude/private/ research docs/private-notes.md
 
+# Stop tracking files/directories without deleting repo-local copies
+pgit config remove .claude/private/ docs/private-notes.md
+
 # Restore private config into a fresh checkout/worktree
 pgit config sync pull
 
@@ -257,9 +261,12 @@ Behavior:
 
 - Files stay as real files at repo-relative paths, so coding agents can discover them.
 - Private copies live in `~/.pgit/private-config/<repo-name>-<hash>/files/`.
+- `pgit config add` validates all requested paths before copying, untracking, saving manifests, installing hooks, or committing. If any path is missing, nothing is changed.
 - If paths are already tracked by main Git, `pgit config add` runs `git rm --cached -r <path>` so files stay local and commits the shared-Git removal by default.
+- `pgit config add` runs `pgit config sync push` by default after successful add, so private store stays current. Use `--no-sync-push` to skip this.
 - Use `--no-commit` to leave staged removals for manual commit. In that mode, do not run `git add .` before committing or Git can re-add the files.
-- Local `pre-commit` and `pre-push` hooks block private paths from re-entering shared Git history.
+- `pgit config remove` stops tracking paths, removes their private-store copies, and leaves repo-local files/directories untouched.
+- Local `pre-commit` and `pre-push` hooks block private paths from re-entering shared Git history. In Git worktrees, hooks install into the common hooks directory, or `core.hooksPath` when configured.
 - Native `git status` may show private file names because files are intentionally not ignored.
 - `--force` resolves sync conflicts and creates backups under `.backups/` before overwrite.
 
