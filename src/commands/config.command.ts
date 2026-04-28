@@ -93,12 +93,14 @@ export class ConfigCommand {
       .command('add <paths...>')
       .description('Add root-path private config files or directories')
       .option('--no-commit', 'Do not auto-commit removal of already-tracked main Git paths')
+      .option('-f, --force', 'Overwrite existing private config entries before re-adding')
       .option('--no-sync-push', 'Do not automatically push private config changes after add')
       .action(async (targetPaths, options) => {
         const result = await this.executePrivateAdd(
           targetPaths,
           options.noCommit,
           options.syncPush,
+          options.force,
         );
         if (!result.success) {
           process.exit(result.exitCode);
@@ -359,9 +361,15 @@ export class ConfigCommand {
     targetPaths: string | string[],
     noCommit: boolean = false,
     syncPush: boolean = true,
+    force: boolean = false,
   ): Promise<CommandResult> {
     try {
-      const result = await this.privateConfigSyncManager.add(targetPaths, { noCommit });
+      const addOptions: { noCommit: boolean; force?: boolean } = { noCommit };
+      if (force) {
+        addOptions.force = true;
+      }
+
+      const result = await this.privateConfigSyncManager.add(targetPaths, addOptions);
 
       console.log(
         `✅ Private config added: ${result.entries.map(entry => entry.repoPath).join(', ')}`,
