@@ -19,6 +19,19 @@ We love your input! We want to make contributing to PGit CLI as easy and transpa
 7. Commit using conventional commits
 8. Push and create a Pull Request
 
+## AGENTS / Workflow
+
+This repository is shared by many contributors, including AI coding agents. Use this workflow:
+
+- Follow `AGENTS.md` before making implementation changes.
+- Keep command behavior and docs aligned, especially for `pgit config` and `pgit config sync`.
+- Use branch-based changes with conventional commits.
+- Before PR creation, run:
+  - `npm run lint`
+  - `npm run format:check`
+  - `npm run build`
+  - `npm run test` (or the narrowest relevant Jest command)
+
 ## 📋 Development Setup
 
 ### Prerequisites
