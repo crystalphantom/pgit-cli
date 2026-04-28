@@ -92,6 +92,7 @@ export interface PrivateConfigRemoveResult {
 
 export interface PrivateConfigAddOptions {
   noCommit?: boolean;
+  force?: boolean;
 }
 
 interface PrivateConfigAddCandidate {
@@ -135,11 +136,31 @@ export class PrivateConfigSyncManager {
   ): Promise<PrivateConfigAddResult> {
     const candidates = await this.validateAddCandidates(repoPathInput);
     const manifest = await this.loadOrCreateManifest();
+    const force = options.force === true;
     const entries: PrivateConfigEntry[] = [];
     const untrackedFromMainGit: string[] = [];
 
+    const alreadyTracked = candidates
+      .map(candidate => candidate.repoPath)
+      .filter(repoPath => manifest.entries.some(entry => entry.repoPath === repoPath));
+    if (alreadyTracked.length > 0 && !force) {
+      throw new PrivateConfigSyncError(
+        `Private config path is already tracked: ${alreadyTracked.join(', ')}. Use --force to overwrite.`,
+      );
+    }
+
     for (const candidate of candidates) {
       const privatePath = this.getPrivatePath(manifest.projectId, candidate.repoPath);
+      const existingIndex = manifest.entries.findIndex(
+        item => item.repoPath === candidate.repoPath,
+      );
+
+      if (existingIndex >= 0 && force) {
+        const existingPrivatePath = manifest.entries[existingIndex].privatePath;
+        if (await fs.pathExists(existingPrivatePath)) {
+          await fs.remove(existingPrivatePath);
+        }
+      }
 
       await fs.ensureDir(path.dirname(privatePath));
       await fs.copy(candidate.absoluteRepoPath, privatePath, {
@@ -151,10 +172,6 @@ export class PrivateConfigSyncManager {
       untrackedFromMainGit.push(...removedPaths);
 
       const entry = await this.buildEntry(manifest.projectId, candidate.repoPath, candidate.type);
-      const existingIndex = manifest.entries.findIndex(
-        item => item.repoPath === candidate.repoPath,
-      );
-
       if (existingIndex >= 0) {
         manifest.entries[existingIndex] = entry;
       } else {
@@ -748,10 +765,12 @@ for (const line of refs) {
     commits = execFileSync('git', ['rev-list', localSha], { encoding: 'utf8' }).split(/\\r?\\n/).filter(Boolean);
   }
   for (const commit of commits) {
-    const files = execFileSync('git', ['diff-tree', '--no-commit-id', '--name-only', '-r', commit], { encoding: 'utf8' })
+    const changes = execFileSync('git', ['diff-tree', '--no-commit-id', '--name-status', '-r', commit], { encoding: 'utf8' })
       .split(/\\r?\\n/)
       .filter(Boolean);
-    for (const file of files) {
+    for (const change of changes) {
+      const [status, file] = change.split(/\t/);
+      if (!file || status === 'D') continue;
       if (privatePath(file)) blocked.add(file);
     }
   }
