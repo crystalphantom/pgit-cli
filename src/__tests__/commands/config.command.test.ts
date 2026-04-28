@@ -349,6 +349,35 @@ describe('ConfigCommand', () => {
       expect(mockPrivateConfigSyncManager.syncPush).toHaveBeenCalled();
     });
 
+    it('should forward force option to private config manager', async () => {
+      mockPrivateConfigSyncManager.add.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        untrackedPaths: ['rules.md'],
+        untrackedFromMainGit: [],
+      });
+      mockPrivateConfigSyncManager.syncPush.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [{ repoPath: 'rules.md', type: 'file', state: 'up-to-date' }],
+        backups: [],
+      });
+
+      const result = await configCommand.executePrivateAdd('rules.md', false, true, true);
+
+      expect(result.success).toBe(true);
+      expect(mockPrivateConfigSyncManager.add).toHaveBeenCalledWith('rules.md', {
+        noCommit: false,
+        force: true,
+      });
+    });
+
     it('should skip sync push when disabled', async () => {
       mockPrivateConfigSyncManager.add.mockResolvedValue({
         projectId: 'project-123',

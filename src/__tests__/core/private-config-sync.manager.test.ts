@@ -129,6 +129,54 @@ describe('PrivateConfigSyncManager', () => {
     expect(result.entries.map(entry => entry.type)).toEqual(['file', 'directory']);
   });
 
+  it('throws when adding an already tracked path without --force', async () => {
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules');
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    await manager.add('rules.md');
+
+    await expect(manager.add('rules.md')).rejects.toThrow(
+      'Private config path is already tracked: rules.md. Use --force to overwrite.',
+    );
+  });
+
+  it('overwrites existing file entry in private store when --force is set', async () => {
+    const filePath = path.join(repoDir, 'rules.md');
+    await fs.writeFile(filePath, 'v1');
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const first = await manager.add('rules.md');
+    expect(first.entries[0].repoPath).toBe('rules.md');
+    await fs.writeFile(filePath, 'v2');
+
+    const second = await manager.add('rules.md', { force: true });
+
+    expect(second.entries).toHaveLength(1);
+    expect(second.entries[0].repoPath).toBe('rules.md');
+    expect(await fs.readFile(first.entries[0].privatePath, 'utf8')).toBe('v2');
+  });
+
+  it('overwrites existing directory entry in private store when --force is set', async () => {
+    const folder = path.join(repoDir, 'private-folder');
+    await fs.ensureDir(folder);
+    await fs.writeFile(path.join(folder, 'keep.md'), 'keep');
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const first = await manager.add('private-folder');
+    const privateDir = first.entries[0].privatePath;
+    expect(await fs.pathExists(path.join(privateDir, 'keep.md'))).toBe(true);
+
+    await fs.remove(path.join(folder, 'keep.md'));
+    await fs.writeFile(path.join(folder, 'new.md'), 'new');
+
+    const second = await manager.add('private-folder', { force: true });
+
+    expect(second.entries).toHaveLength(1);
+    expect(second.entries[0].repoPath).toBe('private-folder');
+    expect(await fs.pathExists(path.join(privateDir, 'keep.md'))).toBe(false);
+    expect(await fs.pathExists(path.join(privateDir, 'new.md'))).toBe(true);
+    expect(await fs.readFile(path.join(privateDir, 'new.md'), 'utf8')).toBe('new');
+  });
+
   it('does not mutate any path when one path in a multi-add is invalid', async () => {
     await fs.ensureDir(path.join(repoDir, 'research'));
     await fs.ensureDir(path.join(repoDir, 'docs'));
@@ -216,6 +264,27 @@ describe('PrivateConfigSyncManager', () => {
 
     expect(() => {
       execFileSync('git', ['commit', '-m', 'untrack private rules'], {
+        cwd: repoDir,
+        stdio: 'pipe',
+      });
+    }).not.toThrow();
+  });
+
+  it('pre-push hook allows deletion-only untracking commits', async () => {
+    const remoteDir = path.join(tempRoot, 'remote.git');
+    execFileSync('git', ['init', '--bare', remoteDir]);
+    execFileSync('git', ['remote', 'add', 'origin', remoteDir], { cwd: repoDir });
+
+    await fs.writeFile(path.join(repoDir, 'my-rules.md'), 'v1');
+    execFileSync('git', ['add', 'my-rules.md'], { cwd: repoDir });
+    execFileSync('git', ['commit', '-m', 'track rules before pgit'], { cwd: repoDir });
+    execFileSync('git', ['push', '-u', 'origin', 'HEAD:main'], { cwd: repoDir });
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    await manager.add('my-rules.md');
+
+    expect(() => {
+      execFileSync('git', ['push', 'origin', 'HEAD:main'], {
         cwd: repoDir,
         stdio: 'pipe',
       });
