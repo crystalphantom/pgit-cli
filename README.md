@@ -8,58 +8,71 @@ A powerful CLI tool that enables developers to version control private files wit
 
 ## 🚀 What is PGit?
 
-PGit solves the common problem of managing private files in shared repositories. It creates a separate, isolated git repository for your private files while maintaining their original locations through symbolic links. This allows you to:
+PGit now focuses on agent-visible private-config workflows. It tracks selected repository files
+in a private side store while keeping them at their original paths so tools and agents can
+discover them.
 
-- **Version control private files** like `.env`, API keys, personal configurations
-- **Keep files accessible** at their original paths for applications
-- **Maintain complete isolation** from the main team repository
-- **Collaborate seamlessly** without exposing private content
-- **Track changes** with full git capabilities (commit, log, branch, etc.)
-- **Automatic git protection** - Files added to pgit are automatically removed from main git tracking and protected from future git add operations
+This release prefers:
+- `pgit config add` for onboarding private config paths into tracking
+- `pgit config sync` for keeping repo files and private store aligned (`pull`, `push`, `status`)
 
 ### How It Works
 
 ```
 Your Project Structure:
-├── .git/                    # Main team repository (unchanged)
-│   └── info/
-│       └── exclude         # ← Enhanced: pgit files automatically excluded here
-├── .git-pgit/           # Private git repository (hidden from team)
-├── .pgit-storage/       # Actual pgit files storage
-│   ├── .env               # Real pgit files stored here
-│   └── config.json
-├── .env                   # → Symbolic link to .pgit-storage/.env
-├── config.json           # → Symbolic link to .pgit-storage/config.json
-└── .gitignore            # Automatically excludes pgit system files
+├── .git/
+├── .pgit/                # Optional global/private-config metadata under your home dir
+└── .env                  # Real file remains at repo path
+      └── pgit-private-store  # Mirror under ~/.pgit/private-config/<repo-id>/files
 ```
 
-## 🛡️ Enhanced Git Protection
+## 🎯 Quick Start
 
-PGit now includes advanced git protection features to ensure your private files never accidentally get committed to the main repository:
+### 1. Add Private Config Paths
 
-### Automatic Git Removal
-When you add files to pgit tracking, they are automatically:
-- **Removed from git index** (both tracked and untracked files)
-- **Added to `.git/info/exclude`** to prevent future `git add` operations
-- **Protected from accidental commits** while remaining accessible to your applications
-
-### How It Works
 ```bash
-# Before: File might accidentally be committed
-echo "SECRET_KEY=abc123" > .env
-git add .env  # ❌ File gets staged for commit
-
-# After: File is automatically protected
-pgit add .env  # ✅ File removed from git tracking
-git add .env   # ✅ Git ignores the file (protected by .git/info/exclude)
+cd your-project
+pgit config add .env .claude/settings.md
 ```
 
-### Protection Features
-- **Universal Coverage**: Works for tracked, staged, untracked, and modified files
-- **Batch Processing**: Efficiently handles multiple files simultaneously
-- **Error Resilience**: Continues operation even if some git operations fail
-- **Rollback Support**: Can restore original git state if needed
-- **Non-Intrusive**: Only affects files you explicitly add to pgit
+### 2. Sync Between Repo and Private Store
+
+```bash
+# Pull private store into your working tree (when cloning or switching workspaces)
+pgit config sync pull
+
+# Push your local edits back into private store
+pgit config sync push
+```
+
+### 3. Check Drift
+
+```bash
+pgit config sync status
+```
+
+## 📚 Command Reference (MVP)
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `pgit config add <paths...>` | Track private config paths in repo (creates mirror under `~/.pgit/private-config/...`) | `pgit config add .env .claude/` |
+| `pgit config remove <paths...>` | Stop tracking private-config paths and remove private mirror entries | `pgit config remove .env` |
+| `pgit config sync pull` | Copy private-store files into repository paths | `pgit config sync pull` |
+| `pgit config sync push` | Copy repository files back into private store | `pgit config sync push` |
+| `pgit config sync status` | Show sync state for tracked entries | `pgit config sync status` |
+
+### Advanced / Legacy (Deprecated)
+
+`pgit init`, `pgit add`, and related workflows are still available for advanced users only and are now hidden from the normal help output.
+
+- `pgit legacy init` to run legacy initialization
+- `pgit legacy add <path...>` to use legacy private tracking
+- or set `PGIT_LEGACY=1` to expose legacy command help
+
+## 🧩 Legacy Compatibility Section
+
+The sections below describe the legacy workflow kept for backward compatibility.
+For MVP usage, prefer only the MVP commands above.
 
 ## 📦 Installation
 
@@ -93,9 +106,9 @@ pgit --version
 pgit --help
 ```
 
-## 🎯 Quick Start
+## 🧩 Legacy Quick Start (Deprecated)
 
-### 1. Initialize Private Tracking
+### 1. Legacy Initialization (deprecated)
 
 ```bash
 # Navigate to your project directory
@@ -143,7 +156,7 @@ pgit commit -m "Update environment variables"
 pgit log --oneline
 ```
 
-## 📚 Complete Command Reference
+## 📚 Legacy Command Reference (Deprecated)
 
 ### Initialization Commands
 
@@ -233,7 +246,7 @@ pgit preset undefine backend-secrets
 |---------|-------------|---------|---------|
 | `pgit cleanup` | Fix and repair pgit git tracking | `--force` | `pgit cleanup` |
 
-## 💡 Usage Examples
+## 💡 Legacy Usage Examples
 
 ### Agent-Visible Private Config
 
@@ -289,7 +302,7 @@ pgit add-changes --all
 pgit commit -m "Update API endpoints"
 ```
 
-### Working with Configuration Files
+### Working with Configuration Files (Legacy)
 
 ```bash
 # Add configuration files
@@ -395,7 +408,7 @@ git status  # Clean - no pgit files visible
 git add .env.local  # Still ignored due to exclude rules
 ```
 
-## 🔧 Advanced Features
+## 🔧 Legacy Advanced Features
 
 ### Branch Management
 

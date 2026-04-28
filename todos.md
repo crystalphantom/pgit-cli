@@ -1,30 +1,22 @@
-1. Store the pgit at some central location rather than in the same repo ( /tmp)
-2. Clean up the redundant tests
-3. Refactoring
-4. Commands auto complete is not working
-5. Presets -
-    ex : pgit add --preset claude
-    ex : pgit add --presets claude gemini claude-flow opencode
-    the commands should : 
-        - pgit preset add preset-name
-        - pgit preset remove preset-name
+## Backlog (legacy + v2)
+- Legend: `[x]` done · `[~]` partial · `[ ]` pending
 
-    * Currently preset command includes the file and commits independantly . We should b able to bulk add it ( single meaunigfull commit) . If possible can we use the underlining methods of the - `pgit add ... ` as this can handle mulitple files and folders 
-    * Also update the pgit -h to also include all the sub commands available for the preset .
-    * define preset is not working . It should work even without initializing the pgit in a worksapce or repo as the presets are global . 
-
-6. Add a file based on the file pattern ( *.sql)
-7. What happens if i pause or close the pgit add command ? Need its handling
-8. Update the pgit commit message to also include the files/folders metadata ( at least no of files)
-9. We should b able to update already added file or it should automatically handle this ( so if user has added a file to pgit , it should not come to git history and also should b always up to date in the pgit/repos.) . 
-    should b able to do with the help of git hooks . Need to double down on this though.
-10. pgit remove command or re-add a already added file.
-11. When adding only the relative path works for now .
-12. When adding the files , add a parameter if we want to add the custom message !
-
-
-<!-- below is the gitignore . Move this to git info -->
-# Private Git Tracking (auto-generated)
-.git-private
-.private-storage
-.private-config.json
+1. [x] Store pgit/private config at a central location (`~/.pgit/...`) for v2 flow (preset + config sync metadata).
+2. [ ] Clean up redundant tests.
+3. [ ] Refactoring.
+4. [ ] Commands auto complete is not working.
+5. Presets:
+   - [x] Provide `pgit preset add/remove/list/show/apply`.
+   - [x] Apply preset uses bulk `pgit add` path through one operation for single-path-aggregated commit behavior.
+   - [x] `pgit preset -h` and subcommand list are discoverable.
+   - [x] Global preset creation works without local init.
+6. [ ] Add a file based on file pattern (e.g., `*.sql`).
+7. [~] Pause/close handling for `pgit add`:
+   - batch rollback exists and is exercised.
+   - pending: graceful `SIGINT`/hard abort handling is still not explicit.
+8. [ ] Update the private commit message to include file/folder metadata (at least file count).
+9. [ ] Update already added files automatically and keep private repo in sync via hooks.
+10. [ ] `pgit remove` command or re-add flow for already-added files.
+11. [x] Relative path-only behavior still valid for now (legacy + v2 path input normalization currently operate on repo-relative paths).
+12. [ ] Add custom message option to `pgit add`.
+13. [x] MVP visibility policy: hide legacy `init/add` surface from normal discovery (`help`/docs) while keeping it available internally as a non-default/legacy mode with clear deprecation warning.
