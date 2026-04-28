@@ -43,9 +43,65 @@ async function main(): Promise<void> {
     });
 
   // Initialize command
-  program
+  const legacyModeEnabled = isLegacyModeEnabled();
+
+  const handleLegacyCommandNotice = (command: 'init' | 'add'): void => {
+    if (legacyModeEnabled) {
+      return;
+    }
+
+    logger.warn('⚠️  Legacy flow is deprecated and hidden by default.');
+    logger.warn(`Use 'pgit legacy ${command} ...' for explicit advanced access.`);
+    logger.warn('Or set PGIT_LEGACY=1 to show legacy commands in help.');
+    logger.warn(
+      'Recommended flow: `pgit config add <paths>` and `pgit config sync (pull|push|status)`.',
+    );
+  };
+
+  const runInit = async (options: { verbose?: boolean } = {}): Promise<void> => {
+    handleLegacyCommandNotice('init');
+
+    try {
+      const initCommand = new InitCommand();
+      const result = await initCommand.execute({ verbose: options.verbose });
+
+      if (result.success) {
+        logger.success(result.message || 'Private git tracking initialized successfully');
+      } else {
+        logger.error(result.message || 'Failed to initialize private git tracking');
+        process.exit(result.exitCode);
+      }
+    } catch (error) {
+      handleError(error, 'init');
+    }
+  };
+
+  const runAdd = async (
+    paths: string | string[],
+    options: { verbose?: boolean } = {},
+  ): Promise<void> => {
+    handleLegacyCommandNotice('add');
+
+    try {
+      const addCommand = new AddCommand();
+      const result = await addCommand.execute(paths, { verbose: options.verbose });
+
+      if (result.success) {
+        logger.success(result.message || 'Files added to private tracking successfully');
+      } else {
+        logger.error(result.message || 'Failed to add files to private tracking');
+        process.exit(result.exitCode);
+      }
+    } catch (error) {
+      handleError(error);
+    }
+  };
+
+  const legacyModeInit = program.command('legacy').description('Advanced deprecated legacy workflow');
+
+  legacyModeInit
     .command('init')
-    .description('Initialize private git tracking in current directory')
+    .description('Initialize legacy pgit tracking flow')
     .action(async options => {
       try {
         const initCommand = new InitCommand();
@@ -53,13 +109,43 @@ async function main(): Promise<void> {
 
         if (result.success) {
           logger.success(result.message || 'Private git tracking initialized successfully');
+          logger.info('Advanced legacy flow (deprecated): .pgit-storage/.git-pgit based tracking is active.');
         } else {
           logger.error(result.message || 'Failed to initialize private git tracking');
           process.exit(result.exitCode);
         }
       } catch (error) {
-        handleError(error, 'init');
+        handleError(error, 'legacy init');
       }
+    });
+
+  legacyModeInit
+    .command('add <path...>')
+    .description('Add file(s) or directory(ies) using legacy flow')
+    .action(async (paths, options) => {
+      try {
+        const addCommand = new AddCommand();
+        const result = await addCommand.execute(paths, { verbose: options.verbose });
+
+        if (result.success) {
+          logger.success(result.message || 'Files added to private tracking successfully');
+          logger.info('Advanced legacy flow (deprecated): files moved under .pgit-storage/.git-pgit.');
+        } else {
+          logger.error(result.message || 'Failed to add files to private tracking');
+          process.exit(result.exitCode);
+        }
+      } catch (error) {
+        handleError(error);
+      }
+    });
+
+  const initLegacyCommand = program.command('init', {
+    hidden: !legacyModeEnabled,
+  });
+  initLegacyCommand
+    .description('Initialize private git tracking in current directory (legacy, deprecated)')
+    .action(async (options: { verbose?: boolean }) => {
+      await runInit(options);
     });
 
   // Status command
@@ -103,23 +189,13 @@ async function main(): Promise<void> {
     });
 
   // Add command
-  program
-    .command('add <path...>')
-    .description('Add file(s) or directory(ies) to private tracking')
-    .action(async (paths, options) => {
-      try {
-        const addCommand = new AddCommand();
-        const result = await addCommand.execute(paths, { verbose: options.verbose });
-
-        if (result.success) {
-          logger.success(result.message || 'Files added to private tracking successfully');
-        } else {
-          logger.error(result.message || 'Failed to add files to private tracking');
-          process.exit(result.exitCode);
-        }
-      } catch (error) {
-        handleError(error);
-      }
+  const addLegacyCommand = program.command('add <path...>', {
+    hidden: !legacyModeEnabled,
+  });
+  addLegacyCommand
+    .description('Add file(s) or directory(ies) to private tracking (legacy, deprecated)')
+    .action(async (paths: string | string[], options: { verbose?: boolean }) => {
+      await runAdd(paths, options);
     });
 
   // Commit command
@@ -447,6 +523,20 @@ function handleError(error: unknown, command?: string): void {
   const context = EnhancedErrorHandler.createContext(command, [], process.cwd());
   EnhancedErrorHandler.handleError(error, context);
   process.exit(1);
+}
+
+function isLegacyModeEnabled(): boolean {
+  const legacyValue = process.env['PGIT_LEGACY'];
+
+  if (!legacyValue) {
+    return false;
+  }
+
+  if (legacyValue === '1') {
+    return true;
+  }
+
+  return ['true', 'yes', 'on'].includes(legacyValue.toLowerCase());
 }
 
 // Run the CLI if this is the main module
