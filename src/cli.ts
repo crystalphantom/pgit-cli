@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { program } from 'commander';
+import { Command, program } from 'commander';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -15,7 +15,39 @@ import { PresetCommand } from './commands/preset.command';
 import { ConfigCommand } from './commands/config.command';
 import { EnhancedErrorHandler } from './errors/enhanced.error-handler';
 import { logger, LogLevel } from './utils/logger.service';
+import {
+  evaluateFeatureGate,
+  isEnabled,
+  withFeatureGuard,
+} from './utils/feature-flags';
 import { FALLBACK_VERSION } from './types/config.types';
+
+export const FEATURE_BOUND_COMMANDS = {
+  init: 'legacy',
+  add: 'legacy',
+} as const;
+
+const getCommandPath = (command: Command): string => {
+  const segments: string[] = [];
+  let current: Command | null = command;
+
+  while (current && current.parent) {
+    segments.unshift(current.name());
+    current = current.parent;
+  }
+
+  return segments.join(' ');
+};
+
+const displayLegacyGateBlockedMessage = (commandPath: string, envKeys: readonly string[]): void => {
+  logger.error(`Command "${commandPath}" is disabled because legacy mode is off.`);
+  logger.warn('⚠️  Legacy flow is deprecated and hidden by default.');
+  logger.warn(`Use 'pgit legacy ${commandPath}' for explicit advanced access.`);
+  logger.warn(`Or set ${envKeys.map(key => `${key}=1`).join(' or ')} to show legacy commands in help.`);
+  logger.warn(
+    'Recommended flow: `pgit config add <paths>` and `pgit config sync (pull|push|status)`.',
+  );
+};
 
 /**
  * Main CLI entry point
@@ -43,24 +75,9 @@ async function main(): Promise<void> {
     });
 
   // Initialize command
-  const legacyModeEnabled = isLegacyModeEnabled();
+  const legacyModeEnabled = isEnabled('legacy');
 
-  const handleLegacyCommandNotice = (command: 'init' | 'add'): void => {
-    if (legacyModeEnabled) {
-      return;
-    }
-
-    logger.warn('⚠️  Legacy flow is deprecated and hidden by default.');
-    logger.warn(`Use 'pgit legacy ${command} ...' for explicit advanced access.`);
-    logger.warn('Or set PGIT_LEGACY=1 to show legacy commands in help.');
-    logger.warn(
-      'Recommended flow: `pgit config add <paths>` and `pgit config sync (pull|push|status)`.',
-    );
-  };
-
-  const runInit = async (options: { verbose?: boolean } = {}): Promise<void> => {
-    handleLegacyCommandNotice('init');
-
+  const runLegacyInit = async (options: { verbose?: boolean } = {}): Promise<void> => {
     try {
       const initCommand = new InitCommand();
       const result = await initCommand.execute({ verbose: options.verbose });
@@ -76,12 +93,10 @@ async function main(): Promise<void> {
     }
   };
 
-  const runAdd = async (
+  const runLegacyAdd = async (
     paths: string | string[],
     options: { verbose?: boolean } = {},
   ): Promise<void> => {
-    handleLegacyCommandNotice('add');
-
     try {
       const addCommand = new AddCommand();
       const result = await addCommand.execute(paths, { verbose: options.verbose });
@@ -97,46 +112,25 @@ async function main(): Promise<void> {
     }
   };
 
+  const runInit = withFeatureGuard('legacy', 'init', runLegacyInit);
+  const runAdd = withFeatureGuard('legacy', 'add', runLegacyAdd);
+
   const legacyModeInit = program.command('legacy').description('Advanced deprecated legacy workflow');
 
   legacyModeInit
     .command('init')
     .description('Initialize legacy pgit tracking flow')
     .action(async options => {
-      try {
-        const initCommand = new InitCommand();
-        const result = await initCommand.execute({ verbose: options.verbose });
-
-        if (result.success) {
-          logger.success(result.message || 'Private git tracking initialized successfully');
-          logger.info('Advanced legacy flow (deprecated): .pgit-storage/.git-pgit based tracking is active.');
-        } else {
-          logger.error(result.message || 'Failed to initialize private git tracking');
-          process.exit(result.exitCode);
-        }
-      } catch (error) {
-        handleError(error, 'legacy init');
-      }
+      await runLegacyInit({ verbose: options.verbose });
+      logger.info('Advanced legacy flow (deprecated): .pgit-storage/.git-pgit based tracking is active.');
     });
 
   legacyModeInit
     .command('add <path...>')
     .description('Add file(s) or directory(ies) using legacy flow')
     .action(async (paths, options) => {
-      try {
-        const addCommand = new AddCommand();
-        const result = await addCommand.execute(paths, { verbose: options.verbose });
-
-        if (result.success) {
-          logger.success(result.message || 'Files added to private tracking successfully');
-          logger.info('Advanced legacy flow (deprecated): files moved under .pgit-storage/.git-pgit.');
-        } else {
-          logger.error(result.message || 'Failed to add files to private tracking');
-          process.exit(result.exitCode);
-        }
-      } catch (error) {
-        handleError(error);
-      }
+      await runLegacyAdd(paths, { verbose: options.verbose });
+      logger.info('Advanced legacy flow (deprecated): files moved under .pgit-storage/.git-pgit.');
     });
 
   const initLegacyCommand = program.command('init', {
@@ -512,6 +506,16 @@ async function main(): Promise<void> {
     process.exit(1);
   });
 
+  // Centralized feature gate for command paths
+  program.hook('preAction', (_thisCommand, actionCommand) => {
+    const commandPath = getCommandPath(actionCommand);
+    const decision = evaluateFeatureGate(commandPath, FEATURE_BOUND_COMMANDS);
+    if (decision.blocked) {
+      displayLegacyGateBlockedMessage(commandPath, decision.envKeys);
+      process.exit(1);
+    }
+  });
+
   // Parse command line arguments
   await program.parseAsync(process.argv);
 }
@@ -523,20 +527,6 @@ function handleError(error: unknown, command?: string): void {
   const context = EnhancedErrorHandler.createContext(command, [], process.cwd());
   EnhancedErrorHandler.handleError(error, context);
   process.exit(1);
-}
-
-function isLegacyModeEnabled(): boolean {
-  const legacyValue = process.env['PGIT_LEGACY'];
-
-  if (!legacyValue) {
-    return false;
-  }
-
-  if (legacyValue === '1') {
-    return true;
-  }
-
-  return ['true', 'yes', 'on'].includes(legacyValue.toLowerCase());
 }
 
 // Run the CLI if this is the main module
