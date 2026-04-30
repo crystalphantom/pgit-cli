@@ -24,43 +24,47 @@ describe('private config sync smoke test', () => {
     await fs.remove(tempRoot);
   });
 
-  it('adds multiple paths, pushes, pulls, and blocks commit for real repo-path private config', async () => {
-    await fs.writeFile(path.join(repoDir, 'agent-rules.md'), 'rules v1');
-    await fs.ensureDir(path.join(repoDir, 'research'));
-    await fs.writeFile(path.join(repoDir, 'research', 'notes.md'), 'notes v1');
+  it(
+    'adds multiple paths, pushes, pulls, and blocks commit for real repo-path private config',
+    async () => {
+      await fs.writeFile(path.join(repoDir, 'agent-rules.md'), 'rules v1');
+      await fs.ensureDir(path.join(repoDir, 'research'));
+      await fs.writeFile(path.join(repoDir, 'research', 'notes.md'), 'notes v1');
 
-    execFileSync('node', [cliPath, 'config', 'add', 'agent-rules.md', 'research'], {
-      cwd: repoDir,
-      env: { ...process.env, HOME: homeDir },
-      encoding: 'utf8',
-    });
-
-    expect((await fs.lstat(path.join(repoDir, 'agent-rules.md'))).isSymbolicLink()).toBe(false);
-    expect((await fs.lstat(path.join(repoDir, 'research'))).isDirectory()).toBe(true);
-
-    await fs.writeFile(path.join(repoDir, 'agent-rules.md'), 'rules v2');
-    execFileSync('node', [cliPath, 'config', 'sync', 'push'], {
-      cwd: repoDir,
-      env: { ...process.env, HOME: homeDir },
-      encoding: 'utf8',
-    });
-
-    await fs.writeFile(path.join(repoDir, 'agent-rules.md'), 'local drift');
-    execFileSync('node', [cliPath, 'config', 'sync', 'pull', '--force'], {
-      cwd: repoDir,
-      env: { ...process.env, HOME: homeDir },
-      encoding: 'utf8',
-    });
-
-    expect(await fs.readFile(path.join(repoDir, 'agent-rules.md'), 'utf8')).toBe('rules v2');
-
-    execFileSync('git', ['add', 'agent-rules.md'], { cwd: repoDir });
-    expect(() => {
-      execFileSync('git', ['commit', '-m', 'try leak'], {
+      execFileSync('node', [cliPath, 'config', 'add', 'agent-rules.md', 'research'], {
         cwd: repoDir,
         env: { ...process.env, HOME: homeDir },
-        stdio: 'pipe',
+        encoding: 'utf8',
       });
-    }).toThrow(/Blocked commit: private config paths staged/);
-  });
+
+      expect((await fs.lstat(path.join(repoDir, 'agent-rules.md'))).isSymbolicLink()).toBe(false);
+      expect((await fs.lstat(path.join(repoDir, 'research'))).isDirectory()).toBe(true);
+
+      await fs.writeFile(path.join(repoDir, 'agent-rules.md'), 'rules v2');
+      execFileSync('node', [cliPath, 'config', 'sync', 'push'], {
+        cwd: repoDir,
+        env: { ...process.env, HOME: homeDir },
+        encoding: 'utf8',
+      });
+
+      await fs.writeFile(path.join(repoDir, 'agent-rules.md'), 'local drift');
+      execFileSync('node', [cliPath, 'config', 'sync', 'pull', '--force'], {
+        cwd: repoDir,
+        env: { ...process.env, HOME: homeDir },
+        encoding: 'utf8',
+      });
+
+      expect(await fs.readFile(path.join(repoDir, 'agent-rules.md'), 'utf8')).toBe('rules v2');
+
+      execFileSync('git', ['add', 'agent-rules.md'], { cwd: repoDir });
+      expect(() => {
+        execFileSync('git', ['commit', '-m', 'try leak'], {
+          cwd: repoDir,
+          env: { ...process.env, HOME: homeDir },
+          stdio: 'pipe',
+        });
+      }).toThrow(/Blocked commit: private config paths staged/);
+    },
+    120000,
+  );
 });

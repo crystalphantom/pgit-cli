@@ -87,13 +87,13 @@ npm link
 pgit --version
 pgit --help
 
-# Test in a temporary directory
+# Test the v2 private-config flow in a temporary directory
 mkdir /tmp/test-pgit && cd /tmp/test-pgit
 git init
 echo "test" > .env
-pgit init
-pgit add .env
-pgit status
+pgit config add .env
+pgit config sync status
+pgit config drop .
 ```
 
 ## 🤝 How We Work

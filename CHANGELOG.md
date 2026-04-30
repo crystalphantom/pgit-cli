@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0](https://github.com/crystalphantom/pgit-cli/compare/v0.5.2...v0.7.0) (2026-04-30)
+
+### 🚀 Features
+
+* introduce v2 central config store workflow with `pgit config` commands
+* add `pgit config add`, `drop`, `remove`, and `sync pull|push|status`
+* keep private config files at their real repository paths for coding agents and local tools
+* mirror private config data under the user-level private store instead of the legacy per-project symlink flow
+* add private config sync status and conflict-safe drop/pull/push behavior
+
+### 📚 Documentation
+
+* document v2 private-config workflow as the recommended default
+* add migration/deprecation guidance for legacy v1 users
+
+### ⚠️ Deprecations
+
+* mark the v1 `.pgit-storage` / `.git-pgit` dual-repository workflow as legacy
+* move legacy `init` and `add` usage behind explicit `pgit legacy` commands or legacy feature flags
+
 
 ## [0.5.2](https://github.com/crystalphantom/pgit-cli/compare/v0.5.1...v0.5.2) (2025-09-30)
 
