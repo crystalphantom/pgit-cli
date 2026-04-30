@@ -12,6 +12,14 @@ All notable changes to this project will be documented in this file. The format 
 * mirror private config data under the user-level private store instead of the legacy per-project symlink flow
 * add private config sync status and conflict-safe drop/pull/push behavior
 
+### 🛠️ Maintenance
+
+* remove Dependabot automation from `.github/dependabot.yml`
+
+### 🐛 Bug Fixes
+
+* sync `pgit config` command flags and staged-index handling to prevent inconsistent state during config updates
+
 ### 📚 Documentation
 
 * document v2 private-config workflow as the recommended default
