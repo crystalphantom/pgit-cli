@@ -34,8 +34,8 @@ jobs:
         run: |
           echo "🔍 Validating package configuration..."
           npm run lint
-          npm run test:coverage
           npm run build
+          npm run test:coverage
 
       - name: Verify version tag
         id: verify_tag
