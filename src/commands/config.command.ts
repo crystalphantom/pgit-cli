@@ -1,4 +1,5 @@
 import { Command } from 'commander';
+import fs from 'fs-extra';
 import { CentralizedConfigManager } from '../core/centralized-config.manager';
 import { PrivateConfigSyncManager } from '../core/private-config-sync.manager';
 import { CommandResult } from '../types/config.types';
@@ -98,7 +99,7 @@ export class ConfigCommand {
       .action(async (targetPaths, options) => {
         const result = await this.executePrivateAdd(
           targetPaths,
-          options.noCommit,
+          options.commit === false,
           options.syncPush,
           options.force,
         );
@@ -593,7 +594,6 @@ export class ConfigCommand {
       const backupDir = `${configLocation}-backup-${timestamp}`;
 
       // Copy the entire config directory
-      const fs = require('fs-extra');
       await fs.copy(configLocation, backupDir);
 
       console.log('✅ Configuration backup created');

@@ -7,6 +7,8 @@ import fs from 'fs-extra';
 import { BaseError } from '../errors/base.error';
 
 const execFileAsync = promisify(execFile);
+const PGIT_HOOK_START = '# pgit private-config hook start';
+const PGIT_HOOK_END = '# pgit private-config hook end';
 
 export class PrivateConfigSyncError extends BaseError {
   public readonly code = 'PRIVATE_CONFIG_SYNC_ERROR';
@@ -314,16 +316,16 @@ export class PrivateConfigSyncManager {
     const hooksDir = await this.getHooksDir();
     await fs.ensureDir(hooksDir);
 
-    await fs.writeFile(path.join(hooksDir, 'pre-commit'), this.preCommitHook(manifest.projectId), {
-      encoding: 'utf8',
-      mode: 0o755,
-    });
-    await fs.writeFile(path.join(hooksDir, 'pre-push'), this.prePushHook(manifest.projectId), {
-      encoding: 'utf8',
-      mode: 0o755,
-    });
-    await fs.chmod(path.join(hooksDir, 'pre-commit'), 0o755);
-    await fs.chmod(path.join(hooksDir, 'pre-push'), 0o755);
+    await this.installHook(
+      path.join(hooksDir, 'pre-commit'),
+      'pre-commit',
+      this.preCommitHook(manifest.projectId),
+    );
+    await this.installHook(
+      path.join(hooksDir, 'pre-push'),
+      'pre-push',
+      this.prePushHook(manifest.projectId),
+    );
   }
 
   private async sync(
@@ -355,8 +357,7 @@ export class PrivateConfigSyncManager {
         backups.push(await this.backupPath(manifest.projectId, direction, entry.repoPath, target));
       }
 
-      await fs.ensureDir(path.dirname(target));
-      await fs.copy(source, target, { overwrite: true, errorOnExist: false });
+      await this.mirrorPath(source, target);
 
       const updatedEntry = await this.buildEntry(manifest.projectId, entry.repoPath, entry.type);
       Object.assign(entry, updatedEntry);
@@ -795,11 +796,73 @@ export class PrivateConfigSyncManager {
       uniquePaths.length === 1
         ? `Remove private config from shared Git: ${uniquePaths[0]}`
         : `Remove ${uniquePaths.length} private config files from shared Git`;
-    const { stdout } = await execFileAsync('git', ['commit', '-m', subject], {
-      cwd: this.workingDir,
-    });
+    const unrelatedPatch = await this.captureAndUnstageUnrelatedChanges(uniquePaths);
+    let stdout = '';
+    try {
+      const result = await execFileAsync('git', ['commit', '-m', subject], {
+        cwd: this.workingDir,
+      });
+      stdout = result.stdout;
+    } finally {
+      await this.restoreStagedChanges(unrelatedPatch);
+    }
+
     const match = stdout.match(/\[[^\]]+\s+([a-f0-9]+)\]/);
     return match?.[1] || '';
+  }
+
+  private async captureAndUnstageUnrelatedChanges(
+    removalPaths: string[],
+  ): Promise<string | undefined> {
+    const stagedOutput = await this.gitOutputRaw(['diff', '--cached', '--name-only', '-z']);
+    const removalPathSet = new Set(removalPaths);
+    const unrelatedPaths = stagedOutput
+      .split('\0')
+      .filter(Boolean)
+      .filter(stagedPath => !removalPathSet.has(stagedPath));
+
+    if (!unrelatedPaths.length) {
+      return undefined;
+    }
+
+    const { stdout } = await execFileAsync(
+      'git',
+      ['diff', '--cached', '--binary', '--', ...unrelatedPaths],
+      {
+        cwd: this.workingDir,
+        maxBuffer: 20 * 1024 * 1024,
+      },
+    );
+
+    await execFileAsync('git', ['reset', '-q', '--', ...unrelatedPaths], {
+      cwd: this.workingDir,
+    });
+
+    return stdout;
+  }
+
+  private async restoreStagedChanges(patch: string | undefined): Promise<void> {
+    if (!patch) {
+      return;
+    }
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'pgit-index-patch-'));
+    const patchPath = path.join(tempDir, 'index.patch');
+
+    try {
+      await fs.writeFile(patchPath, patch, 'utf8');
+      await execFileAsync('git', ['apply', '--cached', patchPath], { cwd: this.workingDir });
+    } finally {
+      await fs.remove(tempDir);
+    }
+  }
+
+  private async mirrorPath(sourcePath: string, targetPath: string): Promise<void> {
+    await fs.ensureDir(path.dirname(targetPath));
+    if (await fs.pathExists(targetPath)) {
+      await fs.remove(targetPath);
+    }
+    await fs.copy(sourcePath, targetPath, { overwrite: true, errorOnExist: false });
   }
 
   private async getHooksDir(): Promise<string> {
@@ -822,8 +885,150 @@ export class PrivateConfigSyncManager {
     return stdout.trim();
   }
 
+  private async gitOutputRaw(args: string[]): Promise<string> {
+    const { stdout } = await execFileAsync('git', args, { cwd: this.workingDir });
+    return stdout;
+  }
+
   private toPosix(value: string): string {
     return value.split(path.sep).join('/');
+  }
+
+  private async installHook(
+    hookPath: string,
+    hookName: 'pre-commit' | 'pre-push',
+    pgitHook: string,
+  ): Promise<void> {
+    const existing = (await fs.pathExists(hookPath)) ? await fs.readFile(hookPath, 'utf8') : '';
+    const content = await this.mergeHookContent(hookPath, hookName, existing, pgitHook);
+
+    await fs.writeFile(hookPath, content, { encoding: 'utf8', mode: 0o755 });
+    await fs.chmod(hookPath, 0o755);
+  }
+
+  private async mergeHookContent(
+    hookPath: string,
+    hookName: 'pre-commit' | 'pre-push',
+    existing: string,
+    pgitHook: string,
+  ): Promise<string> {
+    const pgitBlock = this.managedHookBlock(pgitHook);
+
+    if (!existing.trim() || this.isLegacyPgitHook(existing, hookName)) {
+      return this.withHookShebang(pgitBlock);
+    }
+
+    if (existing.includes(PGIT_HOOK_START)) {
+      return this.replaceManagedHookBlock(existing, pgitBlock);
+    }
+
+    if (hookName === 'pre-push') {
+      return this.wrapExistingPrePushHook(hookPath, existing, pgitBlock);
+    }
+
+    if (this.isShellHook(existing)) {
+      return this.mergeShellHook(existing, pgitBlock);
+    }
+
+    const backupPath = await this.backupHook(hookPath, existing);
+    return `${this.withHookShebang(pgitBlock)}${this.shellQuote(backupPath)} "$@"\n`;
+  }
+
+  private managedHookBlock(pgitHook: string): string {
+    return `${PGIT_HOOK_START}
+(
+${this.stripShebang(pgitHook)}) || exit $?
+${PGIT_HOOK_END}
+`;
+  }
+
+  private stripShebang(script: string): string {
+    const withoutShebang = script.startsWith('#!')
+      ? script.slice(script.indexOf('\n') + 1)
+      : script;
+    return withoutShebang.endsWith('\n') ? withoutShebang : `${withoutShebang}\n`;
+  }
+
+  private withHookShebang(content: string): string {
+    return `#!/bin/sh
+${content}`;
+  }
+
+  private replaceManagedHookBlock(existing: string, pgitBlock: string): string {
+    const start = existing.indexOf(PGIT_HOOK_START);
+    const end = existing.indexOf(PGIT_HOOK_END, start);
+
+    if (start === -1 || end === -1) {
+      return this.mergeShellHook(existing, pgitBlock);
+    }
+
+    const afterEnd = end + PGIT_HOOK_END.length;
+    const afterBlock = existing[afterEnd] === '\n' ? afterEnd + 1 : afterEnd;
+    return `${existing.slice(0, start)}${pgitBlock}${existing.slice(afterBlock)}`;
+  }
+
+  private mergeShellHook(existing: string, pgitBlock: string): string {
+    if (!existing.startsWith('#!')) {
+      return this.withHookShebang(`${pgitBlock}${existing}`);
+    }
+
+    const firstLineEnd = existing.indexOf('\n');
+    if (firstLineEnd === -1) {
+      return `${existing}\n${pgitBlock}`;
+    }
+
+    return `${existing.slice(0, firstLineEnd + 1)}${pgitBlock}${existing.slice(firstLineEnd + 1)}`;
+  }
+
+  private isShellHook(content: string): boolean {
+    if (!content.startsWith('#!')) {
+      return true;
+    }
+
+    const firstLineEnd = content.indexOf('\n');
+    const firstLine = content
+      .slice(0, firstLineEnd === -1 ? content.length : firstLineEnd)
+      .toLowerCase();
+    return /\b(?:sh|bash|dash|zsh)\b/.test(firstLine);
+  }
+
+  private isLegacyPgitHook(content: string, hookName: 'pre-commit' | 'pre-push'): boolean {
+    const marker =
+      hookName === 'pre-commit'
+        ? 'Blocked commit: private config paths staged'
+        : 'Blocked push: private config paths found in outgoing commits';
+    return !content.includes(PGIT_HOOK_START) && content.includes(marker);
+  }
+
+  private async backupHook(hookPath: string, content: string): Promise<string> {
+    const backupPath = `${hookPath}.pgit-backup`;
+    await fs.writeFile(backupPath, content, { encoding: 'utf8', mode: 0o755 });
+    await fs.chmod(backupPath, 0o755);
+    return backupPath;
+  }
+
+  private async wrapExistingPrePushHook(
+    hookPath: string,
+    existing: string,
+    pgitBlock: string,
+  ): Promise<string> {
+    const backupPath = await this.backupHook(hookPath, existing);
+
+    return `#!/bin/sh
+PGIT_HOOK_STDIN=$(mktemp)
+trap 'rm -f "$PGIT_HOOK_STDIN"' EXIT
+cat > "$PGIT_HOOK_STDIN"
+PGIT_PRE_PUSH_REFS="$PGIT_HOOK_STDIN"
+export PGIT_PRE_PUSH_REFS
+${pgitBlock}unset PGIT_PRE_PUSH_REFS
+${this.shellQuote(backupPath)} "$@" < "$PGIT_HOOK_STDIN"
+PGIT_HOOK_STATUS=$?
+exit "$PGIT_HOOK_STATUS"
+`;
+  }
+
+  private shellQuote(value: string): string {
+    return `'${value.replace(/'/g, "'\\''")}'`;
   }
 
   private preCommitHook(projectId: string): string {
@@ -867,8 +1072,10 @@ NODE
 set -eu
 MANIFEST="${manifestPath}"
 [ -f "$MANIFEST" ] || exit 0
-TMP=$(mktemp)
-cat > "$TMP"
+TMP="\${PGIT_PRE_PUSH_REFS:-$(mktemp)}"
+if [ -z "\${PGIT_PRE_PUSH_REFS:-}" ]; then
+  cat > "$TMP"
+fi
 node - "$MANIFEST" "$TMP" <<'NODE'
 const fs = require('fs');
 const { execFileSync } = require('child_process');
@@ -917,7 +1124,9 @@ if (blocked.size) {
   process.exit(1);
 }
 NODE
-rm -f "$TMP"
+if [ -z "\${PGIT_PRE_PUSH_REFS:-}" ]; then
+  rm -f "$TMP"
+fi
 `;
   }
 }

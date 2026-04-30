@@ -2,7 +2,10 @@ import fs from 'fs-extra';
 import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { PrivateConfigConflictError, PrivateConfigSyncManager } from '../../core/private-config-sync.manager';
+import {
+  PrivateConfigConflictError,
+  PrivateConfigSyncManager,
+} from '../../core/private-config-sync.manager';
 
 describe('PrivateConfigSyncManager', () => {
   let tempRoot: string;
@@ -37,10 +40,14 @@ describe('PrivateConfigSyncManager', () => {
     expect(await fs.readFile(filePath, 'utf8')).toBe('private rules');
     expect((await fs.lstat(filePath)).isSymbolicLink()).toBe(false);
     expect(await fs.pathExists(path.join(info.privateRoot, 'my-rules.md'))).toBe(true);
-    expect(await fs.readFile(path.join(info.privateRoot, 'my-rules.md'), 'utf8')).toBe('private rules');
+    expect(await fs.readFile(path.join(info.privateRoot, 'my-rules.md'), 'utf8')).toBe(
+      'private rules',
+    );
     expect(await fs.pathExists(path.join(repoDir, '.git', 'hooks', 'pre-commit'))).toBe(true);
     expect(await fs.pathExists(path.join(repoDir, '.git', 'hooks', 'pre-push'))).toBe(true);
-    expect(await fs.readFile(path.join(repoDir, '.git', 'info', 'exclude'), 'utf8')).not.toContain('my-rules.md');
+    expect(await fs.readFile(path.join(repoDir, '.git', 'info', 'exclude'), 'utf8')).not.toContain(
+      'my-rules.md',
+    );
   });
 
   it('syncs pull and push with conflict detection and force backups', async () => {
@@ -76,6 +83,26 @@ describe('PrivateConfigSyncManager', () => {
     expect(entry.files).toEqual({ 'nested/config.md': expect.any(String) });
   });
 
+  it('mirrors directory deletions when syncing to the private store', async () => {
+    await fs.ensureDir(path.join(repoDir, 'private-folder'));
+    await fs.writeFile(path.join(repoDir, 'private-folder', 'keep.md'), 'keep');
+    await fs.writeFile(path.join(repoDir, 'private-folder', 'remove.md'), 'remove');
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const addResult = await manager.add('private-folder');
+    const privateDir = addResult.entries[0].privatePath;
+
+    await fs.remove(path.join(repoDir, 'private-folder', 'remove.md'));
+    await manager.syncPush();
+    const status = await manager.getStatus();
+
+    expect(await fs.pathExists(path.join(privateDir, 'keep.md'))).toBe(true);
+    expect(await fs.pathExists(path.join(privateDir, 'remove.md'))).toBe(false);
+    expect(status).toEqual([
+      { repoPath: 'private-folder', type: 'directory', state: 'up-to-date' },
+    ]);
+  });
+
   it('removes already-tracked paths from main git index when adding private config', async () => {
     await fs.ensureDir(path.join(repoDir, 'research'));
     await fs.writeFile(path.join(repoDir, 'research', 'notes.md'), 'private research');
@@ -98,7 +125,9 @@ describe('PrivateConfigSyncManager', () => {
     expect(result.commitHash).toBeUndefined();
     expect(lsFiles).toBe('');
     expect(status).toContain('D\tresearch/notes.md');
-    expect(await fs.readFile(path.join(repoDir, 'research', 'notes.md'), 'utf8')).toBe('private research');
+    expect(await fs.readFile(path.join(repoDir, 'research', 'notes.md'), 'utf8')).toBe(
+      'private research',
+    );
   });
 
   it('auto-commits tracked path removals by default', async () => {
@@ -109,12 +138,40 @@ describe('PrivateConfigSyncManager', () => {
     const manager = new PrivateConfigSyncManager(repoDir, homeDir);
     const result = await manager.add('secret.md');
     const status = execFileSync('git', ['status', '--short'], { cwd: repoDir, encoding: 'utf8' });
-    const lsFiles = execFileSync('git', ['ls-files', 'secret.md'], { cwd: repoDir, encoding: 'utf8' });
+    const lsFiles = execFileSync('git', ['ls-files', 'secret.md'], {
+      cwd: repoDir,
+      encoding: 'utf8',
+    });
 
     expect(result.commitHash).toBeTruthy();
     expect(status).toBe('?? secret.md\n');
     expect(lsFiles).toBe('');
     expect(await fs.readFile(path.join(repoDir, 'secret.md'), 'utf8')).toBe('private secret');
+  });
+
+  it('does not include unrelated staged changes in automatic removal commits', async () => {
+    await fs.writeFile(path.join(repoDir, 'secret.md'), 'private secret');
+    execFileSync('git', ['add', 'secret.md'], { cwd: repoDir });
+    execFileSync('git', ['commit', '-m', 'track secret before pgit'], { cwd: repoDir });
+    await fs.writeFile(path.join(repoDir, 'unrelated.md'), 'unrelated');
+    execFileSync('git', ['add', 'unrelated.md'], { cwd: repoDir });
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const result = await manager.add('secret.md');
+    const committedFiles = execFileSync('git', ['show', '--name-only', '--format=', 'HEAD'], {
+      cwd: repoDir,
+      encoding: 'utf8',
+    });
+    const status = execFileSync('git', ['status', '--short'], {
+      cwd: repoDir,
+      encoding: 'utf8',
+    });
+
+    expect(result.commitHash).toBeTruthy();
+    expect(committedFiles).toContain('secret.md');
+    expect(committedFiles).not.toContain('unrelated.md');
+    expect(status).toContain('A  unrelated.md');
+    expect(status).toContain('?? secret.md');
   });
 
   it('adds multiple files and directories in one operation', async () => {
@@ -363,6 +420,39 @@ describe('PrivateConfigSyncManager', () => {
     );
 
     expect(await fs.readFile(path.join(repoDir, 'rules.md'), 'utf8')).toBe('rules');
+  });
+
+  it('preserves existing shell hooks when installing pgit hooks', async () => {
+    const hooksDir = path.join(repoDir, '.git', 'hooks');
+    await fs.writeFile(
+      path.join(hooksDir, 'pre-commit'),
+      '#!/bin/sh\necho existing-pre-commit >> .git/hook.log\n',
+      { mode: 0o755 },
+    );
+    await fs.writeFile(
+      path.join(hooksDir, 'pre-push'),
+      '#!/bin/sh\necho existing-pre-push >> .git/hook.log\n',
+      { mode: 0o755 },
+    );
+    await fs.writeFile(path.join(repoDir, 'my-rules.md'), 'v1');
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+
+    await manager.add('my-rules.md');
+    const preCommitHook = await fs.readFile(path.join(hooksDir, 'pre-commit'), 'utf8');
+    const prePushHookBackup = await fs.readFile(
+      path.join(hooksDir, 'pre-push.pgit-backup'),
+      'utf8',
+    );
+    await fs.writeFile(path.join(repoDir, 'public.md'), 'public');
+    execFileSync('git', ['add', 'public.md'], { cwd: repoDir });
+    execFileSync('git', ['commit', '-m', 'public commit'], { cwd: repoDir });
+
+    expect(preCommitHook).toContain('pgit private-config hook start');
+    expect(preCommitHook).toContain('existing-pre-commit');
+    expect(prePushHookBackup).toContain('existing-pre-push');
+    expect(await fs.readFile(path.join(repoDir, '.git', 'hook.log'), 'utf8')).toContain(
+      'existing-pre-commit',
+    );
   });
 
   it('pre-commit hook allows deletion-only untracking commits', async () => {
