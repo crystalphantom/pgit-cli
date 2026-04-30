@@ -1,3 +1,4 @@
+import { Command } from 'commander';
 import { ConfigCommand } from '../../commands/config.command';
 import { CentralizedConfigManager } from '../../core/centralized-config.manager';
 import { PrivateConfigSyncManager } from '../../core/private-config-sync.manager';
@@ -346,7 +347,9 @@ describe('ConfigCommand', () => {
       const result = await configCommand.executePrivateAdd('rules.md');
 
       expect(result.success).toBe(true);
-      expect(mockPrivateConfigSyncManager.add).toHaveBeenCalledWith('rules.md', { noCommit: false });
+      expect(mockPrivateConfigSyncManager.add).toHaveBeenCalledWith('rules.md', {
+        noCommit: false,
+      });
       expect(mockPrivateConfigSyncManager.syncPush).toHaveBeenCalled();
     });
 
@@ -530,6 +533,36 @@ describe('ConfigCommand', () => {
   });
 
   describe('register', () => {
+    it('should honor --no-commit from commander', async () => {
+      mockPrivateConfigSyncManager.add.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        untrackedPaths: ['rules.md'],
+        untrackedFromMainGit: [],
+      });
+      mockPrivateConfigSyncManager.syncPush.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [{ repoPath: 'rules.md', type: 'file', state: 'up-to-date' }],
+        backups: [],
+      });
+      const program = new Command();
+      program.exitOverride();
+
+      configCommand.register(program);
+      await program.parseAsync(['node', 'pgit', 'config', 'add', '--no-commit', 'rules.md']);
+
+      expect(mockPrivateConfigSyncManager.add).toHaveBeenCalledWith(['rules.md'], {
+        noCommit: true,
+      });
+    });
+
     it('should register config command and subcommands', () => {
       const mockProgram = {
         command: jest.fn().mockReturnThis(),
