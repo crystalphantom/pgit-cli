@@ -4,7 +4,7 @@
 [![TypeScript](https://img.shields.io/badge/typescript-5.0%2B-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A powerful CLI tool that enables developers to version control private files within team repositories using a dual git repository system. Keep your sensitive configuration files, environment variables, and personal notes tracked privately while maintaining complete isolation from your team's shared repository.
+A powerful CLI tool that keeps private configuration files available at their normal repository paths while mirroring them into a user-level private store. Keep sensitive configuration files, environment variables, and personal notes available to local tools and coding agents without adding their contents back to your team's shared Git history.
 
 ## 🚀 What is PGit?
 
@@ -12,7 +12,7 @@ PGit now focuses on agent-visible private-config workflows. It tracks selected r
 in a private side store while keeping them at their original paths so tools and agents can
 discover them.
 
-This release prefers:
+The v0.7.0 release uses the v2 private-config workflow:
 - `pgit config add` for onboarding private config paths into tracking
 - `pgit config drop` for removing local private config copies before normal Git commits
 - `pgit config sync` for keeping repo files and private store aligned (`pull`, `push`, `status`)
@@ -55,7 +55,7 @@ pgit config drop .
 pgit config sync status
 ```
 
-## 📚 Command Reference (MVP)
+## 📚 Command Reference (v2)
 
 | Command | Description | Example |
 |---------|-------------|---------|
@@ -77,7 +77,7 @@ pgit config sync status
 ## 🧩 Legacy Compatibility Section
 
 The sections below describe the legacy workflow kept for backward compatibility.
-For MVP usage, prefer only the MVP commands above.
+For v2 usage, prefer only the `pgit config` commands above.
 
 ## 📦 Installation
 
@@ -119,8 +119,8 @@ pgit --help
 # Navigate to your project directory
 cd your-project
 
-# Initialize pgit git tracking
-pgit init
+# Initialize legacy pgit git tracking
+pgit legacy init
 ```
 
 This creates:
@@ -137,12 +137,12 @@ pgit preset apply nodejs-dev  # Adds common Node.js files
 pgit preset apply claude-flow  # Adds AI workflow files
 
 # Option 2: Add files individually
-pgit add .env
-pgit add config/secrets.json
-pgit add .env.local
+pgit legacy add .env
+pgit legacy add config/secrets.json
+pgit legacy add .env.local
 
 # Option 3: Add entire directory
-pgit add personal-notes/
+pgit legacy add personal-notes/
 ```
 
 ### 3. Manage Private Repository
@@ -167,13 +167,13 @@ pgit log --oneline
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `pgit init` | Initialize dual repository system | `pgit init` |
+| `pgit legacy init` | Initialize legacy dual repository system | `pgit legacy init` |
 
 ### File Management Commands
 
 | Command | Description | Options | Example |
 |---------|-------------|---------|---------|
-| `pgit add <path>` | Add file/directory to legacy pgit tracking with automatic git protection | `<path>` (required) | `pgit add .env` |
+| `pgit legacy add <path>` | Add file/directory to legacy pgit tracking with automatic git protection | `<path>` (required) | `pgit legacy add .env` |
 | `pgit status` | Show status of both repositories | `--verbose`, `-v` | `pgit status -v` |
 | `pgit-status` | Show detailed pgit repository status | `--verbose`, `-v` | `pgit-status -v` |
 
@@ -297,31 +297,28 @@ Behavior:
 - Native `git status` may show private file names because files are intentionally not ignored.
 - `--force` resolves sync conflicts and creates backups under `.backups/` before overwrite.
 
-### Managing Environment Files
+### Managing Environment Files with v2
 
 ```bash
-# Initialize in your project
-pgit init
+# Add environment files to the private config store
+pgit config add .env .env.local .env.development
 
-# Add environment files
-pgit add .env
-pgit add .env.local
-pgit add .env.development
+# Your app and coding agents can still read real files at repo paths
+# Private copies are mirrored under ~/.pgit/private-config/
 
-# Your app can still read from .env (symbolic link)
-# But the actual file is pgitly tracked
+# Save local edits back to the private store
+pgit config sync push
 
-# Make changes and commit
-pgit add-changes --all
-pgit commit -m "Update API endpoints"
+# Drop private files before normal Git work
+pgit config drop .
 ```
 
 ### Working with Configuration Files (Legacy)
 
 ```bash
 # Add configuration files
-pgit add config/database.json
-pgit add config/api-keys.json
+pgit legacy add config/database.json
+pgit legacy add config/api-keys.json
 
 # Create a feature branch for testing
 pgit branch testing-config
@@ -388,9 +385,9 @@ pgit log --oneline
 
 ```bash
 # Add sensitive files with automatic git protection
-pgit add .env
-pgit add config/api-keys.json
-pgit add personal-todos.txt
+pgit legacy add .env
+pgit legacy add config/api-keys.json
+pgit legacy add personal-todos.txt
 
 # Verify protection is active
 git status          # ✅ No pgit files appear
@@ -413,7 +410,7 @@ node -e "console.log(require('fs').readFileSync('.env', 'utf8'))"
 
 ```bash
 # Add multiple files at once with batch git protection
-pgit add .env .env.local config/secrets.json
+pgit legacy add .env .env.local config/secrets.json
 
 # All files are automatically protected from git tracking
 git status  # Clean - no pgit files visible
@@ -490,7 +487,7 @@ We welcome contributions to the Private Git Tracking CLI! Here's how you can hel
 3. **Development Workflow**
    ```bash
    # Run in development mode
-   npm run dev -- init
+   npm run dev -- config sync status
 
    # Build the project
    npm run build
@@ -573,9 +570,9 @@ git commit -m "test: add cross-platform symbolic link tests"
    npm link
    cd /tmp/test-project
    git init
-   pgit init
    echo "test" > .env
-   pgit add .env
+   pgit config add .env
+   pgit config sync status
    ```
 
 4. **Submit Pull Request**
@@ -629,7 +626,7 @@ docker run -v $(pwd):/app -w /app node:18 npm test
 npm run dev -- status --verbose
 
 # Debug with Node.js debugger
-npm run dev:debug -- init
+npm run dev:debug -- config sync status
 ```
 
 **Testing Commands Locally**
@@ -637,11 +634,13 @@ npm run dev:debug -- init
 # Build and link for testing
 npm run build && npm link
 
-# Test in a temporary directory
+# Test the v2 private-config flow in a temporary directory
 mkdir /tmp/test-project
 cd /tmp/test-project
 git init
-pgit init
+echo "test" > .env
+pgit config add .env
+pgit config sync status
 ```
 
 ### Code of Conduct
@@ -675,8 +674,8 @@ We are committed to providing a welcoming and inclusive environment for all cont
 
 - **No data collection**: The CLI operates entirely locally
 - **No network requests**: All operations are performed on your local machine
-- **Private files stay pgit**: Only you control access to your pgit repository
-- **Symbolic links are secure**: Files remain in their expected locations for applications
+- **Private files stay local**: Only you control access to your user-level private store
+- **No symlink dependency for v2 config**: Files remain as real files in their expected locations for applications and coding agents
 
 ## 📋 System Requirements
 
@@ -716,8 +715,8 @@ git status  # Should not show pgit files
 # Check if .git/info/exclude is properly configured
 cat .git/info/exclude
 
-# Re-run pgit add to ensure protection is applied
-pgit add .env
+# Re-run legacy pgit add to ensure protection is applied
+pgit legacy add .env
 
 # Verify file is now protected
 git add .env  # Should show "nothing to commit" or be ignored

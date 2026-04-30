@@ -201,7 +201,7 @@ describe('ConfigManager', () => {
 
       const config = await configManager.create(testWorkingDir);
 
-      expect(config.version).toBe('0.5.0');
+      expect(config.version).toBe('0.7.0');
       expect(mockFileSystem.writeFileAtomic).toHaveBeenCalled();
     });
   });
@@ -343,7 +343,7 @@ describe('ConfigManager', () => {
 
       expect(health.valid).toBe(true);
       expect(health.exists).toBe(true);
-      expect(health.currentVersion).toBe('0.5.0');
+      expect(health.currentVersion).toBe('0.7.0');
       expect(health.needsMigration).toBe(false);
     });
 
@@ -397,7 +397,7 @@ describe('ConfigManager', () => {
 
       expect(health.needsMigration).toBe(true);
       expect(health.currentVersion).toBe('0.9.0');
-      expect(health.targetVersion).toBe('0.5.0');
+      expect(health.targetVersion).toBe('0.7.0');
     });
   });
 
