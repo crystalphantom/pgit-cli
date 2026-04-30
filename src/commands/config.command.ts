@@ -117,6 +117,19 @@ export class ConfigCommand {
         }
       });
 
+    configCmd
+      .command('drop <paths...>')
+      .description(
+        'Drop repo-local private config files or directories without removing private store entries',
+      )
+      .option('-f, --force', 'Drop local copies even when they differ from private store')
+      .action(async (targetPaths, options) => {
+        const result = await this.executePrivateDrop(targetPaths, options.force);
+        if (!result.success) {
+          process.exit(result.exitCode);
+        }
+      });
+
     const syncCmd = configCmd.command('sync').description('Sync agent-visible private config');
 
     syncCmd
@@ -451,6 +464,33 @@ export class ConfigCommand {
       };
     } catch (error) {
       return this.handleConfigError(error, 'Failed to remove private config');
+    }
+  }
+
+  public async executePrivateDrop(
+    targetPaths: string | string[],
+    force: boolean = false,
+  ): Promise<CommandResult> {
+    try {
+      const result = await this.privateConfigSyncManager.drop(targetPaths, { force });
+
+      console.log(
+        `✅ Private config dropped locally: ${result.entries.map(entry => entry.repoPath).join(', ')}`,
+      );
+      console.log(`📁 Project ID: ${result.projectId}`);
+      console.log(
+        `🧹 Removed ${result.droppedRepoPaths.length} repo-local entr${result.droppedRepoPaths.length === 1 ? 'y' : 'ies'}`,
+      );
+      console.log('Restore with: pgit config sync pull');
+
+      return {
+        success: true,
+        message: `Private config dropped locally: ${result.entries.map(entry => entry.repoPath).join(', ')}`,
+        data: result,
+        exitCode: 0,
+      };
+    } catch (error) {
+      return this.handleConfigError(error, 'Failed to drop local private config');
     }
   }
 

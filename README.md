@@ -14,6 +14,7 @@ discover them.
 
 This release prefers:
 - `pgit config add` for onboarding private config paths into tracking
+- `pgit config drop` for removing local private config copies before normal Git commits
 - `pgit config sync` for keeping repo files and private store aligned (`pull`, `push`, `status`)
 
 ### How It Works
@@ -43,6 +44,9 @@ pgit config sync pull
 
 # Push your local edits back into private store
 pgit config sync push
+
+# Drop all tracked private config files from the working tree before normal Git work
+pgit config drop .
 ```
 
 ### 3. Check Drift
@@ -56,6 +60,7 @@ pgit config sync status
 | Command | Description | Example |
 |---------|-------------|---------|
 | `pgit config add <paths...>` | Track private config paths in repo (creates mirror under `~/.pgit/private-config/...`) | `pgit config add .env .claude/` |
+| `pgit config drop <paths...>` | Remove repo-local private config copies while keeping private-store entries | `pgit config drop .` |
 | `pgit config remove <paths...>` | Stop tracking private-config paths and remove private mirror entries | `pgit config remove .env` |
 | `pgit config sync pull` | Copy private-store files into repository paths | `pgit config sync pull` |
 | `pgit config sync push` | Copy repository files back into private store | `pgit config sync push` |
@@ -179,6 +184,7 @@ Use these when coding agents must discover private files at their real repo path
 | Command | Description | Options | Example |
 |---------|-------------|---------|---------|
 | `pgit config add <paths...>` | Track private config files/directories at repo paths; auto-validates all paths before mutation, auto-commits already-tracked removals, and pushes repo-local contents to private store | `--no-commit`, `--no-sync-push` | `pgit config add research docs specs` |
+| `pgit config drop <paths...>` | Drop repo-local private config files/directories without removing private-store copies. Use `.` to drop all tracked entries | `--force`, `-f` | `pgit config drop .` |
 | `pgit config remove <paths...>` | Stop tracking private config files/directories and remove their private-store copies without deleting repo-local files | none | `pgit config remove research docs` |
 | `pgit config sync pull` | Copy private-store files into repo paths | `--force`, `-f` | `pgit config sync pull` |
 | `pgit config sync push` | Copy repo-path files back to private store | `--force`, `-f` | `pgit config sync push --force` |
@@ -266,6 +272,12 @@ pgit config sync pull
 # Save repo-local edits back to private store
 pgit config sync push
 
+# Drop all tracked private config from the working tree before Git status/commit
+pgit config drop .
+
+# Restore dropped private config when agents or local tools need it again
+pgit config sync pull
+
 # Check drift/conflicts
 pgit config sync status
 ```
@@ -278,6 +290,8 @@ Behavior:
 - If paths are already tracked by main Git, `pgit config add` runs `git rm --cached -r <path>` so files stay local and commits the shared-Git removal by default.
 - `pgit config add` runs `pgit config sync push` by default after successful add, so private store stays current. Use `--no-sync-push` to skip this.
 - Use `--no-commit` to leave staged removals for manual commit. In that mode, do not run `git add .` before committing or Git can re-add the files.
+- `pgit config drop .` removes all tracked private config from the repo working tree while keeping private-store copies. Explicit paths drop only those entries.
+- `pgit config drop` refuses to delete local copies that differ from the private store unless `--force` is used.
 - `pgit config remove` stops tracking paths, removes their private-store copies, and leaves repo-local files/directories untouched.
 - Local `pre-commit` and `pre-push` hooks block private paths from re-entering shared Git history. In Git worktrees, hooks install into the common hooks directory, or `core.hooksPath` when configured.
 - Native `git status` may show private file names because files are intentionally not ignored.

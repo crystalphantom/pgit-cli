@@ -59,6 +59,7 @@ describe('ConfigCommand', () => {
     ) as jest.Mocked<PrivateConfigSyncManager>;
     mockPrivateConfigSyncManager.add = jest.fn();
     mockPrivateConfigSyncManager.remove = jest.fn();
+    mockPrivateConfigSyncManager.drop = jest.fn();
     mockPrivateConfigSyncManager.syncPush = jest.fn();
     MockedPrivateConfigSyncManager.mockImplementation(() => mockPrivateConfigSyncManager);
 
@@ -447,6 +448,42 @@ describe('ConfigCommand', () => {
       expect(result.success).toBe(true);
       expect(mockPrivateConfigSyncManager.remove).toHaveBeenCalledWith('rules.md');
       expect(result.message).toBe('Private config removed: rules.md');
+    });
+  });
+
+  describe('executePrivateDrop', () => {
+    it('should drop local private config with force option forwarded', async () => {
+      mockPrivateConfigSyncManager.drop.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        droppedRepoPaths: ['rules.md'],
+      });
+
+      const result = await configCommand.executePrivateDrop('rules.md', true);
+
+      expect(result.success).toBe(true);
+      expect(mockPrivateConfigSyncManager.drop).toHaveBeenCalledWith('rules.md', { force: true });
+      expect(result.message).toBe('Private config dropped locally: rules.md');
+      expect(consoleSpy).toHaveBeenCalledWith('Restore with: pgit config sync pull');
+    });
+
+    it('should handle drop errors', async () => {
+      const error = new Error('Local copy changed');
+      mockPrivateConfigSyncManager.drop.mockRejectedValue(error);
+
+      const result = await configCommand.executePrivateDrop('.');
+
+      expect(result.success).toBe(false);
+      expect(result.message).toBe('Local copy changed');
+      expect(result.exitCode).toBe(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith('❌ Error: Local copy changed');
     });
   });
 

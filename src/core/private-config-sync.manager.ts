@@ -90,6 +90,16 @@ export interface PrivateConfigRemoveResult {
   removedPrivatePaths: string[];
 }
 
+export interface PrivateConfigDropOptions {
+  force?: boolean;
+}
+
+export interface PrivateConfigDropResult {
+  projectId: string;
+  entries: PrivateConfigEntry[];
+  droppedRepoPaths: string[];
+}
+
 export interface PrivateConfigAddOptions {
   noCommit?: boolean;
   force?: boolean;
@@ -226,6 +236,33 @@ export class PrivateConfigSyncManager {
       projectId: manifest.projectId,
       entries,
       removedPrivatePaths: entries.map(entry => entry.privatePath),
+    };
+  }
+
+  public async drop(
+    repoPathInput: string | string[],
+    options: PrivateConfigDropOptions = {},
+  ): Promise<PrivateConfigDropResult> {
+    const manifest = await this.loadManifest();
+    const entries = this.resolveDropEntries(manifest, repoPathInput);
+    const droppedRepoPaths: string[] = [];
+
+    await this.validateDropEntries(entries, options);
+
+    for (const entry of entries) {
+      const repoPath = path.join(this.workingDir, ...entry.repoPath.split('/'));
+      if (await fs.pathExists(repoPath)) {
+        await fs.remove(repoPath);
+        droppedRepoPaths.push(entry.repoPath);
+      }
+    }
+
+    await this.installHooks();
+
+    return {
+      projectId: manifest.projectId,
+      entries,
+      droppedRepoPaths,
     };
   }
 
@@ -499,6 +536,105 @@ export class PrivateConfigSyncManager {
   private normalizeRepoPathInputs(repoPathInput: string | string[]): string[] {
     const inputs = Array.isArray(repoPathInput) ? repoPathInput : [repoPathInput];
     return [...new Set(inputs.map(input => this.normalizeRepoPath(input)))];
+  }
+
+  private resolveDropEntries(
+    manifest: PrivateConfigManifest,
+    repoPathInput: string | string[],
+  ): PrivateConfigEntry[] {
+    const inputs = Array.isArray(repoPathInput) ? repoPathInput : [repoPathInput];
+    if (inputs.some(input => input.trim() === '.')) {
+      return [...manifest.entries];
+    }
+
+    const repoPaths = this.normalizeRepoPathInputs(inputs);
+    const entries = repoPaths
+      .map(repoPath => manifest.entries.find(entry => entry.repoPath === repoPath))
+      .filter((entry): entry is PrivateConfigEntry => Boolean(entry));
+    const missing = repoPaths.filter(
+      repoPath => !entries.some(entry => entry.repoPath === repoPath),
+    );
+
+    if (missing.length > 0) {
+      throw new PrivateConfigSyncError(`Private config path is not tracked: ${missing.join(', ')}`);
+    }
+
+    return entries;
+  }
+
+  private async validateDropEntries(
+    entries: PrivateConfigEntry[],
+    options: PrivateConfigDropOptions,
+  ): Promise<void> {
+    for (const entry of entries) {
+      const repoPath = path.join(this.workingDir, ...entry.repoPath.split('/'));
+      const privatePath = entry.privatePath;
+
+      if (!(await fs.pathExists(privatePath))) {
+        throw new PrivateConfigSyncError(
+          `Cannot drop ${entry.repoPath}: private-store copy is missing. Run pgit config sync push first.`,
+        );
+      }
+
+      if (!(await fs.pathExists(repoPath)) || options.force) {
+        continue;
+      }
+
+      if (!(await this.pathTypeMatches(repoPath, entry.type))) {
+        throw new PrivateConfigConflictError(
+          `Cannot drop ${entry.repoPath}: local copy has changes not pushed to private config. Run pgit config sync push first, or use --force.`,
+        );
+      }
+
+      const repoSnapshot =
+        entry.type === 'directory'
+          ? await this.snapshotDirectory(repoPath)
+          : await this.hashPath(repoPath, entry.type);
+      const privateSnapshot =
+        entry.type === 'directory'
+          ? await this.snapshotDirectory(privatePath)
+          : await this.hashPath(privatePath, entry.type);
+      if (!this.hashesEqual(repoSnapshot, privateSnapshot)) {
+        throw new PrivateConfigConflictError(
+          `Cannot drop ${entry.repoPath}: local copy has changes not pushed to private config. Run pgit config sync push first, or use --force.`,
+        );
+      }
+    }
+  }
+
+  private async pathTypeMatches(
+    targetPath: string,
+    expectedType: PrivateConfigEntryType,
+  ): Promise<boolean> {
+    const stats = await fs.lstat(targetPath);
+    return expectedType === 'directory' ? stats.isDirectory() : stats.isFile();
+  }
+
+  private async snapshotDirectory(dirPath: string): Promise<Record<string, string>> {
+    const snapshot: Record<string, string> = {};
+
+    const walk = async (currentDir: string, prefix = ''): Promise<void> => {
+      const entries = await fs.readdir(currentDir, { withFileTypes: true });
+      for (const entry of entries) {
+        const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+        const absolute = path.join(currentDir, entry.name);
+
+        if (entry.isDirectory()) {
+          snapshot[relative] = 'directory';
+          await walk(absolute, relative);
+        } else if (entry.isFile()) {
+          snapshot[relative] = `file:${await this.hashFile(absolute)}`;
+        } else if (entry.isSymbolicLink()) {
+          snapshot[relative] = `symlink:${await fs.readlink(absolute)}`;
+        } else {
+          const stats = await fs.lstat(absolute);
+          snapshot[relative] = `special:${stats.mode}`;
+        }
+      }
+    };
+
+    await walk(dirPath);
+    return snapshot;
   }
 
   private normalizeRepoPath(repoPathInput: string): string {

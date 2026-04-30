@@ -255,6 +255,116 @@ describe('PrivateConfigSyncManager', () => {
     expect(status.map(entry => entry.repoPath).sort()).toEqual(['research', 'rules.md']);
   });
 
+  it('drops a repo-local file without removing its private-store entry', async () => {
+    const filePath = path.join(repoDir, 'rules.md');
+    await fs.writeFile(filePath, 'rules');
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const addResult = await manager.add('rules.md');
+    const privatePath = addResult.entries[0].privatePath;
+
+    const dropResult = await manager.drop('rules.md');
+    const statusAfterDrop = await manager.getStatus();
+
+    expect(dropResult.entries.map(entry => entry.repoPath)).toEqual(['rules.md']);
+    expect(dropResult.droppedRepoPaths).toEqual(['rules.md']);
+    expect(await fs.pathExists(filePath)).toBe(false);
+    expect(await fs.readFile(privatePath, 'utf8')).toBe('rules');
+    expect(statusAfterDrop).toEqual([
+      { repoPath: 'rules.md', type: 'file', state: 'missing-repo' },
+    ]);
+
+    await manager.syncPull();
+
+    expect(await fs.readFile(filePath, 'utf8')).toBe('rules');
+  });
+
+  it('drops all tracked repo-local entries when the path is dot', async () => {
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules');
+    await fs.ensureDir(path.join(repoDir, 'research'));
+    await fs.writeFile(path.join(repoDir, 'research', 'notes.md'), 'notes');
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    await manager.add(['rules.md', 'research']);
+
+    const dropResult = await manager.drop('.');
+    const statusAfterDrop = await manager.getStatus();
+
+    expect(dropResult.entries.map(entry => entry.repoPath)).toEqual(['research', 'rules.md']);
+    expect(dropResult.droppedRepoPaths).toEqual(['research', 'rules.md']);
+    expect(await fs.pathExists(path.join(repoDir, 'rules.md'))).toBe(false);
+    expect(await fs.pathExists(path.join(repoDir, 'research'))).toBe(false);
+    expect(statusAfterDrop).toEqual([
+      { repoPath: 'research', type: 'directory', state: 'missing-repo' },
+      { repoPath: 'rules.md', type: 'file', state: 'missing-repo' },
+    ]);
+  });
+
+  it('does not drop any requested paths when one local copy has unpushed changes', async () => {
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules');
+    await fs.ensureDir(path.join(repoDir, 'research'));
+    await fs.writeFile(path.join(repoDir, 'research', 'notes.md'), 'notes');
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    await manager.add(['rules.md', 'research']);
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'local-only');
+
+    await expect(manager.drop(['research', 'rules.md'])).rejects.toThrow(
+      PrivateConfigConflictError,
+    );
+
+    expect(await fs.readFile(path.join(repoDir, 'rules.md'), 'utf8')).toBe('local-only');
+    expect(await fs.readFile(path.join(repoDir, 'research', 'notes.md'), 'utf8')).toBe('notes');
+  });
+
+  it('does not drop a directory with a local-only empty subdirectory', async () => {
+    await fs.ensureDir(path.join(repoDir, 'research'));
+    await fs.writeFile(path.join(repoDir, 'research', 'notes.md'), 'notes');
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    await manager.add('research');
+    await fs.ensureDir(path.join(repoDir, 'research', 'drafts'));
+
+    await expect(manager.drop('research')).rejects.toThrow(PrivateConfigConflictError);
+
+    expect(await fs.pathExists(path.join(repoDir, 'research', 'drafts'))).toBe(true);
+    expect(await fs.readFile(path.join(repoDir, 'research', 'notes.md'), 'utf8')).toBe('notes');
+  });
+
+  it('does not drop a directory with a local-only symlink', async () => {
+    await fs.ensureDir(path.join(repoDir, 'research'));
+    await fs.writeFile(path.join(repoDir, 'research', 'notes.md'), 'notes');
+    await fs.writeFile(path.join(repoDir, 'outside.md'), 'outside');
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    await manager.add('research');
+    await fs.symlink('../outside.md', path.join(repoDir, 'research', 'outside-link.md'));
+
+    await expect(manager.drop('research')).rejects.toThrow(PrivateConfigConflictError);
+
+    expect(await fs.pathExists(path.join(repoDir, 'research', 'outside-link.md'))).toBe(true);
+    expect(await fs.readFile(path.join(repoDir, 'research', 'notes.md'), 'utf8')).toBe('notes');
+  });
+
+  it('force drops local copies even when they differ from private store', async () => {
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules');
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    await manager.add('rules.md');
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'local-only');
+
+    const dropResult = await manager.drop('rules.md', { force: true });
+
+    expect(dropResult.droppedRepoPaths).toEqual(['rules.md']);
+    expect(await fs.pathExists(path.join(repoDir, 'rules.md'))).toBe(false);
+  });
+
+  it('does not drop anything when one requested private path is not tracked', async () => {
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules');
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    await manager.add('rules.md');
+
+    await expect(manager.drop(['rules.md', 'missing.md'])).rejects.toThrow(
+      'Private config path is not tracked: missing.md',
+    );
+
+    expect(await fs.readFile(path.join(repoDir, 'rules.md'), 'utf8')).toBe('rules');
+  });
+
   it('pre-commit hook allows deletion-only untracking commits', async () => {
     await fs.writeFile(path.join(repoDir, 'my-rules.md'), 'v1');
     execFileSync('git', ['add', 'my-rules.md'], { cwd: repoDir });
