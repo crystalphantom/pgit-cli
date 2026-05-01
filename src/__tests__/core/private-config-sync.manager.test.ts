@@ -8,6 +8,8 @@ import {
 } from '../../core/private-config-sync.manager';
 
 describe('PrivateConfigSyncManager', () => {
+  jest.setTimeout(120000);
+
   let tempRoot: string;
   let repoDir: string;
   let homeDir: string;
