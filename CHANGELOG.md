@@ -4,7 +4,22 @@ All notable changes to this project will be documented in this file. The format 
 
 
 
+## [0.8.0](https://github.com/crystalphantom/pgit-cli/compare/v0.7.2...v0.8.0) (2026-05-03)
+
+### ⚠️ Breaking Changes
+
+* promote the recommended private-config sync flow from `pgit config`-scoped subcommands to top-level `pgit` commands
+* replace `pgit config add` usage with `pgit add`
+* replace `pgit config sync pull|push|status` with `pgit pull|push|status`
+* replace `pgit config remove` with `pgit remove`
+* replace `pgit config drop` with `pgit drop`
+
+### 🚀 Features
+
+* remove ambiguity between config-management and private sync lifecycle by placing private-sync commands at the root CLI namespace
+
 ## [0.7.2](https://github.com/crystalphantom/pgit-cli/compare/v0.7.1...v0.7.2) (2026-05-01)
+
 
 ## [0.7.1](https://github.com/crystalphantom/pgit-cli/compare/v0.7.0...v0.7.1) (2026-04-30)
 
