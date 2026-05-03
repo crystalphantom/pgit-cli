@@ -10,14 +10,15 @@ The legacy model stores private artifacts in a side private repository with syml
 
 - `pgit legacy init`
 - `pgit legacy add <path...>`
-- `pgit status`, `pgit private-status`
-- `pgit add-changes`
-- `pgit commit`
-- `pgit log`
-- `pgit diff`
-- `pgit branch`
-- `pgit checkout`
-- `pgit cleanup`
+- `pgit legacy status`, `pgit legacy private-status`
+- `pgit legacy add-changes`
+- `pgit legacy commit`
+- `pgit legacy log`
+- `pgit legacy diff`
+- `pgit legacy branch`
+- `pgit legacy checkout`
+- `pgit legacy cleanup`
+- `pgit legacy reset`
 
 ## When to use
 
@@ -44,4 +45,3 @@ Use one model per artifact to avoid confusing ownership and conflict handling.
 - `docs/legacy-init-add-flow.md`
 - `docs/agent-visible-config-sync-flow.md` for comparison of command behavior
 - `docs/presets.md` for legacy presets configuration
-

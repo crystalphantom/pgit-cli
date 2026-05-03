@@ -1,6 +1,6 @@
 # Presets
 
-Presets are pre-defined path sets that map to common workflows. Preset apply uses `pgit config add` under the hood.
+Presets are pre-defined path sets that map to common workflows. Preset apply uses `pgit add` under the hood.
 
 ## Built-in presets
 
@@ -44,4 +44,3 @@ pgit preset apply my-agent-stack
 ```
 
 If you need full control over path bundles per repository, use local presets in `.pgit/presets.json`.
-

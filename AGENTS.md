@@ -38,12 +38,12 @@ Read these only when changing compatibility behavior:
 
 ### Recommended private config commands
 
-- `pgit config add <paths...>` - track repo paths in the agent-visible private config flow.
-- `pgit config remove <paths...>` - untrack paths and remove private-store entries; do not delete repo-local files.
-- `pgit config drop <paths...>` - remove working-tree copies only.
-- `pgit config sync push` - copy repo-local content into private store.
-- `pgit config sync pull` - restore private-store content into repo paths.
-- `pgit config sync status` - report repo/private drift.
+- `pgit add <paths...>` - track repo paths in the agent-visible private config flow.
+- `pgit remove <paths...>` - untrack paths and remove private-store entries; do not delete repo-local files.
+- `pgit drop <paths...>` - remove working-tree copies only.
+- `pgit push` - copy repo-local content into private store.
+- `pgit pull` - restore private-store content into repo paths.
+- `pgit status` - report repo/private drift.
 - `pgit config init/location/info/edit/backup/reset` - global config management.
 
 ### Legacy commands
@@ -54,7 +54,7 @@ Legacy commands are deprecated and feature-gated. Preset commands are part of th
 - `PGIT_LEGACY=1 pgit --help`
 - `pgit legacy init`
 - `pgit legacy add <path...>`
-- `pgit status`, `pgit private-status`, `pgit add-changes`, `pgit commit`, `pgit log`, `pgit diff`, `pgit branch`, `pgit checkout`, `pgit cleanup`
+- `pgit legacy status`, `pgit legacy private-status`, `pgit legacy add-changes`, `pgit legacy commit`, `pgit legacy log`, `pgit legacy diff`, `pgit legacy branch`, `pgit legacy checkout`, `pgit legacy cleanup`, `pgit legacy reset`
 - `pgit preset list`
 - `pgit preset show <name>`
 - `pgit preset apply <name>`
@@ -65,10 +65,10 @@ Legacy commands are deprecated and feature-gated. Preset commands are part of th
 
 ## Recommended Flow Invariants
 
-When implementing or changing `pgit config ...` behavior, preserve these invariants:
+When implementing or changing the recommended private-config flow, preserve these invariants:
 
 - Private tracked files remain real repo-local files, not symlinks.
-- `pgit config add` must not update `.gitignore` or `.git/info/exclude` by default.
+- `pgit add` must not update `.gitignore` or `.git/info/exclude` by default.
 - Repo-relative path identity must be preserved exactly, including nested paths.
 - Validate all requested paths before mutating any state.
 - Project identity should prefer normalized Git remote URL, then Git common dir.

@@ -1,11 +1,11 @@
-# Legacy Tracking Flow (`pgit init` + `pgit add` / `add-changes` / `commit`)
+# Legacy Tracking Flow (`pgit legacy init` + `pgit legacy add` / `add-changes` / `commit`)
 
 This document describes the original private-tracking flow in PGit that moves files into a
 private storage repository and exposes them in the main tree via symlinks.
 
 ## Architecture
 
-- `pgit init` creates a legacy private Git setup in the working repository.
+- `pgit legacy init` creates a legacy private Git setup in the working repository.
 - Private files are physically moved to `.private-storage`.
 - `.pgit-config.json` is stored in the project root and tracks:
   - storage path
@@ -15,9 +15,9 @@ private storage repository and exposes them in the main tree via symlinks.
 - Main repo visibility is controlled through `.git/info/exclude` updates (best effort) so private file
   names are hidden from normal `git add`/`git status` workflows.
 
-## Command flow: `pgit init`
+## Command flow: `pgit legacy init`
 
-Use `pgit init` once per repository before using `pgit add`.
+Use `pgit legacy init` once per repository before using `pgit legacy add`.
 
 1. Verify the target directory is a Git repo and writable.
 2. Ensure the project is not already initialized (`.private-config.json` and legacy dirs are absent).
@@ -30,9 +30,9 @@ Use `pgit init` once per repository before using `pgit add`.
 6. Update `.gitignore` to hide private-system paths.
 7. Add an initial `README.md` in `.private-storage` and create a seed commit.
 
-## Command flow: `pgit add <path>`
+## Command flow: `pgit legacy add <path>`
 
-`pgit add` is the legacy per-path tracker. It now supports single and multi-path adds.
+`pgit legacy add` is the legacy per-path tracker. It now supports single and multi-path adds.
 
 1. Validate all input paths, ensure they are inside the repo and currently exist.
 2. Enforce max batch size (100 paths).
@@ -58,13 +58,13 @@ Use `pgit init` once per repository before using `pgit add`.
 
 ### Related commands in the same flow
 
-After `pgit add`, lifecycle continues through the legacy private Git workflow:
+After `pgit legacy add`, lifecycle continues through the legacy private Git workflow:
 
-- `pgit status`: shows system + both repos health.
-- `pgit add-changes --all`: stage private repo changes.
-- `pgit commit -m "..."`: commit private repo changes.
-- `pgit log`, `pgit diff`, `pgit branch`, `pgit checkout`: operate in private repo context.
-- `pgit cleanup`: repairs symlink/config health.
+- `pgit legacy status`: shows system + both repos health.
+- `pgit legacy add-changes --all`: stage private repo changes.
+- `pgit legacy commit -m "..."`: commit private repo changes.
+- `pgit legacy log`, `pgit legacy diff`, `pgit legacy branch`, `pgit legacy checkout`: operate in private repo context.
+- `pgit legacy cleanup`: repairs symlink/config health.
 
 ## What this flow is optimized for
 
@@ -74,7 +74,7 @@ After `pgit add`, lifecycle continues through the legacy private Git workflow:
 
 ## Important constraints
 
-- Requires `pgit init` first.
+- Requires `pgit legacy init` first.
 - It is a symlink-based model (not directly visible to some agent indexing tools).
 - `.gitignore` and `.git/info/exclude` updates are separate from `.private-storage` and can be
   user-visible system changes.
@@ -84,7 +84,7 @@ After `pgit add`, lifecycle continues through the legacy private Git workflow:
 - This legacy path is **not strictly disjoint** from agent-visible tracking.
 - If you must use both workflows in a project, do not mix both models on the same repo path.
 - Prefer this flow when you want symlink-based isolation + strong exclusion behavior; use
-  `pgit config ...` when you need repo-path discoverability for agents.
+  `pgit add`/`push`/`pull`/`status` when you need repo-path discoverability for agents.
 
 ## Typical state map
 

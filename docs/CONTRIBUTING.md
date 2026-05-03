@@ -24,7 +24,7 @@ We love your input! We want to make contributing to PGit CLI as easy and transpa
 This repository is shared by many contributors, including AI coding agents. Use this workflow:
 
 - Follow `AGENTS.md` before making implementation changes.
-- Keep command behavior and docs aligned, especially for `pgit config` and `pgit config sync`.
+- Keep command behavior and docs aligned, especially for top-level private config commands and `pgit config` global config commands.
 - Use branch-based changes with conventional commits.
 - Before PR creation, run:
   - `npm run lint`
@@ -91,9 +91,9 @@ pgit --help
 mkdir /tmp/test-pgit && cd /tmp/test-pgit
 git init
 echo "test" > .env
-pgit config add .env
-pgit config sync status
-pgit config drop .
+pgit add .env
+pgit status
+pgit drop .
 ```
 
 ## 🤝 How We Work

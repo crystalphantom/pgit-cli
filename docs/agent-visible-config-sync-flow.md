@@ -1,4 +1,4 @@
-# Agent-Visible Private Config Flow (`pgit config add/remove/sync`)
+# Agent-Visible Private Config Flow (`pgit add/remove/push/pull/status`)
 
 This document covers the newer path-preserving flow intended for coding agents and tooling that
 needs private files visible at their real repository locations.
@@ -38,9 +38,9 @@ necto-pro-a1b2c3d4/
   manifest.json
 ```
 
-## Command flow: `pgit config add <paths...>`
+## Command flow: `pgit add <paths...>`
 
-`pgit config add` is the primary entry point for agent-visible tracking.
+`pgit add` is the primary entry point for agent-visible tracking.
 
 1. Normalize each requested path and verify it is inside the repo and exists.
 2. Validate all paths before mutating anything. If one path is invalid, no path is changed.
@@ -51,7 +51,7 @@ necto-pro-a1b2c3d4/
 5. Remove already-tracked main-repo entries via `git rm --cached -r -- <path>`.
 6. Save/update manifest entries and checkout state.
 7. Install/refresh hooks (`.git/hooks` or common hooks path).
-8. Optionally auto-run `pgit config sync push` unless `--no-sync-push`.
+8. Optionally auto-run `pgit push` unless `--no-sync-push`.
 9. Optionally auto-commit the shared-Git removals unless `--no-commit`.
 
 ### `--force` and existing entries
@@ -59,7 +59,7 @@ necto-pro-a1b2c3d4/
 - Without `--force`, re-adding an already-tracked path throws.
 - With `--force`, existing private copies are replaced and hash state is rebuilt.
 
-## Command flow: `pgit config remove <paths...>`
+## Command flow: `pgit remove <paths...>`
 
 1. Validate every requested path is tracked.
 2. Delete the corresponding private-store entries.
@@ -68,19 +68,19 @@ necto-pro-a1b2c3d4/
 
 Repo-local files/directories are **not deleted**.
 
-## Command flow: `pgit config sync push`
+## Command flow: `pgit push`
 
 - Pushes current repo-local content into private store for all tracked paths.
 - Detects changes in private target before overwrite.
 - Without `--force`, throws on conflict.
 - With `--force`, backs up the target first (`.backups/`) and overwrites.
 
-## Command flow: `pgit config sync pull`
+## Command flow: `pgit pull`
 
 - Pulls private-store content back into repo paths.
 - Uses same conflict logic and `--force` backup behavior as `push`.
 
-## Command flow: `pgit config sync status`
+## Command flow: `pgit status`
 
 For each tracked entry, state is computed from repo/private hash snapshots:
 
@@ -98,11 +98,10 @@ For each tracked entry, state is computed from repo/private hash snapshots:
 
 ## Related commands
 
-These are separate from legacy `pgit init`/`pgit add`:
+These are separate from legacy `pgit legacy init`/`pgit legacy add`:
 
 - `pgit config init/location/info/edit/reset` are for global preset/config management.
-- `pgit status`, `commit`, and other private-repo commands are still valid but do not drive this
-  flow.
+- Legacy private-repo commands live under `pgit legacy ...` and do not drive this flow.
 
 ## What this flow is optimized for
 

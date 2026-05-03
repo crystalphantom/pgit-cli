@@ -2,7 +2,7 @@
 
 PGit currently has two workflows:
 
-- **Recommended**: agent-visible flow (`pgit config ...`)
+- **Recommended**: agent-visible flow (`pgit add/remove/push/pull/status`)
   - Keeps tracked files at their original repo locations.
   - Stores canonical copies under `~/.pgit/private-config`.
   - Prevents those tracked local artifacts from being staged into shared commits via hooks.
@@ -33,10 +33,10 @@ The id is reused across workspaces and is used for private storage location and 
 
 ### Sync lifecycle
 
-- `pgit config add <paths...>` copies tracked paths into the private store and records hash snapshots in manifest.
-- `pgit config sync push` updates private store from current repo copies.
-- `pgit config sync pull` restores repo paths from private store.
-- `pgit config sync status` compares repo/private snapshots and reports:
+- `pgit add <paths...>` copies tracked paths into the private store and records hash snapshots in manifest.
+- `pgit push` updates private store from current repo copies.
+- `pgit pull` restores repo paths from private store.
+- `pgit status` compares repo/private snapshots and reports:
   - `up-to-date`
   - `modified-locally`
   - `modified-private`
@@ -45,11 +45,10 @@ The id is reused across workspaces and is used for private storage location and 
 
 ### Safety model
 
-- `pre-commit` and `pre-push` hooks are installed when using `pgit config add`.
+- `pre-commit` and `pre-push` hooks are installed when using `pgit add`.
 - Hooks block commits/pushes that would leak tracked private paths through shared Git.
 
 For deeper command-by-command details, see:
 
 - `docs/agent-visible-config-sync-flow.md` (detailed flow)
 - `docs/commands.md` (commands and options)
-

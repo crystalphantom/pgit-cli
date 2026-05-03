@@ -1,8 +1,28 @@
 # PGit Command Reference
 
-## Recommended: `pgit config` flow
+## Recommended flow
 
-The `config` command family is the primary workflow for keeping agent-visible files private while keeping them in place.
+These top-level commands are the primary workflow for keeping agent-visible files private while keeping them in place.
+
+### Private file tracking
+
+| Command | Purpose |
+|---|---|
+| `pgit add <paths...>` | Track repo paths in the private config flow |
+| `pgit remove <paths...>` | Untrack repo paths and remove private store entries |
+| `pgit drop <paths...>` | Remove working-tree copies only |
+| `pgit pull` | Restore private tracked files into repo from private store |
+| `pgit push` | Push current repo contents into private store |
+| `pgit status` | Show sync status for tracked files |
+
+### Common options
+
+- `pgit add <paths...> --force` : overwrite already-tracked entries
+- `pgit add <paths...> --no-commit` : skip auto-commit of main-repo removals
+- `pgit add <paths...> --no-sync-push` : do not auto push after add
+- `pgit drop <paths...> --force` : drop local files even if hashes differ
+- `pgit pull --force` : overwrite local conflicts after backup
+- `pgit push --force` : overwrite private-store conflicts after backup
 
 ### Global config management
 
@@ -15,33 +35,13 @@ The `config` command family is the primary workflow for keeping agent-visible fi
 | `pgit config backup` | Back up global config |
 | `pgit config reset --force` | Reset global config to defaults |
 
-### Private file tracking
-
-| Command | Purpose |
-|---|---|
-| `pgit config add <paths...>` | Track repo paths in the private config flow |
-| `pgit config remove <paths...>` | Untrack repo paths and remove private store entries |
-| `pgit config drop <paths...>` | Remove working-tree copies only |
-| `pgit config sync pull` | Restore private tracked files into repo from private store |
-| `pgit config sync push` | Push current repo contents into private store |
-| `pgit config sync status` | Show sync status for tracked files |
-
-### Common options
-
-- `pgit config add <paths...> --force` : overwrite already-tracked entries
-- `pgit config add <paths...> --no-commit` : skip auto-commit of main-repo removals
-- `pgit config add <paths...> --no-sync-push` : do not auto push after add
-- `pgit config drop <paths...> --force` : drop local files even if hashes differ
-- `pgit config sync pull --force` : overwrite local conflicts after backup
-- `pgit config sync push --force` : overwrite private-store conflicts after backup
-
 ## Preset commands
 
 | Command | Purpose |
 |---|---|
 | `pgit preset list` | List built-in and user presets |
 | `pgit preset show <name>` | Show a preset and its paths |
-| `pgit preset apply <name>` | Apply a preset via `pgit config add ...` |
+| `pgit preset apply <name>` | Apply a preset via `pgit add ...` |
 | `pgit preset add <name> <paths...>` | Create or update a local preset |
 | `pgit preset add --global <name> <paths...>` | Create/update a global preset |
 | `pgit preset remove <name>` | Remove a local preset |
@@ -57,13 +57,12 @@ Legacy commands are hidden unless enabled via feature flag.
 
 - `pgit legacy init`
 - `pgit legacy add <path...>`
-- `pgit status`, `pgit private-status`
-- `pgit add-changes`, `pgit commit`, `pgit log`, `pgit diff`
-- `pgit branch`, `pgit checkout`
-- `pgit cleanup`
+- `pgit legacy status`, `pgit legacy private-status`
+- `pgit legacy add-changes`, `pgit legacy commit`, `pgit legacy log`, `pgit legacy diff`
+- `pgit legacy branch`, `pgit legacy checkout`
+- `pgit legacy cleanup`, `pgit legacy reset`
 
 For complete legacy details, see:
 
 - `docs/legacy-init-add-flow.md`
 - `docs/legacy.md`
-

@@ -21,7 +21,7 @@ export class ConfigCommand {
    * Register the config command with commander
    */
   public register(program: Command): void {
-    const configCmd = program.command('config').description('Manage pgit configuration');
+    const configCmd = program.command('config').description('Manage global pgit configuration');
 
     // Initialize global configuration
     configCmd
@@ -90,7 +90,7 @@ export class ConfigCommand {
         }
       });
 
-    configCmd
+    program
       .command('add <paths...>')
       .description('Add root-path private config files or directories')
       .option('--no-commit', 'Do not auto-commit removal of already-tracked main Git paths')
@@ -108,7 +108,7 @@ export class ConfigCommand {
         }
       });
 
-    configCmd
+    program
       .command('remove <paths...>')
       .description('Remove root-path private config files or directories from pgit tracking')
       .action(async targetPaths => {
@@ -118,7 +118,7 @@ export class ConfigCommand {
         }
       });
 
-    configCmd
+    program
       .command('drop <paths...>')
       .description(
         'Drop repo-local private config files or directories without removing private store entries',
@@ -131,9 +131,7 @@ export class ConfigCommand {
         }
       });
 
-    const syncCmd = configCmd.command('sync').description('Sync agent-visible private config');
-
-    syncCmd
+    program
       .command('pull')
       .description('Copy private config from private store into repo paths')
       .option('-f, --force', 'Overwrite local conflicts after creating backups')
@@ -144,7 +142,7 @@ export class ConfigCommand {
         }
       });
 
-    syncCmd
+    program
       .command('push')
       .description('Copy private config from repo paths into private store')
       .option('-f, --force', 'Overwrite private-store conflicts after creating backups')
@@ -155,9 +153,9 @@ export class ConfigCommand {
         }
       });
 
-    syncCmd
+    program
       .command('status')
-      .description('Show private config sync status')
+      .description('Show private config status')
       .action(async () => {
         const result = await this.executePrivateSyncStatus();
         if (!result.success) {
@@ -421,7 +419,7 @@ export class ConfigCommand {
           console.error(
             `❌ Error: Private config was added, but automatic sync push failed: ${syncMessage}`,
           );
-          console.error('Resolve the conflict or run: pgit config sync push --force');
+          console.error('Resolve the conflict or run: pgit push --force');
 
           return {
             success: false,
@@ -482,7 +480,7 @@ export class ConfigCommand {
       console.log(
         `🧹 Removed ${result.droppedRepoPaths.length} repo-local entr${result.droppedRepoPaths.length === 1 ? 'y' : 'ies'}`,
       );
-      console.log('Restore with: pgit config sync pull');
+      console.log('Restore with: pgit pull');
 
       return {
         success: true,
@@ -536,19 +534,19 @@ export class ConfigCommand {
   public async executePrivateSyncStatus(): Promise<CommandResult> {
     try {
       const statuses = await this.privateConfigSyncManager.getStatus();
-      console.log('📋 Private config sync status:');
+      console.log('📋 Private config status:');
       for (const status of statuses) {
         console.log(`   ${status.repoPath} ${status.state}`);
       }
 
       return {
         success: true,
-        message: 'Private config sync status displayed',
+        message: 'Private config status displayed',
         data: statuses,
         exitCode: 0,
       };
     } catch (error) {
-      return this.handleConfigError(error, 'Failed to show private config sync status');
+      return this.handleConfigError(error, 'Failed to show private config status');
     }
   }
 

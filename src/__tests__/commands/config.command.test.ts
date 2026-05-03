@@ -61,7 +61,9 @@ describe('ConfigCommand', () => {
     mockPrivateConfigSyncManager.add = jest.fn();
     mockPrivateConfigSyncManager.remove = jest.fn();
     mockPrivateConfigSyncManager.drop = jest.fn();
+    mockPrivateConfigSyncManager.syncPull = jest.fn();
     mockPrivateConfigSyncManager.syncPush = jest.fn();
+    mockPrivateConfigSyncManager.getStatus = jest.fn();
     MockedPrivateConfigSyncManager.mockImplementation(() => mockPrivateConfigSyncManager);
 
     configCommand = new ConfigCommand('/test/workspace');
@@ -428,6 +430,7 @@ describe('ConfigCommand', () => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '❌ Error: Private config was added, but automatic sync push failed: Sync conflict',
       );
+      expect(consoleErrorSpy).toHaveBeenCalledWith('Resolve the conflict or run: pgit push --force');
     });
   });
 
@@ -474,7 +477,7 @@ describe('ConfigCommand', () => {
       expect(result.success).toBe(true);
       expect(mockPrivateConfigSyncManager.drop).toHaveBeenCalledWith('rules.md', { force: true });
       expect(result.message).toBe('Private config dropped locally: rules.md');
-      expect(consoleSpy).toHaveBeenCalledWith('Restore with: pgit config sync pull');
+      expect(consoleSpy).toHaveBeenCalledWith('Restore with: pgit pull');
     });
 
     it('should handle drop errors', async () => {
@@ -533,7 +536,23 @@ describe('ConfigCommand', () => {
   });
 
   describe('register', () => {
-    it('should honor --no-commit from commander', async () => {
+    it('should register only global config subcommands under config', () => {
+      const program = new Command();
+      configCommand.register(program);
+
+      const configSubcommands =
+        program.commands.find(command => command.name() === 'config')?.commands.map(command => command.name()) ??
+        [];
+
+      expect(configSubcommands).toEqual(
+        expect.arrayContaining(['init', 'location', 'edit', 'reset', 'info', 'backup']),
+      );
+      expect(configSubcommands).not.toEqual(
+        expect.arrayContaining(['add', 'remove', 'drop', 'sync', 'push', 'pull', 'status']),
+      );
+    });
+
+    it('should honor --no-commit on top-level add', async () => {
       mockPrivateConfigSyncManager.add.mockResolvedValue({
         projectId: 'project-123',
         entries: [
@@ -556,25 +575,112 @@ describe('ConfigCommand', () => {
       program.exitOverride();
 
       configCommand.register(program);
-      await program.parseAsync(['node', 'pgit', 'config', 'add', '--no-commit', 'rules.md']);
+      await program.parseAsync(['node', 'pgit', 'add', '--no-commit', 'rules.md']);
 
       expect(mockPrivateConfigSyncManager.add).toHaveBeenCalledWith(['rules.md'], {
         noCommit: true,
       });
     });
 
-    it('should register config command and subcommands', () => {
-      const mockProgram = {
-        command: jest.fn().mockReturnThis(),
-        description: jest.fn().mockReturnThis(),
-        action: jest.fn().mockReturnThis(),
-        option: jest.fn().mockReturnThis(),
-      };
+    it.each([
+      ['remove', ['node', 'pgit', 'remove', 'rules.md']],
+      ['drop', ['node', 'pgit', 'drop', '--force', 'rules.md']],
+      ['push', ['node', 'pgit', 'push', '--force']],
+      ['pull', ['node', 'pgit', 'pull', '--force']],
+      ['status', ['node', 'pgit', 'status']],
+    ])('should parse top-level %s command', async (_commandName, argv) => {
+      mockPrivateConfigSyncManager.remove.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        removedPrivatePaths: ['/private/rules.md'],
+      });
+      mockPrivateConfigSyncManager.drop.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        droppedRepoPaths: ['rules.md'],
+      });
+      mockPrivateConfigSyncManager.syncPush.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [{ repoPath: 'rules.md', type: 'file', state: 'up-to-date' }],
+        backups: [],
+      });
+      mockPrivateConfigSyncManager.syncPull.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [{ repoPath: 'rules.md', type: 'file', state: 'up-to-date' }],
+        backups: [],
+      });
+      mockPrivateConfigSyncManager.getStatus.mockResolvedValue([
+        { repoPath: 'rules.md', type: 'file', state: 'up-to-date' },
+      ]);
 
-      configCommand.register(mockProgram as any);
+      const program = new Command();
+      program.exitOverride();
 
-      expect(mockProgram.command).toHaveBeenCalledWith('config');
-      expect(mockProgram.description).toHaveBeenCalledWith('Manage pgit configuration');
+      configCommand.register(program);
+      await program.parseAsync(argv);
+
+      if (argv[2] === 'remove') {
+        expect(mockPrivateConfigSyncManager.remove).toHaveBeenCalledWith(['rules.md']);
+      }
+
+      if (argv[2] === 'drop') {
+        expect(mockPrivateConfigSyncManager.drop).toHaveBeenCalledWith(['rules.md'], {
+          force: true,
+        });
+      }
+
+      if (argv[2] === 'push') {
+        expect(mockPrivateConfigSyncManager.syncPush).toHaveBeenCalledWith({ force: true });
+      }
+
+      if (argv[2] === 'pull') {
+        expect(mockPrivateConfigSyncManager.syncPull).toHaveBeenCalledWith({ force: true });
+      }
+
+      if (argv[2] === 'status') {
+        expect(mockPrivateConfigSyncManager.getStatus).toHaveBeenCalled();
+      }
+    });
+
+    it('should reject deprecated config add surface', async () => {
+      mockPrivateConfigSyncManager.add.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        untrackedPaths: ['rules.md'],
+        untrackedFromMainGit: [],
+      });
+
+      const program = new Command();
+      program.exitOverride();
+
+      configCommand.register(program);
+
+      await expect(
+        program.parseAsync(['node', 'pgit', 'config', 'add', 'rules.md']),
+      ).rejects.toMatchObject({
+        code: 'commander.unknownCommand',
+      });
     });
   });
 });

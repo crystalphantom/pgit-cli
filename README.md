@@ -25,20 +25,20 @@ Track files locally in your private store:
 cd your-project
 
 # Add files and folders to your private store
-pgit config add .claude/ .superpowers/ .opencode/ specs/
+pgit add .claude/ .superpowers/ .opencode/ specs/
 ```
 
 Synchronize your private configs across machines/workspaces:
 
 ```bash
 # Push your local updates to your private store
-pgit config sync push
+pgit push
 
 # Pull private configurations into a new workspace
-pgit config sync pull
+pgit pull
 
 # Check the sync status (drift)
-pgit config sync status
+pgit status
 ```
 
 **Develop with Agents:**  
@@ -48,7 +48,7 @@ Use the AI coding agents of your choice (e.g., Claude Code, OpenCode) to impleme
 Once feature development is done, you can drop the private files from your working tree before doing a code review or creating a PR. 
 
 ```bash
-pgit config drop .
+pgit drop .
 ```
 
 *Note: Don't worry if you accidentally try to commit directly—PGit automatically installs `pre-commit` and `pre-push` hooks to prevent your tracked private files from leaking into the shared repository.*

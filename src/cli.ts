@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { Command, program } from 'commander';
+import { program } from 'commander';
 import { readFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -15,39 +15,8 @@ import { PresetCommand } from './commands/preset.command';
 import { ConfigCommand } from './commands/config.command';
 import { EnhancedErrorHandler } from './errors/enhanced.error-handler';
 import { logger, LogLevel } from './utils/logger.service';
-import {
-  evaluateFeatureGate,
-  isEnabled,
-  withFeatureGuard,
-} from './utils/feature-flags';
+import { isEnabled } from './utils/feature-flags';
 import { FALLBACK_VERSION } from './types/config.types';
-
-export const FEATURE_BOUND_COMMANDS = {
-  init: 'legacy',
-  add: 'legacy',
-} as const;
-
-const getCommandPath = (command: Command): string => {
-  const segments: string[] = [];
-  let current: Command | null = command;
-
-  while (current && current.parent) {
-    segments.unshift(current.name());
-    current = current.parent;
-  }
-
-  return segments.join(' ');
-};
-
-const displayLegacyGateBlockedMessage = (commandPath: string, envKeys: readonly string[]): void => {
-  logger.error(`Command "${commandPath}" is disabled because legacy mode is off.`);
-  logger.warn('⚠️  Legacy flow is deprecated and hidden by default.');
-  logger.warn(`Use 'pgit legacy ${commandPath}' for explicit advanced access.`);
-  logger.warn(`Or set ${envKeys.map(key => `${key}=1`).join(' or ')} to show legacy commands in help.`);
-  logger.warn(
-    'Recommended flow: `pgit config add <paths>` and `pgit config sync (pull|push|status)`.',
-  );
-};
 
 /**
  * Main CLI entry point
@@ -76,6 +45,10 @@ async function main(): Promise<void> {
 
   // Initialize command
   const legacyModeEnabled = isEnabled('legacy');
+  const getVerbose = (): boolean => {
+    const options = program.opts() as { verbose?: boolean };
+    return options.verbose ?? false;
+  };
 
   const runLegacyInit = async (options: { verbose?: boolean } = {}): Promise<void> => {
     try {
@@ -112,106 +85,86 @@ async function main(): Promise<void> {
     }
   };
 
-  const runInit = withFeatureGuard('legacy', 'init', runLegacyInit);
-  const runAdd = withFeatureGuard('legacy', 'add', runLegacyAdd);
+  if (legacyModeEnabled) {
+    const legacyModeInit = program
+      .command('legacy')
+      .description('Advanced deprecated legacy workflow');
 
-  const legacyModeInit = program.command('legacy').description('Advanced deprecated legacy workflow');
+    legacyModeInit
+      .command('init')
+      .description('Initialize legacy pgit tracking flow')
+      .action(async () => {
+        await runLegacyInit({ verbose: getVerbose() });
+        logger.info(
+          'Advanced legacy flow (deprecated): .pgit-storage/.git-pgit based tracking is active.',
+        );
+      });
 
-  legacyModeInit
-    .command('init')
-    .description('Initialize legacy pgit tracking flow')
-    .action(async options => {
-      await runLegacyInit({ verbose: options.verbose });
-      logger.info('Advanced legacy flow (deprecated): .pgit-storage/.git-pgit based tracking is active.');
-    });
+    legacyModeInit
+      .command('status')
+      .description('Show status of both main and private repositories')
+      .action(async () => {
+        try {
+          const statusCommand = new StatusCommand();
+          const result = await statusCommand.execute({ verbose: getVerbose() });
 
-  legacyModeInit
-    .command('add <path...>')
-    .description('Add file(s) or directory(ies) using legacy flow')
-    .action(async (paths, options) => {
-      await runLegacyAdd(paths, { verbose: options.verbose });
-      logger.info('Advanced legacy flow (deprecated): files moved under .pgit-storage/.git-pgit.');
-    });
-
-  const initLegacyCommand = program.command('init', {
-    hidden: !legacyModeEnabled,
-  });
-  initLegacyCommand
-    .description('Initialize private git tracking in current directory (legacy, deprecated)')
-    .action(async (options: { verbose?: boolean }) => {
-      await runInit(options);
-    });
-
-  // Status command
-  program
-    .command('status')
-    .description('Show status of both main and private repositories')
-    .action(async options => {
-      try {
-        const statusCommand = new StatusCommand();
-        const result = await statusCommand.execute({ verbose: options.verbose });
-
-        if (result.success) {
-          logger.info(result.message || 'Status retrieved successfully');
-        } else {
-          logger.error(result.message || 'Failed to get status');
-          process.exit(result.exitCode);
+          if (result.success) {
+            logger.info(result.message || 'Status retrieved successfully');
+          } else {
+            logger.error(result.message || 'Failed to get status');
+            process.exit(result.exitCode);
+          }
+        } catch (error) {
+          handleError(error);
         }
-      } catch (error) {
-        handleError(error);
-      }
-    });
+      });
 
-  // Private status command (detailed private repo status only)
-  program
-    .command('private-status')
-    .description('Show detailed status of private repository only')
-    .action(async options => {
-      try {
-        const statusCommand = new StatusCommand();
-        const result = await statusCommand.executePrivateOnly({ verbose: options.verbose });
+    legacyModeInit
+      .command('private-status')
+      .description('Show detailed status of private repository only')
+      .action(async () => {
+        try {
+          const statusCommand = new StatusCommand();
+          const result = await statusCommand.executePrivateOnly({ verbose: getVerbose() });
 
-        if (result.success) {
-          logger.info(result.message || 'Private status retrieved successfully');
-        } else {
-          logger.error(result.message || 'Failed to get private status');
-          process.exit(result.exitCode);
+          if (result.success) {
+            logger.info(result.message || 'Private status retrieved successfully');
+          } else {
+            logger.error(result.message || 'Failed to get private status');
+            process.exit(result.exitCode);
+          }
+        } catch (error) {
+          handleError(error);
         }
-      } catch (error) {
-        handleError(error);
-      }
-    });
+      });
 
-  // Add command
-  const addLegacyCommand = program.command('add <path...>', {
-    hidden: !legacyModeEnabled,
-  });
-  addLegacyCommand
-    .description('Add file(s) or directory(ies) to private tracking (legacy, deprecated)')
-    .action(async (paths: string | string[], options: { verbose?: boolean }) => {
-      await runAdd(paths, options);
-    });
+    legacyModeInit
+      .command('add <path...>')
+      .description('Add file(s) or directory(ies) using legacy flow')
+      .action(async (paths: string | string[]) => {
+        await runLegacyAdd(paths, { verbose: getVerbose() });
+        logger.info('Advanced legacy flow (deprecated): files moved under .pgit-storage/.git-pgit.');
+      });
 
-  // Commit command
-  program
-    .command('commit')
-    .description('Commit changes to private repository')
-    .option('-m, --message <message>', 'Commit message')
-    .action(async options => {
-      try {
-        const commitCommand = new CommitCommand();
-        const result = await commitCommand.execute(options.message, { verbose: options.verbose });
+    legacyModeInit
+      .command('commit')
+      .description('Commit changes to private repository')
+      .option('-m, --message <message>', 'Commit message')
+      .action(async options => {
+        try {
+          const commitCommand = new CommitCommand();
+          const result = await commitCommand.execute(options.message, { verbose: getVerbose() });
 
-        if (result.success) {
-          logger.success(result.message || 'Changes committed to private repository successfully');
-        } else {
-          logger.error(result.message || 'Failed to commit changes to private repository');
-          process.exit(result.exitCode);
+          if (result.success) {
+            logger.success(result.message || 'Changes committed to private repository successfully');
+          } else {
+            logger.error(result.message || 'Failed to commit changes to private repository');
+            process.exit(result.exitCode);
+          }
+        } catch (error) {
+          handleError(error);
         }
-      } catch (error) {
-        handleError(error);
-      }
-    });
+      });
 
   // Preset commands
   const presetCmd = program
@@ -323,167 +276,168 @@ async function main(): Promise<void> {
       }
     });
 
-  // Git log command
-  program
-    .command('log')
-    .description('Show commit history of private repository')
-    .option('-n, --max-count <number>', 'Limit number of commits', '10')
-    .option('--oneline', 'Show each commit on a single line')
-    .action(async options => {
-      try {
-        const gitOpsCommand = new GitOpsCommand();
-        const result = await gitOpsCommand.log(
-          {
-            maxCount: parseInt(options.maxCount) || 10,
-            oneline: options.oneline,
-          },
-          { verbose: options.verbose },
-        );
+    // Git log command
+    legacyModeInit
+      .command('log')
+      .description('Show commit history of private repository')
+      .option('-n, --max-count <number>', 'Limit number of commits', '10')
+      .option('--oneline', 'Show each commit on a single line')
+      .action(async options => {
+        try {
+          const gitOpsCommand = new GitOpsCommand();
+          const result = await gitOpsCommand.log(
+            {
+              maxCount: parseInt(options.maxCount) || 10,
+              oneline: options.oneline,
+            },
+            { verbose: getVerbose() },
+          );
 
-        if (!result.success) {
-          logger.error(result.message || 'Failed to get commit history');
-          process.exit(result.exitCode);
+          if (!result.success) {
+            logger.error(result.message || 'Failed to get commit history');
+            process.exit(result.exitCode);
+          }
+        } catch (error) {
+          handleError(error);
         }
-      } catch (error) {
-        handleError(error);
-      }
-    });
+      });
 
-  // Git add-changes command
-  program
-    .command('add-changes')
-    .description('Stage changes in private repository')
-    .option('-A, --all', 'Stage all changes')
-    .action(async options => {
-      try {
-        const gitOpsCommand = new GitOpsCommand();
-        const result = await gitOpsCommand.addChanges(options.all, { verbose: options.verbose });
+    // Git add-changes command
+    legacyModeInit
+      .command('add-changes')
+      .description('Stage changes in private repository')
+      .option('-A, --all', 'Stage all changes')
+      .action(async options => {
+        try {
+          const gitOpsCommand = new GitOpsCommand();
+          const result = await gitOpsCommand.addChanges(options.all, { verbose: getVerbose() });
 
-        if (result.success) {
-          logger.success(result.message || 'Changes staged successfully');
-        } else {
-          logger.error(result.message || 'Failed to stage changes');
-          process.exit(result.exitCode);
+          if (result.success) {
+            logger.success(result.message || 'Changes staged successfully');
+          } else {
+            logger.error(result.message || 'Failed to stage changes');
+            process.exit(result.exitCode);
+          }
+        } catch (error) {
+          handleError(error);
         }
-      } catch (error) {
-        handleError(error);
-      }
-    });
+      });
 
-  // Git diff command
-  program
-    .command('diff')
-    .description('Show differences in private repository')
-    .option('--cached', 'Show staged changes')
-    .option('--name-only', 'Show only file names')
-    .action(async options => {
-      try {
-        const gitOpsCommand = new GitOpsCommand();
-        const result = await gitOpsCommand.diff(
-          {
-            cached: options.cached,
-            nameOnly: options.nameOnly,
-          },
-          { verbose: options.verbose },
-        );
+    // Git diff command
+    legacyModeInit
+      .command('diff')
+      .description('Show differences in private repository')
+      .option('--cached', 'Show staged changes')
+      .option('--name-only', 'Show only file names')
+      .action(async options => {
+        try {
+          const gitOpsCommand = new GitOpsCommand();
+          const result = await gitOpsCommand.diff(
+            {
+              cached: options.cached,
+              nameOnly: options.nameOnly,
+            },
+            { verbose: getVerbose() },
+          );
 
-        if (!result.success) {
-          logger.error(result.message || 'Failed to get differences');
-          process.exit(result.exitCode);
+          if (!result.success) {
+            logger.error(result.message || 'Failed to get differences');
+            process.exit(result.exitCode);
+          }
+        } catch (error) {
+          handleError(error);
         }
-      } catch (error) {
-        handleError(error);
-      }
-    });
+      });
 
-  // Git branch command
-  program
-    .command('branch [name]')
-    .description('List or create branches in private repository')
-    .option('-b, --create', 'Create new branch')
-    .action(async (name, options) => {
-      try {
-        const gitOpsCommand = new GitOpsCommand();
-        const result = await gitOpsCommand.branch(name, options.create, {
-          verbose: options.verbose,
-        });
+    // Git branch command
+    legacyModeInit
+      .command('branch [name]')
+      .description('List or create branches in private repository')
+      .option('-b, --create', 'Create new branch')
+      .action(async (name, options) => {
+        try {
+          const gitOpsCommand = new GitOpsCommand();
+          const result = await gitOpsCommand.branch(name, options.create, {
+            verbose: getVerbose(),
+          });
 
-        if (result.success && name && options.create) {
-          logger.success(result.message || 'Branch created successfully');
-        } else if (!result.success) {
-          logger.error(result.message || 'Failed to perform branch operation');
-          process.exit(result.exitCode);
+          if (result.success && name && options.create) {
+            logger.success(result.message || 'Branch created successfully');
+          } else if (!result.success) {
+            logger.error(result.message || 'Failed to perform branch operation');
+            process.exit(result.exitCode);
+          }
+        } catch (error) {
+          handleError(error);
         }
-      } catch (error) {
-        handleError(error);
-      }
-    });
+      });
 
-  // Git checkout command
-  program
-    .command('checkout <target>')
-    .description('Switch branches or restore files in private repository')
-    .action(async (target, options) => {
-      try {
-        const gitOpsCommand = new GitOpsCommand();
-        const result = await gitOpsCommand.checkout(target, { verbose: options.verbose });
+    // Git checkout command
+    legacyModeInit
+      .command('checkout <target>')
+      .description('Switch branches or restore files in private repository')
+      .action(async target => {
+        try {
+          const gitOpsCommand = new GitOpsCommand();
+          const result = await gitOpsCommand.checkout(target, { verbose: getVerbose() });
 
-        if (result.success) {
-          logger.success(result.message || 'Checkout completed successfully');
-        } else {
-          logger.error(result.message || 'Failed to checkout');
-          process.exit(result.exitCode);
+          if (result.success) {
+            logger.success(result.message || 'Checkout completed successfully');
+          } else {
+            logger.error(result.message || 'Failed to checkout');
+            process.exit(result.exitCode);
+          }
+        } catch (error) {
+          handleError(error);
         }
-      } catch (error) {
-        handleError(error);
-      }
-    });
+      });
 
-  // Cleanup command
-  program
-    .command('cleanup')
-    .description('Fix and repair private git tracking system')
-    .option('--force', 'Force cleanup operations')
-    .action(async options => {
-      try {
-        const cleanupCommand = new CleanupCommand();
-        const result = await cleanupCommand.execute(options.force, { verbose: options.verbose });
+    // Cleanup command
+    legacyModeInit
+      .command('cleanup')
+      .description('Fix and repair private git tracking system')
+      .option('--force', 'Force cleanup operations')
+      .action(async options => {
+        try {
+          const cleanupCommand = new CleanupCommand();
+          const result = await cleanupCommand.execute(options.force, { verbose: getVerbose() });
 
-        if (result.success) {
-          logger.success(result.message || 'Cleanup completed successfully');
-        } else {
-          logger.error(result.message || 'Cleanup completed with issues');
-          process.exit(result.exitCode);
+          if (result.success) {
+            logger.success(result.message || 'Cleanup completed successfully');
+          } else {
+            logger.error(result.message || 'Cleanup completed with issues');
+            process.exit(result.exitCode);
+          }
+        } catch (error) {
+          handleError(error);
         }
-      } catch (error) {
-        handleError(error);
-      }
-    });
+      });
 
-  // Reset command
-  program
-    .command('reset')
-    .description('Completely remove pgit setup and restore all tracked files to main repository')
-    .option('--force', 'Skip confirmation prompt')
-    .option('--dry-run', 'Show what would be done without executing')
-    .action(async options => {
-      try {
-        const resetCommand = new ResetCommand();
-        const result = await resetCommand.execute(options.force, {
-          verbose: options.verbose,
-          dryRun: options.dryRun,
-        });
+    // Reset command
+    legacyModeInit
+      .command('reset')
+      .description('Completely remove pgit setup and restore all tracked files to main repository')
+      .option('--force', 'Skip confirmation prompt')
+      .option('--dry-run', 'Show what would be done without executing')
+      .action(async options => {
+        try {
+          const resetCommand = new ResetCommand();
+          const result = await resetCommand.execute(options.force, {
+            verbose: getVerbose(),
+            dryRun: options.dryRun,
+          });
 
-        if (result.success) {
-          logger.success(result.message || 'Reset completed successfully');
-        } else {
-          logger.error(result.message || 'Reset failed');
-          process.exit(result.exitCode);
+          if (result.success) {
+            logger.success(result.message || 'Reset completed successfully');
+          } else {
+            logger.error(result.message || 'Reset failed');
+            process.exit(result.exitCode);
+          }
+        } catch (error) {
+          handleError(error);
         }
-      } catch (error) {
-        handleError(error);
-      }
-    });
+      });
+  }
 
   // Config commands
   const configCommand = new ConfigCommand();
@@ -504,16 +458,6 @@ async function main(): Promise<void> {
     }
     // Force exit code 1 for other errors
     process.exit(1);
-  });
-
-  // Centralized feature gate for command paths
-  program.hook('preAction', (_thisCommand, actionCommand) => {
-    const commandPath = getCommandPath(actionCommand);
-    const decision = evaluateFeatureGate(commandPath, FEATURE_BOUND_COMMANDS);
-    if (decision.blocked) {
-      displayLegacyGateBlockedMessage(commandPath, decision.envKeys);
-      process.exit(1);
-    }
   });
 
   // Parse command line arguments

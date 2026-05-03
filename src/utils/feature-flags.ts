@@ -34,14 +34,14 @@ export const FEATURE_DEFINITIONS: Record<FeatureFlag, FeatureFlagMetadata> = {
   legacy: {
     scope: 'command',
     defaultEnabled: false,
-    description: 'Enable legacy root flow commands (`init`, `add`) in standard CLI mode.',
+    description: 'Enable deprecated `pgit legacy ...` command group in the CLI.',
     envVariable: 'PGIT_FEATURE_LEGACY',
     aliases: ['PGIT_LEGACY'],
   },
   agentConfigSync: {
     scope: 'command',
     defaultEnabled: false,
-    description: 'Enable agent-visible private config sync beta command flow.',
+    description: 'Enable agent-visible private config beta command flow.',
     envVariable: 'PGIT_FEATURE_AGENT_CONFIG_SYNC',
     aliases: [],
   },

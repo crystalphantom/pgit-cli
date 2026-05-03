@@ -219,7 +219,7 @@ MVP defers automatic rename and keeps using the existing ID. The hash is the tru
 
 ## Commands
 
-### `pgit config add <path>`
+### `pgit add <path>`
 
 Adds a file or directory to private config tracking.
 
@@ -239,14 +239,14 @@ Behavior:
 Example:
 
 ```text
-pgit config add my-rules.md
+pgit add my-rules.md
 
 repo/my-rules.md
 ->
 ~/.pgit/private-config/<project-id>/my-rules.md
 ```
 
-### `pgit config sync pull`
+### `pgit pull`
 
 Copies private-store files into the repo at their original repo-relative paths.
 
@@ -264,7 +264,7 @@ Rules:
 - Use per-file hashes for files and directory contents.
 - Update `lastSyncedHash` after successful sync.
 
-### `pgit config sync push`
+### `pgit push`
 
 Copies repo-local private files back to the private store.
 
@@ -281,7 +281,7 @@ Rules:
 - Use per-file hashes for files and directory contents.
 - Update `lastSyncedHash` after successful sync.
 
-### `pgit config sync status`
+### `pgit status`
 
 Shows sync state for private config entries.
 
@@ -292,12 +292,6 @@ my-rules.md modified locally
 private-folder/ up to date
 secrets.env missing in repo
 ```
-
-### `pgit status`
-
-Optional convenience command that wraps or filters Git status output to hide private config paths from user-facing status output.
-
-This does not change native Git behavior. It only provides a cleaner `pgit` view.
 
 ## Git hooks
 
@@ -313,7 +307,7 @@ Input:
 git diff --cached --name-only
 ```
 
-If any staged added/modified path matches a manifest `repoPath`, block commit. Deletion-only entries are allowed so `pgit config add <tracked-path>` can create a normal commit that removes private files from shared Git tracking.
+If any staged added/modified path matches a manifest `repoPath`, block commit. Deletion-only entries are allowed so `pgit add <tracked-path>` can create a normal commit that removes private files from shared Git tracking.
 
 Example message:
 
@@ -486,7 +480,7 @@ Use agent-visible mode by default:
 real files at repo-relative paths
 private path-preserving store in ~/.pgit/private-config/<project-id>/
 private manifest outside repo
-sync pull/push
+pull/push
 pre-commit guard
 pre-push guard
 pgit status filtered view
@@ -538,8 +532,8 @@ Default behavior:
 
 With `--force`:
 
-- `sync pull --force` overwrites repo-local files from private store
-- `sync push --force` overwrites private-store files from repo
+- `pull --force` overwrites repo-local files from private store
+- `push --force` overwrites private-store files from repo
 
 MVP creates backup files before overwrite. Keep latest 20 backup sets per project.
 

@@ -381,7 +381,7 @@ export class PrivateConfigSyncManager {
 
     if (!(await fs.pathExists(info.manifestPath))) {
       throw new PrivateConfigSyncError(
-        'Private config not initialized. Run pgit config add <path> first.',
+        'Private config not initialized. Run pgit add <path> first.',
       );
     }
 
@@ -573,7 +573,7 @@ export class PrivateConfigSyncManager {
 
       if (!(await fs.pathExists(privatePath))) {
         throw new PrivateConfigSyncError(
-          `Cannot drop ${entry.repoPath}: private-store copy is missing. Run pgit config sync push first.`,
+          `Cannot drop ${entry.repoPath}: private-store copy is missing. Run pgit push first.`,
         );
       }
 
@@ -583,7 +583,7 @@ export class PrivateConfigSyncManager {
 
       if (!(await this.pathTypeMatches(repoPath, entry.type))) {
         throw new PrivateConfigConflictError(
-          `Cannot drop ${entry.repoPath}: local copy has changes not pushed to private config. Run pgit config sync push first, or use --force.`,
+          `Cannot drop ${entry.repoPath}: local copy has changes not pushed to private config. Run pgit push first, or use --force.`,
         );
       }
 
@@ -597,7 +597,7 @@ export class PrivateConfigSyncManager {
           : await this.hashPath(privatePath, entry.type);
       if (!this.hashesEqual(repoSnapshot, privateSnapshot)) {
         throw new PrivateConfigConflictError(
-          `Cannot drop ${entry.repoPath}: local copy has changes not pushed to private config. Run pgit config sync push first, or use --force.`,
+          `Cannot drop ${entry.repoPath}: local copy has changes not pushed to private config. Run pgit push first, or use --force.`,
         );
       }
     }
