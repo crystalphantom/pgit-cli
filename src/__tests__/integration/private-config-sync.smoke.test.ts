@@ -41,14 +41,14 @@ describe('private config sync smoke test', () => {
       expect((await fs.lstat(path.join(repoDir, 'research'))).isDirectory()).toBe(true);
 
       await fs.writeFile(path.join(repoDir, 'agent-rules.md'), 'rules v2');
-      execFileSync('node', [cliPath, 'push'], {
+      execFileSync('node', [cliPath, 'push', '.'], {
         cwd: repoDir,
         env: { ...process.env, HOME: homeDir },
         encoding: 'utf8',
       });
 
       await fs.writeFile(path.join(repoDir, 'agent-rules.md'), 'local drift');
-      execFileSync('node', [cliPath, 'pull', '--force'], {
+      execFileSync('node', [cliPath, 'pull', '.', '--force'], {
         cwd: repoDir,
         env: { ...process.env, HOME: homeDir },
         encoding: 'utf8',

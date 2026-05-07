@@ -70,6 +70,7 @@ interface PrivateConfigCheckoutState {
 
 export interface PrivateConfigSyncOptions {
   force?: boolean;
+  repoPaths: string[];
 }
 
 export interface PrivateConfigSyncResult {
@@ -268,11 +269,11 @@ export class PrivateConfigSyncManager {
     };
   }
 
-  public async syncPull(options: PrivateConfigSyncOptions = {}): Promise<PrivateConfigSyncResult> {
+  public async syncPull(options: PrivateConfigSyncOptions): Promise<PrivateConfigSyncResult> {
     return this.sync('pull', options);
   }
 
-  public async syncPush(options: PrivateConfigSyncOptions = {}): Promise<PrivateConfigSyncResult> {
+  public async syncPush(options: PrivateConfigSyncOptions): Promise<PrivateConfigSyncResult> {
     return this.sync('push', options);
   }
 
@@ -333,10 +334,11 @@ export class PrivateConfigSyncManager {
     options: PrivateConfigSyncOptions,
   ): Promise<PrivateConfigSyncResult> {
     const manifest = await this.loadManifest();
+    const entries = this.resolveTrackedEntries(manifest, options.repoPaths);
     const backups: string[] = [];
     const statuses: PrivateConfigStatusEntry[] = [];
 
-    for (const entry of manifest.entries) {
+    for (const entry of entries) {
       const repoPath = path.join(this.workingDir, entry.repoPath);
       const privatePath = entry.privatePath;
       const source = direction === 'pull' ? privatePath : repoPath;
@@ -539,16 +541,13 @@ export class PrivateConfigSyncManager {
     return [...new Set(inputs.map(input => this.normalizeRepoPath(input)))];
   }
 
-  private resolveDropEntries(
+  private resolveTrackedEntries(
     manifest: PrivateConfigManifest,
     repoPathInput: string | string[],
   ): PrivateConfigEntry[] {
     const inputs = Array.isArray(repoPathInput) ? repoPathInput : [repoPathInput];
-    if (inputs.some(input => input.trim() === '.')) {
-      return [...manifest.entries];
-    }
-
-    const repoPaths = this.normalizeRepoPathInputs(inputs);
+    const hasDotSelector = inputs.some(input => input.trim() === '.');
+    const repoPaths = this.normalizeRepoPathInputs(inputs.filter(input => input.trim() !== '.'));
     const entries = repoPaths
       .map(repoPath => manifest.entries.find(entry => entry.repoPath === repoPath))
       .filter((entry): entry is PrivateConfigEntry => Boolean(entry));
@@ -560,7 +559,18 @@ export class PrivateConfigSyncManager {
       throw new PrivateConfigSyncError(`Private config path is not tracked: ${missing.join(', ')}`);
     }
 
+    if (hasDotSelector) {
+      return [...manifest.entries];
+    }
+
     return entries;
+  }
+
+  private resolveDropEntries(
+    manifest: PrivateConfigManifest,
+    repoPathInput: string | string[],
+  ): PrivateConfigEntry[] {
+    return this.resolveTrackedEntries(manifest, repoPathInput);
   }
 
   private async validateDropEntries(

@@ -8,15 +8,15 @@
 - Use repo-relative paths (for example `.claude/`, `specs/design.md`).
 - Ensure files/directories exist before adding.
 
-### `pgit pull` or `pgit push` reports conflict
+### `pgit pull <paths...>` or `pgit push <paths...>` reports conflict
 
 - Use `--force` to allow overwrite after backup.
 - Resolve manual edits after reviewing backups under `.pgit/private-config/<project-id>/` and run again.
 
 ### `pgit status` shows drift
 
-- `modified-locally`: repo file changed; run `pgit push`.
-- `modified-private`: private copy changed; run `pgit pull`.
+- `modified-locally`: repo file changed; run `pgit push <path>` or `pgit push .`.
+- `modified-private`: private copy changed; run `pgit pull <path>` or `pgit pull .`.
 - `missing-*`: check whether the path was moved/removed and re-add as needed.
 
 ### Commit is blocked by pre-commit/pre-push hooks

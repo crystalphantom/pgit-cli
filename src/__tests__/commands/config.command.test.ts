@@ -352,7 +352,10 @@ describe('ConfigCommand', () => {
       expect(mockPrivateConfigSyncManager.add).toHaveBeenCalledWith('rules.md', {
         noCommit: false,
       });
-      expect(mockPrivateConfigSyncManager.syncPush).toHaveBeenCalled();
+      expect(mockPrivateConfigSyncManager.syncPush).toHaveBeenCalledWith({
+        force: false,
+        repoPaths: ['rules.md'],
+      });
     });
 
     it('should forward force option to private config manager', async () => {
@@ -430,7 +433,9 @@ describe('ConfigCommand', () => {
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         '❌ Error: Private config was added, but automatic sync push failed: Sync conflict',
       );
-      expect(consoleErrorSpy).toHaveBeenCalledWith('Resolve the conflict or run: pgit push --force');
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        'Resolve the conflict or run: pgit push --force rules.md',
+      );
     });
   });
 
@@ -477,7 +482,7 @@ describe('ConfigCommand', () => {
       expect(result.success).toBe(true);
       expect(mockPrivateConfigSyncManager.drop).toHaveBeenCalledWith('rules.md', { force: true });
       expect(result.message).toBe('Private config dropped locally: rules.md');
-      expect(consoleSpy).toHaveBeenCalledWith('Restore with: pgit pull');
+      expect(consoleSpy).toHaveBeenCalledWith('Restore with: pgit pull rules.md');
     });
 
     it('should handle drop errors', async () => {
@@ -580,13 +585,17 @@ describe('ConfigCommand', () => {
       expect(mockPrivateConfigSyncManager.add).toHaveBeenCalledWith(['rules.md'], {
         noCommit: true,
       });
+      expect(mockPrivateConfigSyncManager.syncPush).toHaveBeenCalledWith({
+        force: false,
+        repoPaths: ['rules.md'],
+      });
     });
 
     it.each([
       ['remove', ['node', 'pgit', 'remove', 'rules.md']],
       ['drop', ['node', 'pgit', 'drop', '--force', 'rules.md']],
-      ['push', ['node', 'pgit', 'push', '--force']],
-      ['pull', ['node', 'pgit', 'pull', '--force']],
+      ['push', ['node', 'pgit', 'push', '--force', '.']],
+      ['pull', ['node', 'pgit', 'pull', '--force', '.']],
       ['status', ['node', 'pgit', 'status']],
     ])('should parse top-level %s command', async (_commandName, argv) => {
       mockPrivateConfigSyncManager.remove.mockResolvedValue({
@@ -644,11 +653,17 @@ describe('ConfigCommand', () => {
       }
 
       if (argv[2] === 'push') {
-        expect(mockPrivateConfigSyncManager.syncPush).toHaveBeenCalledWith({ force: true });
+        expect(mockPrivateConfigSyncManager.syncPush).toHaveBeenCalledWith({
+          force: true,
+          repoPaths: ['.'],
+        });
       }
 
       if (argv[2] === 'pull') {
-        expect(mockPrivateConfigSyncManager.syncPull).toHaveBeenCalledWith({ force: true });
+        expect(mockPrivateConfigSyncManager.syncPull).toHaveBeenCalledWith({
+          force: true,
+          repoPaths: ['.'],
+        });
       }
 
       if (argv[2] === 'status') {
@@ -680,6 +695,58 @@ describe('ConfigCommand', () => {
         program.parseAsync(['node', 'pgit', 'config', 'add', 'rules.md']),
       ).rejects.toMatchObject({
         code: 'commander.unknownCommand',
+      });
+    });
+
+    it.each([
+      ['pull', ['node', 'pgit', 'pull']],
+      ['push', ['node', 'pgit', 'push']],
+    ])('should require paths for top-level %s command', async (_commandName, argv) => {
+      const program = new Command();
+      program.exitOverride();
+
+      configCommand.register(program);
+
+      await expect(program.parseAsync(argv)).rejects.toMatchObject({
+        code: 'commander.missingArgument',
+      });
+    });
+
+    it('should forward explicit dot pull paths and force option', async () => {
+      mockPrivateConfigSyncManager.syncPull.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [{ repoPath: 'rules.md', type: 'file', state: 'up-to-date' }],
+        backups: [],
+      });
+
+      const program = new Command();
+      program.exitOverride();
+
+      configCommand.register(program);
+      await program.parseAsync(['node', 'pgit', 'pull', '.', '--force']);
+
+      expect(mockPrivateConfigSyncManager.syncPull).toHaveBeenCalledWith({
+        force: true,
+        repoPaths: ['.'],
+      });
+    });
+
+    it('should forward explicit push paths without force', async () => {
+      mockPrivateConfigSyncManager.syncPush.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [{ repoPath: 'todo.md', type: 'file', state: 'up-to-date' }],
+        backups: [],
+      });
+
+      const program = new Command();
+      program.exitOverride();
+
+      configCommand.register(program);
+      await program.parseAsync(['node', 'pgit', 'push', 'todo.md']);
+
+      expect(mockPrivateConfigSyncManager.syncPush).toHaveBeenCalledWith({
+        force: false,
+        repoPaths: ['todo.md'],
       });
     });
   });

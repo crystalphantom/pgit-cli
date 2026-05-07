@@ -51,7 +51,7 @@ necto-pro-a1b2c3d4/
 5. Remove already-tracked main-repo entries via `git rm --cached -r -- <path>`.
 6. Save/update manifest entries and checkout state.
 7. Install/refresh hooks (`.git/hooks` or common hooks path).
-8. Optionally auto-run `pgit push` unless `--no-sync-push`.
+8. Optionally auto-run `pgit push <added-paths...>` unless `--no-sync-push`.
 9. Optionally auto-commit the shared-Git removals unless `--no-commit`.
 
 ### `--force` and existing entries
@@ -68,16 +68,20 @@ necto-pro-a1b2c3d4/
 
 Repo-local files/directories are **not deleted**.
 
-## Command flow: `pgit push`
+## Command flow: `pgit push <paths...>`
 
-- Pushes current repo-local content into private store for all tracked paths.
+- Requires explicit tracked paths.
+- `pgit push .` means "push all tracked paths".
+- Non-dot inputs must match tracked manifest entries exactly.
 - Detects changes in private target before overwrite.
 - Without `--force`, throws on conflict.
 - With `--force`, backs up the target first (`.backups/`) and overwrites.
 
-## Command flow: `pgit pull`
+## Command flow: `pgit pull <paths...>`
 
-- Pulls private-store content back into repo paths.
+- Requires explicit tracked paths.
+- `pgit pull .` means "pull all tracked paths".
+- Non-dot inputs must match tracked manifest entries exactly.
 - Uses same conflict logic and `--force` backup behavior as `push`.
 
 ## Command flow: `pgit status`

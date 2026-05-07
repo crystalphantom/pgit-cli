@@ -11,8 +11,8 @@ These top-level commands are the primary workflow for keeping agent-visible file
 | `pgit add <paths...>` | Track repo paths in the private config flow |
 | `pgit remove <paths...>` | Untrack repo paths and remove private store entries |
 | `pgit drop <paths...>` | Remove working-tree copies only |
-| `pgit pull` | Restore private tracked files into repo from private store |
-| `pgit push` | Push current repo contents into private store |
+| `pgit pull <paths...>` | Restore explicit tracked paths into repo from private store |
+| `pgit push <paths...>` | Push explicit tracked repo paths into private store |
 | `pgit status` | Show sync status for tracked files |
 
 ### Common options
@@ -21,8 +21,15 @@ These top-level commands are the primary workflow for keeping agent-visible file
 - `pgit add <paths...> --no-commit` : skip auto-commit of main-repo removals
 - `pgit add <paths...> --no-sync-push` : do not auto push after add
 - `pgit drop <paths...> --force` : drop local files even if hashes differ
-- `pgit pull --force` : overwrite local conflicts after backup
-- `pgit push --force` : overwrite private-store conflicts after backup
+- `pgit pull . --force` : overwrite local conflicts for all tracked paths after backup
+- `pgit push . --force` : overwrite private-store conflicts for all tracked paths after backup
+
+### Sync path selection
+
+- `pgit pull .` and `pgit push .` mean "sync all tracked entries".
+- `pgit pull todo.md` syncs only `todo.md`.
+- `pgit push docs` syncs only tracked entry `docs`.
+- `pgit pull` and `pgit push` without paths are invalid.
 
 ### Global config management
 

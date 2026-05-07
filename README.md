@@ -32,10 +32,14 @@ Synchronize your private configs across machines/workspaces:
 
 ```bash
 # Push your local updates to your private store
-pgit push
+pgit push .
 
 # Pull private configurations into a new workspace
-pgit pull
+pgit pull .
+
+# Or sync only specific tracked paths
+pgit push todo.md docs
+pgit pull todo.md
 
 # Check the sync status (drift)
 pgit status

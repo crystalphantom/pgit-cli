@@ -52,24 +52,31 @@ describe('PrivateConfigSyncManager', () => {
     );
   });
 
-  it('syncs pull and push with conflict detection and force backups', async () => {
+  it('syncs scoped pull and push with conflict detection and force backups', async () => {
     await fs.writeFile(path.join(repoDir, 'my-rules.md'), 'v1');
+    await fs.writeFile(path.join(repoDir, 'notes.md'), 'notes-v1');
     const manager = new PrivateConfigSyncManager(repoDir, homeDir);
-    await manager.add('my-rules.md');
+    await manager.add(['my-rules.md', 'notes.md']);
     const info = await manager.getProjectInfo();
     const privateFile = path.join(info.privateRoot, 'my-rules.md');
+    const privateNotesFile = path.join(info.privateRoot, 'notes.md');
 
     await fs.writeFile(privateFile, 'v2');
-    await manager.syncPull();
+    await fs.writeFile(privateNotesFile, 'notes-v2');
+    await manager.syncPull({ repoPaths: ['my-rules.md'], force: false });
     expect(await fs.readFile(path.join(repoDir, 'my-rules.md'), 'utf8')).toBe('v2');
+    expect(await fs.readFile(path.join(repoDir, 'notes.md'), 'utf8')).toBe('notes-v1');
 
     await fs.writeFile(path.join(repoDir, 'my-rules.md'), 'repo-change');
     await fs.writeFile(privateFile, 'private-change');
-    await expect(manager.syncPull()).rejects.toThrow(PrivateConfigConflictError);
+    await expect(manager.syncPull({ repoPaths: ['my-rules.md'], force: false })).rejects.toThrow(
+      PrivateConfigConflictError,
+    );
 
-    const forced = await manager.syncPull({ force: true });
+    const forced = await manager.syncPull({ repoPaths: ['my-rules.md'], force: true });
     expect(forced.backups).toHaveLength(1);
     expect(await fs.readFile(path.join(repoDir, 'my-rules.md'), 'utf8')).toBe('private-change');
+    expect(await fs.readFile(path.join(repoDir, 'notes.md'), 'utf8')).toBe('notes-v1');
     expect(await fs.pathExists(forced.backups[0])).toBe(true);
   });
 
@@ -95,7 +102,7 @@ describe('PrivateConfigSyncManager', () => {
     const privateDir = addResult.entries[0].privatePath;
 
     await fs.remove(path.join(repoDir, 'private-folder', 'remove.md'));
-    await manager.syncPush();
+    await manager.syncPush({ repoPaths: ['private-folder'], force: false });
     const status = await manager.getStatus();
 
     expect(await fs.pathExists(path.join(privateDir, 'keep.md'))).toBe(true);
@@ -332,7 +339,7 @@ describe('PrivateConfigSyncManager', () => {
       { repoPath: 'rules.md', type: 'file', state: 'missing-repo' },
     ]);
 
-    await manager.syncPull();
+    await manager.syncPull({ repoPaths: ['rules.md'], force: false });
 
     expect(await fs.readFile(filePath, 'utf8')).toBe('rules');
   });
@@ -422,6 +429,127 @@ describe('PrivateConfigSyncManager', () => {
     );
 
     expect(await fs.readFile(path.join(repoDir, 'rules.md'), 'utf8')).toBe('rules');
+  });
+
+  it('does not treat dot as a drop bypass when another requested private path is not tracked', async () => {
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules');
+    await fs.ensureDir(path.join(repoDir, 'research'));
+    await fs.writeFile(path.join(repoDir, 'research', 'notes.md'), 'notes');
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    await manager.add(['rules.md', 'research']);
+
+    await expect(manager.drop(['.', 'missing.md'])).rejects.toThrow(
+      'Private config path is not tracked: missing.md',
+    );
+
+    expect(await fs.readFile(path.join(repoDir, 'rules.md'), 'utf8')).toBe('rules');
+    expect(await fs.readFile(path.join(repoDir, 'research', 'notes.md'), 'utf8')).toBe('notes');
+  });
+
+  it('syncs only the requested directory during push', async () => {
+    await fs.ensureDir(path.join(repoDir, 'docs'));
+    await fs.ensureDir(path.join(repoDir, 'notes'));
+    await fs.writeFile(path.join(repoDir, 'docs', 'guide.md'), 'docs-v1');
+    await fs.writeFile(path.join(repoDir, 'notes', 'todo.md'), 'notes-v1');
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const addResult = await manager.add(['docs', 'notes']);
+    const docsPrivatePath = addResult.entries.find(entry => entry.repoPath === 'docs')?.privatePath;
+    const notesPrivatePath = addResult.entries.find(
+      entry => entry.repoPath === 'notes',
+    )?.privatePath;
+
+    expect(docsPrivatePath).toBeDefined();
+    expect(notesPrivatePath).toBeDefined();
+
+    await fs.writeFile(path.join(repoDir, 'docs', 'guide.md'), 'docs-v2');
+    await fs.writeFile(path.join(repoDir, 'notes', 'todo.md'), 'notes-v2');
+
+    await manager.syncPush({ repoPaths: ['docs'], force: false });
+
+    expect(await fs.readFile(path.join(docsPrivatePath as string, 'guide.md'), 'utf8')).toBe(
+      'docs-v2',
+    );
+    expect(await fs.readFile(path.join(notesPrivatePath as string, 'todo.md'), 'utf8')).toBe(
+      'notes-v1',
+    );
+  });
+
+  it('syncs all tracked entries when the sync path is dot', async () => {
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules-v1');
+    await fs.ensureDir(path.join(repoDir, 'research'));
+    await fs.writeFile(path.join(repoDir, 'research', 'notes.md'), 'notes-v1');
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const addResult = await manager.add(['rules.md', 'research']);
+    const privateRulesPath = addResult.entries.find(
+      entry => entry.repoPath === 'rules.md',
+    )?.privatePath;
+    const privateResearchPath = addResult.entries.find(
+      entry => entry.repoPath === 'research',
+    )?.privatePath;
+
+    expect(privateRulesPath).toBeDefined();
+    expect(privateResearchPath).toBeDefined();
+
+    await fs.writeFile(privateRulesPath as string, 'rules-v2');
+    await fs.writeFile(path.join(privateResearchPath as string, 'notes.md'), 'notes-v2');
+
+    const pullResult = await manager.syncPull({ repoPaths: ['.'], force: false });
+
+    expect(pullResult.entries.map(entry => entry.repoPath)).toEqual(['research', 'rules.md']);
+    expect(await fs.readFile(path.join(repoDir, 'rules.md'), 'utf8')).toBe('rules-v2');
+    expect(await fs.readFile(path.join(repoDir, 'research', 'notes.md'), 'utf8')).toBe('notes-v2');
+  });
+
+  it('does not sync any requested paths when one sync path is not tracked', async () => {
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules-v1');
+    await fs.ensureDir(path.join(repoDir, 'docs'));
+    await fs.writeFile(path.join(repoDir, 'docs', 'guide.md'), 'docs-v1');
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const addResult = await manager.add(['rules.md', 'docs']);
+    const privateRulesPath = addResult.entries.find(
+      entry => entry.repoPath === 'rules.md',
+    )?.privatePath;
+
+    expect(privateRulesPath).toBeDefined();
+
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules-v2');
+
+    await expect(
+      manager.syncPush({ repoPaths: ['rules.md', 'missing.md'], force: false }),
+    ).rejects.toThrow('Private config path is not tracked: missing.md');
+
+    expect(await fs.readFile(privateRulesPath as string, 'utf8')).toBe('rules-v1');
+  });
+
+  it('does not treat dot as a sync bypass when another sync path is not tracked', async () => {
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules-v1');
+    await fs.ensureDir(path.join(repoDir, 'docs'));
+    await fs.writeFile(path.join(repoDir, 'docs', 'guide.md'), 'docs-v1');
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const addResult = await manager.add(['rules.md', 'docs']);
+    const privateRulesPath = addResult.entries.find(
+      entry => entry.repoPath === 'rules.md',
+    )?.privatePath;
+    const privateDocsPath = addResult.entries.find(entry => entry.repoPath === 'docs')?.privatePath;
+
+    expect(privateRulesPath).toBeDefined();
+    expect(privateDocsPath).toBeDefined();
+
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules-v2');
+    await fs.writeFile(path.join(repoDir, 'docs', 'guide.md'), 'docs-v2');
+
+    await expect(
+      manager.syncPush({ repoPaths: ['.', 'missing.md'], force: false }),
+    ).rejects.toThrow('Private config path is not tracked: missing.md');
+
+    expect(await fs.readFile(privateRulesPath as string, 'utf8')).toBe('rules-v1');
+    expect(await fs.readFile(path.join(privateDocsPath as string, 'guide.md'), 'utf8')).toBe(
+      'docs-v1',
+    );
   });
 
   it('preserves existing shell hooks when installing pgit hooks', async () => {

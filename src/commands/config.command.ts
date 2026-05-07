@@ -132,22 +132,22 @@ export class ConfigCommand {
       });
 
     program
-      .command('pull')
-      .description('Copy private config from private store into repo paths')
+      .command('pull <paths...>')
+      .description('Copy private config from private store into explicit repo paths')
       .option('-f, --force', 'Overwrite local conflicts after creating backups')
-      .action(async options => {
-        const result = await this.executePrivateSyncPull(options.force);
+      .action(async (targetPaths, options) => {
+        const result = await this.executePrivateSyncPull(targetPaths, options.force);
         if (!result.success) {
           process.exit(result.exitCode);
         }
       });
 
     program
-      .command('push')
-      .description('Copy private config from repo paths into private store')
+      .command('push <paths...>')
+      .description('Copy explicit repo paths into the private store')
       .option('-f, --force', 'Overwrite private-store conflicts after creating backups')
-      .action(async options => {
-        const result = await this.executePrivateSyncPush(options.force);
+      .action(async (targetPaths, options) => {
+        const result = await this.executePrivateSyncPush(targetPaths, options.force);
         if (!result.success) {
           process.exit(result.exitCode);
         }
@@ -407,8 +407,12 @@ export class ConfigCommand {
       }
 
       if (syncPush) {
+        const repoPaths = result.entries.map(entry => entry.repoPath);
         try {
-          const syncResult = await this.privateConfigSyncManager.syncPush();
+          const syncResult = await this.privateConfigSyncManager.syncPush({
+            force: false,
+            repoPaths,
+          });
           console.log(
             `✅ Private config pushed: ${syncResult.entries.length} entr${syncResult.entries.length === 1 ? 'y' : 'ies'}`,
           );
@@ -419,7 +423,7 @@ export class ConfigCommand {
           console.error(
             `❌ Error: Private config was added, but automatic sync push failed: ${syncMessage}`,
           );
-          console.error('Resolve the conflict or run: pgit push --force');
+          console.error(`Resolve the conflict or run: pgit push --force ${repoPaths.join(' ')}`);
 
           return {
             success: false,
@@ -480,7 +484,9 @@ export class ConfigCommand {
       console.log(
         `🧹 Removed ${result.droppedRepoPaths.length} repo-local entr${result.droppedRepoPaths.length === 1 ? 'y' : 'ies'}`,
       );
-      console.log('Restore with: pgit pull');
+      console.log(
+        `Restore with: pgit pull ${result.entries.map(entry => entry.repoPath).join(' ')}`,
+      );
 
       return {
         success: true,
@@ -493,9 +499,13 @@ export class ConfigCommand {
     }
   }
 
-  public async executePrivateSyncPull(force: boolean = false): Promise<CommandResult> {
+  public async executePrivateSyncPull(
+    targetPaths: string | string[],
+    force: boolean = false,
+  ): Promise<CommandResult> {
     try {
-      const result = await this.privateConfigSyncManager.syncPull({ force });
+      const repoPaths = Array.isArray(targetPaths) ? targetPaths : [targetPaths];
+      const result = await this.privateConfigSyncManager.syncPull({ force, repoPaths });
       console.log(
         `✅ Private config pulled: ${result.entries.length} entr${result.entries.length === 1 ? 'y' : 'ies'}`,
       );
@@ -512,9 +522,13 @@ export class ConfigCommand {
     }
   }
 
-  public async executePrivateSyncPush(force: boolean = false): Promise<CommandResult> {
+  public async executePrivateSyncPush(
+    targetPaths: string | string[],
+    force: boolean = false,
+  ): Promise<CommandResult> {
     try {
-      const result = await this.privateConfigSyncManager.syncPush({ force });
+      const repoPaths = Array.isArray(targetPaths) ? targetPaths : [targetPaths];
+      const result = await this.privateConfigSyncManager.syncPush({ force, repoPaths });
       console.log(
         `✅ Private config pushed: ${result.entries.length} entr${result.entries.length === 1 ? 'y' : 'ies'}`,
       );

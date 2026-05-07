@@ -246,7 +246,7 @@ repo/my-rules.md
 ~/.pgit/private-config/<project-id>/my-rules.md
 ```
 
-### `pgit pull`
+### `pgit pull <paths...>`
 
 Copies private-store files into the repo at their original repo-relative paths.
 
@@ -258,13 +258,15 @@ repo/my-rules.md
 
 Rules:
 
+- Require explicit tracked paths; `.` means all tracked entries.
+- Reject any non-dot path that is not already tracked.
 - Create parent directories as needed.
 - Preserve repo-relative paths.
 - Refuse to overwrite changed repo-local files unless `--force` is provided.
 - Use per-file hashes for files and directory contents.
 - Update `lastSyncedHash` after successful sync.
 
-### `pgit push`
+### `pgit push <paths...>`
 
 Copies repo-local private files back to the private store.
 
@@ -276,6 +278,8 @@ repo/my-rules.md
 
 Rules:
 
+- Require explicit tracked paths; `.` means all tracked entries.
+- Reject any non-dot path that is not already tracked.
 - Preserve repo-relative paths.
 - Refuse to overwrite changed private-store files unless `--force` is provided.
 - Use per-file hashes for files and directory contents.

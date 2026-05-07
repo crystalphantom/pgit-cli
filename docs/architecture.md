@@ -34,8 +34,9 @@ The id is reused across workspaces and is used for private storage location and 
 ### Sync lifecycle
 
 - `pgit add <paths...>` copies tracked paths into the private store and records hash snapshots in manifest.
-- `pgit push` updates private store from current repo copies.
-- `pgit pull` restores repo paths from private store.
+- `pgit push <paths...>` updates explicit tracked repo copies in the private store.
+- `pgit pull <paths...>` restores explicit tracked repo paths from private store.
+- `.` is the intentional selector for "all tracked entries".
 - `pgit status` compares repo/private snapshots and reports:
   - `up-to-date`
   - `modified-locally`
