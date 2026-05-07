@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. The format 
 
 
 
+## [0.8.1](https://github.com/crystalphantom/pgit-cli/compare/v0.8.0...v0.8.1) (2026-05-07)
+
+
+### Features
+
+* require explicit sync paths for config pull/push ([44b283b](https://github.com/crystalphantom/pgit-cli/commit/44b283bbfa8bfbe7b8d1f458b73e46a923ae9c64))
+
 ## [0.8.0](https://github.com/crystalphantom/pgit-cli/compare/v0.7.2...v0.8.0) (2026-05-03)
 
 ### ⚠️ Breaking Changes
