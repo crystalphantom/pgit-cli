@@ -57,31 +57,32 @@ jobs:
           name: codecov-umbrella
 
       - name: Test CLI installation and basic functionality
-        run: |
-          npm pack
-          ls -la *.tgz
-          PACKED_FILE=$(ls pgit-cli-*.tgz)
-          echo "Installing $PACKED_FILE"
-          npm install -g "$PACKED_FILE"
-          pgit -v
-        shell: bash
+        run: npm run test:package
 
-      - name: Test symbolic link functionality
+      - name: Test private config functionality
         run: |
-          # Clean up any existing test directory to ensure fresh state
-          rm -rf test-repo
+          rm -rf test-repo test-home
           mkdir -p test-repo
+          mkdir -p test-home
+          export HOME="$PWD/test-home"
           cd test-repo
+
           git init
-          echo "test content" > test.txt
-          git add test.txt
-          git commit -m "Initial commit"
-          pgit init
-          pgit add test.txt
-          # Verify symbolic link was created
-          test -L test.txt
-          # Verify original content is accessible
-          grep "test content" test.txt
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+
+          echo "rules v1" > agent-rules.md
+          node ../dist/cli.js add agent-rules.md
+
+          # The recommended private config flow keeps real repo-local files.
+          test ! -L agent-rules.md
+          grep "rules v1" agent-rules.md
+
+          echo "rules v2" > agent-rules.md
+          node ../dist/cli.js push agent-rules.md
+          rm agent-rules.md
+          node ../dist/cli.js pull agent-rules.md
+          grep "rules v2" agent-rules.md
         shell: bash
 
       - name: Store build artifacts

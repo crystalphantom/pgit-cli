@@ -79,6 +79,7 @@
       "npm run build"
     ],
     "before:release": [
+      "npm run test:package",
       "git add CHANGELOG.md"
     ]
   }

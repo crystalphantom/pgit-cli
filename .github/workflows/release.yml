@@ -36,6 +36,7 @@ jobs:
           npm run lint
           npm run build
           npm run test:coverage
+          npm run test:package
 
       - name: Verify version tag
         id: verify_tag
