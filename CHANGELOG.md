@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file. The format 
 
 
 
+## [0.8.2](https://github.com/crystalphantom/pgit-cli/compare/v0.8.1...v0.8.2) (2026-05-09)
+
+
+### Bug Fixes
+
+* **private-config:** recover existing manifest via installed hooks ([a478693](https://github.com/crystalphantom/pgit-cli/commit/a478693e0f2725d5d2713cb4602288d072fa88fe))
+
 ## [0.8.1](https://github.com/crystalphantom/pgit-cli/compare/v0.8.0...v0.8.1) (2026-05-07)
 
 
