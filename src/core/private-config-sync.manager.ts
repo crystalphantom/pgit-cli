@@ -120,6 +120,11 @@ interface GitIdentity {
   hashBase: string;
 }
 
+interface ResolvedProjectManifestPath {
+  projectId: string;
+  manifestPath: string;
+}
+
 export class PrivateConfigSyncManager {
   private readonly workingDir: string;
   private readonly homeDir: string;
@@ -379,9 +384,9 @@ export class PrivateConfigSyncManager {
   }
 
   private async loadManifest(): Promise<PrivateConfigManifest> {
-    const info = await this.resolveProjectManifestPath();
+    const info = await this.resolveExistingProjectManifestPath();
 
-    if (!(await fs.pathExists(info.manifestPath))) {
+    if (!info || !(await fs.pathExists(info.manifestPath))) {
       throw new PrivateConfigSyncError(
         'Private config not initialized. Run pgit add <path> first.',
       );
@@ -392,14 +397,14 @@ export class PrivateConfigSyncManager {
 
   private async loadOrCreateManifest(): Promise<PrivateConfigManifest> {
     const identity = await this.getGitIdentity();
-    const projectId = await this.resolveProjectId(identity);
-    const projectDir = path.join(this.baseDir, projectId);
-    const manifestPath = path.join(projectDir, 'manifest.json');
+    const existing = await this.resolveExistingProjectManifestPath(identity);
 
-    if (await fs.pathExists(manifestPath)) {
-      return (await fs.readJson(manifestPath)) as PrivateConfigManifest;
+    if (existing) {
+      return (await fs.readJson(existing.manifestPath)) as PrivateConfigManifest;
     }
 
+    const projectId = await this.resolveProjectId(identity);
+    const projectDir = path.join(this.baseDir, projectId);
     const now = new Date().toISOString();
     const manifest: PrivateConfigManifest = {
       version: '1.0.0',
@@ -444,13 +449,66 @@ export class PrivateConfigSyncManager {
     return crypto.createHash('sha256').update(this.workingDir).digest('hex').slice(0, 12);
   }
 
-  private async resolveProjectManifestPath(): Promise<{ projectId: string; manifestPath: string }> {
-    const identity = await this.getGitIdentity();
-    const projectId = await this.resolveProjectId(identity);
+  private async resolveExistingProjectManifestPath(
+    identity?: GitIdentity,
+  ): Promise<ResolvedProjectManifestPath | undefined> {
+    const preferred = await this.resolveProjectManifestPath(identity);
+    if (await fs.pathExists(preferred.manifestPath)) {
+      return preferred;
+    }
+
+    return this.resolveProjectManifestPathFromHooks();
+  }
+
+  private async resolveProjectManifestPath(
+    identity?: GitIdentity,
+  ): Promise<ResolvedProjectManifestPath> {
+    const resolvedIdentity = identity ?? (await this.getGitIdentity());
+    const projectId = await this.resolveProjectId(resolvedIdentity);
     return {
       projectId,
       manifestPath: path.join(this.baseDir, projectId, 'manifest.json'),
     };
+  }
+
+  private async resolveProjectManifestPathFromHooks(): Promise<
+    ResolvedProjectManifestPath | undefined
+  > {
+    let hooksDir: string;
+    try {
+      hooksDir = await this.getHooksDir();
+    } catch {
+      return undefined;
+    }
+
+    for (const hookName of ['pre-commit', 'pre-push'] as const) {
+      const hookPath = path.join(hooksDir, hookName);
+      if (!(await fs.pathExists(hookPath))) {
+        continue;
+      }
+
+      const content = await fs.readFile(hookPath, 'utf8');
+      const match = content.match(/MANIFEST="([^"\n]+)"/);
+      if (!match) {
+        continue;
+      }
+
+      const manifestPath = path.resolve(match[1].replace(/\\"/g, '"'));
+      if (!this.isManagedManifestPath(manifestPath)) {
+        continue;
+      }
+
+      if (!(await fs.pathExists(manifestPath))) {
+        continue;
+      }
+
+      return {
+        projectId: path.basename(path.dirname(manifestPath)),
+        manifestPath,
+      };
+    }
+
+    return undefined;
   }
 
   private async resolveProjectId(identity: GitIdentity): Promise<string> {
@@ -513,6 +571,18 @@ export class PrivateConfigSyncManager {
 
   private safeSegment(value: string): string {
     return value.replace(/[^a-zA-Z0-9._-]/g, '-').replace(/^-+|-+$/g, '') || 'project';
+  }
+
+  private isManagedManifestPath(manifestPath: string): boolean {
+    const resolvedBaseDir = path.resolve(this.baseDir);
+    const resolvedManifestPath = path.resolve(manifestPath);
+
+    if (path.basename(resolvedManifestPath) !== 'manifest.json') {
+      return false;
+    }
+
+    const projectDir = path.dirname(resolvedManifestPath);
+    return path.dirname(projectDir) === resolvedBaseDir;
   }
 
   private async validateAddCandidates(

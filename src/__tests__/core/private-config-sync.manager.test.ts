@@ -585,6 +585,30 @@ describe('PrivateConfigSyncManager', () => {
     );
   });
 
+  it('reuses the hook-referenced manifest after the origin URL changes', async () => {
+    const remoteDirA = path.join(tempRoot, 'remote-a.git');
+    const remoteDirB = path.join(tempRoot, 'remote-b.git');
+    execFileSync('git', ['init', '--bare', remoteDirA]);
+    execFileSync('git', ['init', '--bare', remoteDirB]);
+    execFileSync('git', ['remote', 'add', 'origin', remoteDirA], { cwd: repoDir });
+
+    await fs.writeFile(path.join(repoDir, 'secret.md'), 'private secret');
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    await manager.add('secret.md');
+    const originalInfo = await manager.getProjectInfo();
+
+    execFileSync('git', ['remote', 'set-url', 'origin', remoteDirB], { cwd: repoDir });
+
+    const reopened = new PrivateConfigSyncManager(repoDir, homeDir);
+    const recoveredInfo = await reopened.getProjectInfo();
+    const status = await reopened.getStatus();
+    const projectDirs = await fs.readdir(path.join(homeDir, '.pgit', 'private-config'));
+
+    expect(recoveredInfo.projectId).toBe(originalInfo.projectId);
+    expect(status).toEqual([{ repoPath: 'secret.md', type: 'file', state: 'up-to-date' }]);
+    expect(projectDirs).toEqual([originalInfo.projectId]);
+  });
+
   it('pre-commit hook allows deletion-only untracking commits', async () => {
     await fs.writeFile(path.join(repoDir, 'my-rules.md'), 'v1');
     execFileSync('git', ['add', 'my-rules.md'], { cwd: repoDir });
