@@ -5,9 +5,9 @@
 [![TypeScript](https://img.shields.io/badge/typescript-5.0%2B-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Private Git Tracking CLI** — Manage local, private, and agent-specific files without committing them to your shared Git history.
+**Agent-visible private config tracking for Git workspaces.** Keep local and agent-specific files as real repo files without committing them to shared Git history.
 
-PGit keeps local configurations, agent-specific folders (like `.docs/` ,`.specs/` , `.plans/`, `.claude/`, `.superpowers/`, `.opencode/`), and private notes visible to your local environment and agents, while securely storing them in a user-level private store that stays out of your main codebase's history.
+PGit keeps local configurations, agent-specific folders (like `.codex/`, `.claude/`, `.docs/`, `.specs/`, `.plans/`, and `.opencode/`), and private notes visible to Codex, Claude Code, OpenCode, and other local tools while syncing canonical copies through a user-level private store.
 
 ## Quick Start
 
@@ -25,7 +25,7 @@ Track files locally in your private store:
 cd your-project
 
 # Add files and folders to your private store
-pgit add .claude/ .superpowers/ .opencode/ specs/
+pgit add .codex/ .claude/ .opencode/ specs/
 ```
 
 Synchronize your private configs across machines/workspaces:
@@ -46,16 +46,16 @@ pgit status
 ```
 
 **Develop with Agents:**  
-Use the AI coding agents of your choice (e.g., Claude Code, OpenCode) to implement features leveraging your private, local context.
+Use the AI coding agents of your choice (e.g., Codex, Claude Code, OpenCode) to implement features with your private, local context.
 
 **Clean up before Code Review:**  
-Once feature development is done, you can drop the private files from your working tree before doing a code review or creating a PR. 
+Once feature development is done, you can drop the private files from your working tree before doing a code review or creating a PR.
 
 ```bash
 pgit drop .
 ```
 
-*Note: Don't worry if you accidentally try to commit directly—PGit automatically installs `pre-commit` and `pre-push` hooks to prevent your tracked private files from leaking into the shared repository.*
+_Note: Don't worry if you accidentally try to commit directly—PGit automatically installs `pre-commit` and `pre-push` hooks to prevent your tracked private files from leaking into the shared repository._
 
 ## Documentation
 
