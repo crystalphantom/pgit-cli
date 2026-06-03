@@ -4,8 +4,11 @@
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.0%2B-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Website](https://img.shields.io/badge/website-live-10b981)](https://crystalphantom.github.io/pgit-cli/)
 
 **Agent-visible private config tracking for Git workspaces.** Keep local and agent-specific files as real repo files without committing them to shared Git history.
+
+🌐 **[Explore the Interactive Landing Page & Terminal Simulation](https://crystalphantom.github.io/pgit-cli/)**
 
 PGit keeps local configurations, agent-specific folders (like `.codex/`, `.claude/`, `.docs/`, `.specs/`, `.plans/`, and `.opencode/`), and private notes visible to Codex, Claude Code, OpenCode, and other local tools while syncing canonical copies through a user-level private store.
 
@@ -61,6 +64,7 @@ _Note: Don't worry if you accidentally try to commit directly—PGit automatical
 
 Comprehensive guides, architecture details, and full command references can be found in our documentation:
 
+- 🌐 [Interactive Web Landing Page](https://crystalphantom.github.io/pgit-cli/)
 - 📖 [Full Command Reference](./docs/commands.md)
 - 🏗️ [Architecture Overview](./docs/architecture.md)
 - 🔄 [Legacy Workflows](./docs/legacy.md)

@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PGit CLI - Agent-Visible Private Config Tracking for Git Workspaces</title>
+  <meta name="description" content="Keep local configurations, private notes, and AI agent folders visible to your local tools while keeping them safely out of shared Git history.">
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%2309090b%22/><path d=%22M30 35 L50 15 L70 35 L50 55 Z%22 fill=%22none%22 stroke=%22%2310b981%22 stroke-width=%228%22 stroke-linejoin=%22round%22/><circle cx=%2250%22 cy=%2275%22 r=%2210%22 fill=%22%2310b981%22/></svg>">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Styling -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Header / Navigation -->
+  <header class="main-header">
+    <div class="header-container">
+      <a href="#" class="logo-link">
+        <svg class="logo-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="32" height="32">
+          <path d="M30 35 L50 15 L70 35 L50 55 Z" fill="none" stroke="#10b981" stroke-width="8" stroke-linejoin="round"/>
+          <circle cx="50" cy="75" r="10" fill="#10b981"/>
+        </svg>
+        <span class="logo-text">PGit <span class="logo-suffix">CLI</span></span>
+      </a>
+      
+      <nav class="main-nav" id="mainNav">
+        <a href="#features" class="nav-link">Features</a>
+        <a href="#architecture" class="nav-link">Architecture</a>
+        <a href="#commands" class="nav-link">Commands</a>
+        <a href="#faq" class="nav-link">FAQ</a>
+      </nav>
+      
+      <div class="header-actions">
+        <a href="https://github.com/crystalphantom/pgit-cli" class="github-link" target="_blank" rel="noopener" aria-label="GitHub Repository">
+          <svg viewBox="0 0 16 16" width="20" height="20" fill="currentColor">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path>
+          </svg>
+        </a>
+        <a href="#install" class="btn btn-primary btn-sm">Install CLI</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="section-container hero-grid">
+      <div class="hero-content">
+        <h1 class="hero-title">Git-Native Private Tracking for AI-Assisted Devs</h1>
+        <p class="hero-subtitle">Keep local configs, plans, and private notes visible to AI agents without staging them into shared Git history.</p>
+        <div class="hero-ctas">
+          <a href="#install" class="btn btn-primary">Get Started</a>
+          <a href="https://github.com/crystalphantom/pgit-cli" class="btn btn-secondary" target="_blank" rel="noopener">View on GitHub</a>
+        </div>
+      </div>
+      
+      <div class="hero-visual">
+        <div class="terminal-mockup">
+          <div class="terminal-header">
+            <div class="terminal-buttons">
+              <span class="btn-dot btn-dot-red"></span>
+              <span class="btn-dot btn-dot-yellow"></span>
+              <span class="btn-dot btn-dot-green"></span>
+            </div>
+            <div class="terminal-tabs">
+              <button class="terminal-tab active" data-terminal-tab="add">pgit add</button>
+              <button class="terminal-tab" data-terminal-tab="status">pgit status</button>
+              <button class="terminal-tab" data-terminal-tab="push">pgit push</button>
+              <button class="terminal-tab" data-terminal-tab="drop">pgit drop</button>
+            </div>
+          </div>
+          <div class="terminal-body font-mono">
+            <div class="terminal-screen active" id="term-add">
+              <div class="terminal-line"><span class="prompt">$</span> pgit add .codex/ .claude/ todo.md</div>
+              <div class="terminal-line output success">✔ Successfully tracked 3 paths in private config</div>
+              <div class="terminal-line output info">ℹ Created private store snapshot at ~/.pgit/private-config/my-project</div>
+              <div class="terminal-line output info">ℹ Automatically installed pre-commit &amp; pre-push hooks</div>
+              <div class="terminal-line"><span class="prompt">$</span> git add .</div>
+              <div class="terminal-line"><span class="prompt">$</span> git commit -m "feat: implement logic"</div>
+              <div class="terminal-line output error">⚙ PGit Pre-Commit Hook: Action Blocked</div>
+              <div class="terminal-line output error">✖ [SECURITY BLOCK] Found private tracked path staged for commit: "todo.md"</div>
+              <div class="terminal-line output info">💡 Use "pgit drop todo.md" to clear local changes before committing</div>
+            </div>
+            
+            <div class="terminal-screen" id="term-status">
+              <div class="terminal-line"><span class="prompt">$</span> pgit status</div>
+              <div class="terminal-line output info">PGit Configuration Sync Status:</div>
+              <div class="terminal-line output">  Path                 Local Status       Sync Status</div>
+              <div class="terminal-line output">  ---------------------------------------------------</div>
+              <div class="terminal-line output success">  .codex/              [exists]           up-to-date</div>
+              <div class="terminal-line output warning">  .claude/             [modified]         modified-locally</div>
+              <div class="terminal-line output success">  todo.md              [exists]           up-to-date</div>
+              <div class="terminal-line output warning">  specs/architecture   [missing]          missing-repo (available in private-store)</div>
+            </div>
+            
+            <div class="terminal-screen" id="term-push">
+              <div class="terminal-line"><span class="prompt">$</span> pgit push .</div>
+              <div class="terminal-line output info">Syncing paths to private store...</div>
+              <div class="terminal-line output success">✔ Pushed local changes for ".claude/" to store</div>
+              <div class="terminal-line output success">✔ Pushed local changes for "todo.md" to store</div>
+              <div class="terminal-line output success">✔ Sync completed. Private store up-to-date</div>
+            </div>
+            
+            <div class="terminal-screen" id="term-drop">
+              <div class="terminal-line"><span class="prompt">$</span> pgit drop .</div>
+              <div class="terminal-line output warning">⚠ Removing 3 tracked path(s) from working tree...</div>
+              <div class="terminal-line output success">✔ Safely removed local copy of ".codex/"</div>
+              <div class="terminal-line output success">✔ Safely removed local copy of ".claude/"</div>
+              <div class="terminal-line output success">✔ Safely removed local copy of "todo.md"</div>
+              <div class="terminal-line output info">💡 Your private copies are still safe in ~/.pgit/private-config/</div>
+              <div class="terminal-line"><span class="prompt">$</span> git status</div>
+              <div class="terminal-line output success">nothing to commit, working tree clean</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Logo Wall (Trusted Tech) -->
+  <section class="logo-wall-section">
+    <div class="section-container logo-container">
+      <div class="logo-item" title="Git">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+          <path d="M23.271 11.161l-10.43-10.43a1.18 1.18 0 0 0-1.68 0L9.13 2.762l3.415 3.415a3.228 3.228 0 0 1 4.542 4.542l3.42 3.42a3.23 3.23 0 0 1-.006 4.536l-3.415-3.415a3.228 3.228 0 0 1-4.542-4.542L8.71 9.475l-4.55 4.55a3.23 3.23 0 1 1-4.542-4.542L10.05.053a1.18 1.18 0 0 1 1.68 0l11.54 11.54a1.18 1.18 0 0 1 0 1.68l-2.072 2.073-4.548-4.548z"/>
+        </svg>
+      </div>
+      <div class="logo-item" title="Node.js">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+          <path d="M12 0L2.3 5.6v12.8L12 24l9.7-5.6V5.6L12 0zm7.8 17l-7.8 4.5L4.2 17V7l7.8-4.5 7.8 4.5v10z"/>
+        </svg>
+      </div>
+      <div class="logo-item" title="TypeScript">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+          <path d="M1.125 0C.502 0 0 .502 0 1.125v21.75C0 23.498.502 24 1.125 24h21.75c.623 0 1.125-.502 1.125-1.125V1.125C24 .502 23.498 0 22.875 0H1.125zm13.11 11.974h3.947v1.895h-3.947V20H12.31v-6.131H8.368v-1.895h3.947V6h1.92v5.974z"/>
+        </svg>
+      </div>
+      <div class="logo-item" title="NPM">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+          <path d="M0 7.396h24v9.208H12v1.562H9.002v-1.562H0zm3.003 6.204h2.998v-3.1h2.997v3.1h2.998V10.5H3.003zm12.001 0h2.997v-3.1h2.998v3.1H24V10.5h-8.996z"/>
+        </svg>
+      </div>
+      <div class="logo-item" title="VS Code">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="currentColor">
+          <path d="M23.985 6.775a.993.993 0 00-.347-.47L18.73 2.11a1 1 0 00-1.39.26l-7.79 10.23-4.11-3.4a1 1 0 00-1.42.14L.19 14.5a1 1 0 00.1 1.4l5.36 4.43a1 1 0 001.37-.1l16.71-12.42a1 1 0 00.255-1.035z"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Grid (Bento) -->
+  <section id="features" class="features-section">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Designed for Agent Workflows</h2>
+        <p class="section-lead">Keep your workspace discoverable for tools while ensuring repository hygiene.</p>
+      </div>
+      
+      <div class="bento-grid">
+        <!-- Cell 1: Double-wide (Visual Tree) -->
+        <div class="bento-cell col-span-2">
+          <div class="bento-card">
+            <div class="bento-content">
+              <h3 class="bento-title">In-Place File Tracking</h3>
+              <p class="bento-text">Tracked files stay as real files in their exact repository paths. No complex symlinks or directories that break tool discovery or IDE indexing.</p>
+            </div>
+            <div class="bento-visual">
+              <div class="file-tree font-mono">
+                <div class="tree-item"><span class="icon">📁</span> src/</div>
+                <div class="tree-item indent"><span class="icon">📄</span> cli.ts</div>
+                <div class="tree-item indent"><span class="icon">📄</span> config.ts</div>
+                <div class="tree-item private"><span class="icon">📁</span> .claude/ <span class="badge badge-success">Tracked Private</span></div>
+                <div class="tree-item private indent"><span class="icon">📄</span> todo.md <span class="badge badge-accent">Agent Visible</span></div>
+                <div class="tree-item"><span class="icon">📄</span> package.json</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Cell 2: Single-wide (Shield/Hooks) -->
+        <div class="bento-cell">
+          <div class="bento-card">
+            <div class="bento-content">
+              <h3 class="bento-title">Failsafe Git Hooks</h3>
+              <p class="bento-text">Auto-installed pre-commit and pre-push hooks safeguard your workflow. If an agent tries to stage a tracked private configuration, PGit blocks the action immediately.</p>
+            </div>
+            <div class="bento-visual flex-center">
+              <div class="shield-graphic">
+                <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="#10b981" stroke-width="1.5">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                  <path d="M9 11l2 2 4-4" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <div class="shield-glow"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Cell 3: Single-wide (Store Graphic) -->
+        <div class="bento-cell">
+          <div class="bento-card">
+            <div class="bento-content">
+              <h3 class="bento-title">Private Configuration Store</h3>
+              <p class="bento-text">Canonical copies are stored in your user directory (~/.pgit/private-config). They link to your repository automatically via stable, normalized git remote identities.</p>
+            </div>
+            <div class="bento-visual flex-center">
+              <div class="store-graphic">
+                <svg viewBox="0 0 24 24" width="64" height="64" fill="none" stroke="#10b981" stroke-width="1.5">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                  <circle cx="12" cy="7" r="4"/>
+                  <rect x="2" y="15" width="20" height="7" rx="2" fill="none"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Cell 4: Double-wide (PR Cleanliness) -->
+        <div class="bento-cell col-span-2">
+          <div class="bento-card">
+            <div class="bento-content">
+              <h3 class="bento-title">Zero-Noise Pull Requests</h3>
+              <p class="bento-text">Clean up your workspace with a single command before submitting your code. Drop local private artifacts instantly, commit your changes, and restore them when returning to work.</p>
+            </div>
+            <div class="bento-visual">
+              <div class="comparison-visual font-mono">
+                <div class="comparison-pane">
+                  <div class="pane-header">Standard Workflow (Accidental Leak)</div>
+                  <div class="pane-body error">
+                    <div>$ git status</div>
+                    <div>Changes to be committed:</div>
+                    <div class="danger">  modified:   .claude/todo.md</div>
+                    <div class="danger">  new file:   .codex/plan.md</div>
+                  </div>
+                </div>
+                <div class="comparison-pane">
+                  <div class="pane-header">PGit Workflow (Clean &amp; Protected)</div>
+                  <div class="pane-body success">
+                    <div>$ pgit drop . &amp;&amp; git status</div>
+                    <div>Changes to be committed:</div>
+                    <div class="clean">  modified:   src/cli.ts</div>
+                    <div class="muted">nothing else staged (private files protected)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="how-it-works-section">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">The Three-Step Lifecycle</h2>
+        <p class="section-lead">Integrated directly into your local CLI shell. Zero complexity.</p>
+      </div>
+      
+      <div class="steps-flow">
+        <!-- Step 1 -->
+        <div class="step-card">
+          <div class="step-num">01</div>
+          <h3 class="step-title">Track Local Files</h3>
+          <p class="step-desc">Add directories and configuration files to the PGit tracking manifest. They remain accessible as real local files in your working directory.</p>
+          <div class="step-code font-mono">pgit add .claude/ todo.md</div>
+        </div>
+        
+        <!-- Step 2 -->
+        <div class="step-card">
+          <div class="step-num">02</div>
+          <h3 class="step-title">Synchronize State</h3>
+          <p class="step-desc">Sync your modifications safely to your user-level private config database. Keep your backups secure and synchronized across multiple projects.</p>
+          <div class="step-code font-mono">pgit push .</div>
+        </div>
+        
+        <!-- Step 3 -->
+        <div class="step-card">
+          <div class="step-num">03</div>
+          <h3 class="step-title">Clean Your Workspace</h3>
+          <p class="step-desc">Drop your working copies to perform review and commit operations. Once done, restore your workspace back to its agent-ready state.</p>
+          <div class="step-code font-mono">pgit drop . && pgit pull .</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section id="architecture" class="architecture-section">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Secure Architecture</h2>
+        <p class="section-lead">Local first: Your private workspace configuration remains strictly on your machine.</p>
+      </div>
+      
+      <div class="architecture-layout">
+        <div class="arch-card text-center">
+          <div class="arch-icon">📁</div>
+          <h3 class="arch-title">Working Repo</h3>
+          <p class="arch-desc">Your active git directory containing your code and agent directories. Files are actual local files.</p>
+        </div>
+        
+        <div class="arch-connector">
+          <div class="connector-line"></div>
+          <div class="connector-label">pgit push / pull</div>
+        </div>
+        
+        <div class="arch-card text-center">
+          <div class="arch-icon">🔒</div>
+          <h3 class="arch-title">User Config Directory</h3>
+          <p class="arch-desc">Canonical copies are stored out-of-repo at <code>~/.pgit/private-config/</code> in project-specific directories.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Commands Explorer -->
+  <section id="commands" class="commands-section">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Command Reference</h2>
+        <p class="section-lead">Simple CLI vocabulary built to complement standard Git practices.</p>
+      </div>
+      
+      <div class="explorer-container">
+        <div class="explorer-tabs" id="explorerTabs">
+          <button class="explorer-tab active" data-cmd="add">pgit add</button>
+          <button class="explorer-tab" data-cmd="push">pgit push</button>
+          <button class="explorer-tab" data-cmd="pull">pgit pull</button>
+          <button class="explorer-tab" data-cmd="status">pgit status</button>
+          <button class="explorer-tab" data-cmd="drop">pgit drop</button>
+          <button class="explorer-tab" data-cmd="config">pgit config</button>
+        </div>
+        
+        <div class="explorer-detail" id="explorerDetail">
+          <!-- Populated by JavaScript -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ Accordion -->
+  <section id="faq" class="faq-section">
+    <div class="section-container">
+      <div class="section-header">
+        <h2 class="section-title">Common Questions</h2>
+        <p class="section-lead">Answers to common design and integration queries.</p>
+      </div>
+      
+      <div class="faq-accordion">
+        <div class="faq-item">
+          <button class="faq-trigger">
+            <span>Does PGit update my .gitignore file by default?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-content">
+            <p>No. PGit does not touch <code>.gitignore</code> or <code>.git/info/exclude</code> by default. It relies on the pre-commit and pre-push hooks to verify staging safety, keeping your configuration fully transparent to your IDE and local agents.</p>
+          </div>
+        </div>
+        
+        <div class="faq-item">
+          <button class="faq-trigger">
+            <span>Where is the private store located on my disk?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-content">
+            <p>Your local configuration store resides outside the repository in your system home folder under <code>~/.pgit/private-config/&lt;project-id&gt;/</code>. It keeps files separated by normalized repository remote URLs to sync across workspaces safely.</p>
+          </div>
+        </div>
+        
+        <div class="faq-item">
+          <button class="faq-trigger">
+            <span>What happens during a push/pull conflict?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-content">
+            <p>To avoid accidental loss, PGit prevents overwrites if the local copy and private store copy have both diverged. Supplying the <code>--force</code> flag allows you to bypass the check, which automatically creates a backup of the overwritten file inside your config directory.</p>
+          </div>
+        </div>
+        
+        <div class="faq-item">
+          <button class="faq-trigger">
+            <span>Can I track global presets across all projects?</span>
+            <span class="faq-icon">+</span>
+          </button>
+          <div class="faq-content">
+            <p>Yes. PGit supports shared configurations. You can use <code>pgit preset add --global &lt;name&gt; &lt;paths...&gt;</code> to establish a system-wide preset pattern. Applying it to any new workspace is simple using <code>pgit preset apply &lt;name&gt;</code>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Footer / Install Section -->
+  <section id="install" class="install-section text-center">
+    <div class="section-container">
+      <h2 class="install-title">Get Started Today</h2>
+      <p class="install-subtitle">Ready to secure your local workspace? Installation takes seconds.</p>
+      
+      <div class="install-box">
+        <span class="install-prompt font-mono">npm install -g pgit-cli</span>
+        <button class="btn-copy" id="btnCopy" aria-label="Copy install command">
+          <svg class="icon-copy" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+          <svg class="icon-check hidden" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#10b981" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </button>
+      </div>
+      
+      <div class="footer-links">
+        <a href="https://github.com/crystalphantom/pgit-cli" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://www.npmjs.com/package/pgit-cli" target="_blank" rel="noopener">NPM</a>
+        <a href="https://github.com/crystalphantom/pgit-cli/blob/main/LICENSE" target="_blank" rel="noopener">License</a>
+      </div>
+      <p class="copyright">&copy; 2026 PGit CLI. Open source under the MIT License.</p>
+    </div>
+  </section>
+
+  <script src="app.js"></script>
+</body>
+</html>

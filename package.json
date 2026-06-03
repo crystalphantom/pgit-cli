@@ -11,6 +11,7 @@
     "build": "tsc && npm run postbuild",
     "postbuild": "node scripts/fix-imports.js",
     "dev": "ts-node src/cli.ts",
+    "dev:website": "node scripts/serve-website.js",
     "test": "jest",
     "test:watch": "jest --watchAll",
     "lint": "eslint src/**/*.ts",

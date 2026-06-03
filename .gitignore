@@ -69,3 +69,7 @@ test-results/
 .git-private
 .private-storage
 .private-config.json
+
+# Agent workspace files
+.agents/
+skills-lock.json
