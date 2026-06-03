@@ -1,13 +1,12 @@
 # PGit CLI
 
 [![NPM Version](https://img.shields.io/npm/v/pgit-cli.svg)](https://www.npmjs.com/package/pgit-cli)
-[![Website](https://img.shields.io/badge/website-live-brightgreen.svg)](https://crystalphantom.github.io/pgit-cli/)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.0%2B-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Website](https://img.shields.io/badge/website-live-10b981)](https://crystalphantom.github.io/pgit-cli/)
 
-**Agent-visible private config tracking for Git workspaces.** Keep local and agent-specific files as real repo files without committing them to shared Git history. Visit our [interactive command explorer and landing page](https://crystalphantom.github.io/pgit-cli/).
+**Agent-visible private config tracking for Git workspaces.** Keep local and agent-specific files as real repo files without committing them to shared Git history.
 
 🌐 **[Explore the Interactive Landing Page & Terminal Simulation](https://crystalphantom.github.io/pgit-cli/)**
 
