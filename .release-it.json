@@ -73,7 +73,7 @@
   "hooks": {
     "before:init": [
       "npm run lint",
-      "npm run test:coverage"
+      "npm run test:ci"
     ],
     "after:bump": [
       "node scripts/version-sync.cjs",
