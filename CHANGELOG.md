@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file. The format 
 
 
 
+# [0.9.0](https://cp/crystalphantom/pgit-cli/compare/v0.8.2...v0.9.0) (2026-06-06)
+
+
+### Bug Fixes
+
+* improve robustness of automatic git removal by bypassing pre-commit hooks and surfacing manual recovery steps on commit failure ([353990c](https://cp/crystalphantom/pgit-cli/commits/353990ca9c87d11906acddf206ca53ffea777edd))
+* **release:** fix pre-release validation and config version test assertions ([741edfd](https://cp/crystalphantom/pgit-cli/commits/741edfd0335e03b66fe51e9cfa722f28d82b2a3a))
+
+
+### Features
+
+* design and implement interactive landing page and deploy workflow ([408d6c1](https://cp/crystalphantom/pgit-cli/commits/408d6c11fbd02728a97357b51ec65194676d0cbe))
+* implement formatted table view for private config sync status command ([3e2692d](https://cp/crystalphantom/pgit-cli/commits/3e2692d257d4ef6ddc08078f853e7a22c8e95f14))
+
 ## [0.8.2](https://github.com/crystalphantom/pgit-cli/compare/v0.8.1...v0.8.2) (2026-05-09)
 
 
