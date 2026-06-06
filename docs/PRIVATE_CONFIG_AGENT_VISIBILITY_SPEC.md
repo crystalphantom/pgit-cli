@@ -229,8 +229,10 @@ Behavior:
 2. Create or resolve project ID.
 3. Copy repo path to private store, preserving relative path.
 4. If paths are already tracked by main Git, run `git rm --cached -r -- <path>` so files stay local but are removed from shared Git tracking.
-5. Auto-commit those deletion-only removals by default.
-6. If `--no-commit` is used, leave removals staged and print explicit next steps.
+5. Auto-commit those deletion-only removals by default, bypassing local hooks for the generated
+   commit.
+6. If `--no-commit` is used, or if Git rejects the generated commit, leave removals staged and print
+   explicit next steps.
 7. Add entries to private manifest.
 8. Install or update local Git hooks.
 9. Do not update `.gitignore`.

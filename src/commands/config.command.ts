@@ -395,14 +395,13 @@ export class ConfigCommand {
         );
         if (result.commitHash) {
           console.log(`📝 Removal committed: ${result.commitHash}`);
+        } else if (result.autoCommitError) {
+          console.log('⚠️  Removal was staged but the automatic cleanup commit failed.');
+          console.log(`   Git error: ${result.autoCommitError}`);
+          this.printManualRemovalCommitSteps(result.untrackedPaths);
         } else {
           console.log('⚠️  Removal not committed because --no-commit was used.');
-          console.log('Next steps:');
-          console.log('   1. Do not run git add . before committing the staged deletions.');
-          console.log('   2. Commit the staged removals:');
-          console.log('      git commit -m "Remove private config from shared Git"');
-          console.log('   3. If you accidentally run git add ., rerun:');
-          console.log(`      git rm --cached -r -- ${result.untrackedPaths.join(' ')}`);
+          this.printManualRemovalCommitSteps(result.untrackedPaths);
         }
       }
 
@@ -568,6 +567,15 @@ export class ConfigCommand {
     for (const backup of backups) {
       console.log(`📦 Backup: ${backup}`);
     }
+  }
+
+  private printManualRemovalCommitSteps(untrackedPaths: string[]): void {
+    console.log('Next steps:');
+    console.log('   1. Do not run git add . before committing the staged deletions.');
+    console.log('   2. Commit the staged removals:');
+    console.log('      git commit -m "Remove private config from shared Git"');
+    console.log('   3. If you accidentally run git add ., rerun:');
+    console.log(`      git rm --cached -r -- ${untrackedPaths.join(' ')}`);
   }
 
   private handleConfigError(error: unknown, fallbackMessage: string): CommandResult {

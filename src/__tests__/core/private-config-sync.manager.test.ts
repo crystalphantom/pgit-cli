@@ -158,6 +158,77 @@ describe('PrivateConfigSyncManager', () => {
     expect(await fs.readFile(path.join(repoDir, 'secret.md'), 'utf8')).toBe('private secret');
   });
 
+  it('does not report an auto-commit failure for index-only additions', async () => {
+    await fs.writeFile(path.join(repoDir, 'README.md'), 'public');
+    execFileSync('git', ['add', 'README.md'], { cwd: repoDir });
+    execFileSync('git', ['commit', '-m', 'initial commit'], { cwd: repoDir });
+    await fs.writeFile(path.join(repoDir, 'secret.md'), 'private secret');
+    execFileSync('git', ['add', 'secret.md'], { cwd: repoDir });
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const result = await manager.add('secret.md');
+    const status = execFileSync('git', ['status', '--short'], { cwd: repoDir, encoding: 'utf8' });
+    const staged = execFileSync('git', ['diff', '--cached', '--name-status'], {
+      cwd: repoDir,
+      encoding: 'utf8',
+    });
+    const privateStatus = await manager.getStatus();
+
+    expect(result.untrackedFromMainGit).toEqual(['secret.md']);
+    expect(result.commitHash).toBeUndefined();
+    expect(result.autoCommitError).toBeUndefined();
+    expect(staged).toBe('');
+    expect(status).toBe('?? secret.md\n');
+    expect(privateStatus).toEqual([{ repoPath: 'secret.md', type: 'file', state: 'up-to-date' }]);
+  });
+
+  it('bypasses existing pre-commit hooks for generated removal commits', async () => {
+    await fs.writeFile(path.join(repoDir, 'secret.md'), 'private secret');
+    execFileSync('git', ['add', 'secret.md'], { cwd: repoDir });
+    execFileSync('git', ['commit', '-m', 'track secret before pgit'], { cwd: repoDir });
+    await fs.writeFile(path.join(repoDir, '.git', 'hooks', 'pre-commit'), 'exit 1\n', {
+      mode: 0o755,
+    });
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const result = await manager.add('secret.md');
+    const lsFiles = execFileSync('git', ['ls-files', 'secret.md'], {
+      cwd: repoDir,
+      encoding: 'utf8',
+    });
+
+    expect(result.commitHash).toBeTruthy();
+    expect(result.autoCommitError).toBeUndefined();
+    expect(lsFiles).toBe('');
+  });
+
+  it('keeps private tracking successful when the generated removal commit fails', async () => {
+    await fs.writeFile(path.join(repoDir, 'secret.md'), 'private secret');
+    execFileSync('git', ['add', 'secret.md'], { cwd: repoDir });
+    execFileSync('git', ['commit', '-m', 'track secret before pgit'], { cwd: repoDir });
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    jest
+      .spyOn(
+        manager as unknown as { commitMainGitRemoval(paths: string[]): Promise<string> },
+        'commitMainGitRemoval',
+      )
+      .mockRejectedValue(new Error('commit failed'));
+
+    const result = await manager.add('secret.md');
+    const status = await manager.getStatus();
+    const staged = execFileSync('git', ['diff', '--cached', '--name-status'], {
+      cwd: repoDir,
+      encoding: 'utf8',
+    });
+
+    expect(result.commitHash).toBeUndefined();
+    expect(result.autoCommitError).toBe('commit failed');
+    expect(result.untrackedFromMainGit).toEqual(['secret.md']);
+    expect(status).toEqual([{ repoPath: 'secret.md', type: 'file', state: 'up-to-date' }]);
+    expect(staged).toContain('D\tsecret.md');
+  });
+
   it('does not include unrelated staged changes in automatic removal commits', async () => {
     await fs.writeFile(path.join(repoDir, 'secret.md'), 'private secret');
     execFileSync('git', ['add', 'secret.md'], { cwd: repoDir });

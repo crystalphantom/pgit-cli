@@ -52,7 +52,9 @@ necto-pro-a1b2c3d4/
 6. Save/update manifest entries and checkout state.
 7. Install/refresh hooks (`.git/hooks` or common hooks path).
 8. Optionally auto-run `pgit push <added-paths...>` unless `--no-sync-push`.
-9. Optionally auto-commit the shared-Git removals unless `--no-commit`.
+9. Optionally auto-commit the shared-Git removals unless `--no-commit`. The generated
+   deletion-only commit bypasses local hooks. If Git still rejects the commit, `pgit add` reports
+   success and leaves the removals staged with manual commit instructions.
 
 ### `--force` and existing entries
 

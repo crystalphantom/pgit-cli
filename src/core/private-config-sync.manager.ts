@@ -85,6 +85,7 @@ export interface PrivateConfigAddResult {
   untrackedPaths: string[];
   untrackedFromMainGit: string[];
   commitHash?: string;
+  autoCommitError?: string;
 }
 
 export interface PrivateConfigRemoveResult {
@@ -204,8 +205,16 @@ export class PrivateConfigSyncManager {
     await this.installHooks();
 
     let commitHash: string | undefined;
+    let autoCommitError: string | undefined;
     if (untrackedFromMainGit.length > 0 && !options.noCommit) {
-      commitHash = await this.commitMainGitRemoval([...new Set(untrackedFromMainGit)]);
+      const stagedRemovalPaths = await this.stagedRemovalPaths([...new Set(untrackedFromMainGit)]);
+      if (stagedRemovalPaths.length > 0) {
+        try {
+          commitHash = await this.commitMainGitRemoval(stagedRemovalPaths);
+        } catch (error) {
+          autoCommitError = this.gitErrorMessage(error);
+        }
+      }
     }
 
     return {
@@ -214,6 +223,7 @@ export class PrivateConfigSyncManager {
       untrackedPaths: candidates.map(candidate => candidate.repoPath),
       untrackedFromMainGit: [...new Set(untrackedFromMainGit)],
       commitHash,
+      autoCommitError,
     };
   }
 
@@ -879,7 +889,7 @@ export class PrivateConfigSyncManager {
     const unrelatedPatch = await this.captureAndUnstageUnrelatedChanges(uniquePaths);
     let stdout = '';
     try {
-      const result = await execFileAsync('git', ['commit', '-m', subject], {
+      const result = await execFileAsync('git', ['commit', '--no-verify', '-m', subject], {
         cwd: this.workingDir,
       });
       stdout = result.stdout;
@@ -889,6 +899,22 @@ export class PrivateConfigSyncManager {
 
     const match = stdout.match(/\[[^\]]+\s+([a-f0-9]+)\]/);
     return match?.[1] || '';
+  }
+
+  private async stagedRemovalPaths(paths: string[]): Promise<string[]> {
+    if (!paths.length) {
+      return [];
+    }
+
+    const stagedRemovals = await this.gitOutputRaw([
+      'diff',
+      '--cached',
+      '--name-only',
+      '--diff-filter=D',
+      '--',
+      ...paths,
+    ]);
+    return stagedRemovals.split(/\r?\n/).filter(Boolean);
   }
 
   private async captureAndUnstageUnrelatedChanges(
@@ -968,6 +994,29 @@ export class PrivateConfigSyncManager {
   private async gitOutputRaw(args: string[]): Promise<string> {
     const { stdout } = await execFileAsync('git', args, { cwd: this.workingDir });
     return stdout;
+  }
+
+  private gitErrorMessage(error: unknown): string {
+    if (!(error instanceof Error)) {
+      return String(error);
+    }
+
+    const details: string[] = [error.message];
+    if (this.hasStringProperty(error, 'stderr') && error['stderr'].trim()) {
+      details.push(error['stderr'].trim());
+    }
+    if (this.hasStringProperty(error, 'stdout') && error['stdout'].trim()) {
+      details.push(error['stdout'].trim());
+    }
+
+    return [...new Set(details)].join('\n');
+  }
+
+  private hasStringProperty(
+    value: object,
+    property: string,
+  ): value is object & Record<string, string> {
+    return property in value && typeof (value as Record<string, unknown>)[property] === 'string';
   }
 
   private toPosix(value: string): string {

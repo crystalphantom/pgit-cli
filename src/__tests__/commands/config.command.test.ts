@@ -408,6 +408,40 @@ describe('ConfigCommand', () => {
       expect(mockPrivateConfigSyncManager.syncPush).not.toHaveBeenCalled();
     });
 
+    it('should report manual cleanup steps when automatic removal commit fails', async () => {
+      mockPrivateConfigSyncManager.add.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        untrackedPaths: ['rules.md'],
+        untrackedFromMainGit: ['rules.md'],
+        autoCommitError: 'Command failed: git commit',
+      });
+      mockPrivateConfigSyncManager.syncPush.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [{ repoPath: 'rules.md', type: 'file', state: 'up-to-date' }],
+        backups: [],
+      });
+
+      const result = await configCommand.executePrivateAdd('rules.md');
+
+      expect(result.success).toBe(true);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '⚠️  Removal was staged but the automatic cleanup commit failed.',
+      );
+      expect(consoleSpy).toHaveBeenCalledWith('   Git error: Command failed: git commit');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '      git commit -m "Remove private config from shared Git"',
+      );
+      expect(consoleSpy).toHaveBeenCalledWith('      git rm --cached -r -- rules.md');
+    });
+
     it('should fail clearly when sync push fails after add succeeds', async () => {
       const addResult = {
         projectId: 'project-123',

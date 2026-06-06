@@ -31,6 +31,13 @@ These top-level commands are the primary workflow for keeping agent-visible file
 - `pgit push docs` syncs only tracked entry `docs`.
 - `pgit pull` and `pgit push` without paths are invalid.
 
+### Cleanup commits
+
+When `pgit add` removes already-tracked private files from the shared Git index, it attempts a
+generated deletion-only cleanup commit. That generated commit bypasses local Git hooks because pgit
+has staged only the private-path deletions it just created. If Git still refuses the commit, the add
+remains successful and pgit prints manual commit steps for the staged deletions.
+
 ### Global config management
 
 | Command | Purpose |
