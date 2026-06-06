@@ -76,6 +76,7 @@
       "npm run test:coverage"
     ],
     "after:bump": [
+      "node scripts/version-sync.cjs",
       "npm run build"
     ],
     "before:release": [
