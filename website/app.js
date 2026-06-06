@@ -253,23 +253,3 @@ function initScrollReveal() {
     }
   });
 }
-
-// Add base classes for scroll animations to styles.css inline
-const style = document.createElement('style');
-style.textContent = `
-  .reveal-init {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), 
-                transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-  .revealed {
-    opacity: 1;
-    transform: translateY(0);
-  }
-  /* Stagger delays for items */
-  .step-card:nth-child(2) { transition-delay: 0.1s; }
-  .step-card:nth-child(3) { transition-delay: 0.2s; }
-  .arch-card:nth-child(3) { transition-delay: 0.1s; }
-`;
-document.head.appendChild(style);
