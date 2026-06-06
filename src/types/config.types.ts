@@ -336,7 +336,7 @@ export const DEFAULT_PATHS = {
 /**
  * Current configuration version
  */
-export const CURRENT_CONFIG_VERSION = '0.7.0';
+export const CURRENT_CONFIG_VERSION = '0.8.2';
 
 /**
  * Current preset schema version

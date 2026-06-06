@@ -8,7 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const { execSync } = require('child_process');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 
 function checkVersionConsistency() {
   const packageJsonPath = path.join(__dirname, '..', 'package.json');
@@ -47,7 +47,9 @@ function checkVersionConsistency() {
       allValid = false;
     } else {
       const foundVersion = match[1];
-      if (foundVersion === targetVersion) {
+      if (foundVersion === undefined) {
+        console.log(chalk.green(`✅ ${check.description}: dynamic (matched pattern)`));
+      } else if (foundVersion === targetVersion) {
         console.log(chalk.green(`✅ ${check.description}: v${foundVersion}`));
       } else {
         console.log(

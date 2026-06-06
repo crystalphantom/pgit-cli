@@ -7,7 +7,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const chalk = require('chalk');
+const chalk = require('chalk').default;
 
 function syncVersions() {
   try {
