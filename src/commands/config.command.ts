@@ -1,7 +1,12 @@
 import { Command } from 'commander';
 import fs from 'fs-extra';
+import chalk from 'chalk';
 import { CentralizedConfigManager } from '../core/centralized-config.manager';
-import { PrivateConfigSyncManager } from '../core/private-config-sync.manager';
+import {
+  PrivateConfigEntryState,
+  PrivateConfigStatusEntry,
+  PrivateConfigSyncManager,
+} from '../core/private-config-sync.manager';
 import { CommandResult } from '../types/config.types';
 import { logger } from '../utils/logger.service';
 
@@ -547,10 +552,7 @@ export class ConfigCommand {
   public async executePrivateSyncStatus(): Promise<CommandResult> {
     try {
       const statuses = await this.privateConfigSyncManager.getStatus();
-      console.log('📋 Private config status:');
-      for (const status of statuses) {
-        console.log(`   ${status.repoPath} ${status.state}`);
-      }
+      this.printPrivateStatusTable(statuses);
 
       return {
         success: true,
@@ -561,6 +563,53 @@ export class ConfigCommand {
     } catch (error) {
       return this.handleConfigError(error, 'Failed to show private config status');
     }
+  }
+
+  private printPrivateStatusTable(statuses: PrivateConfigStatusEntry[]): void {
+    console.log('📋 Private config status:');
+
+    if (statuses.length === 0) {
+      console.log(chalk.gray('   No private config paths are currently tracked.'));
+      return;
+    }
+
+    const pathHeader = 'Path';
+    const typeHeader = 'Type';
+    const statusHeader = 'Status';
+    const pathWidth = Math.max(pathHeader.length, ...statuses.map(status => status.repoPath.length));
+    const typeWidth = Math.max(typeHeader.length, ...statuses.map(status => status.type.length));
+    const statusWidth = Math.max(
+      statusHeader.length,
+      ...statuses.map(status => status.state.length),
+    );
+
+    console.log('');
+    console.log(
+      `${chalk.bold(pathHeader.padEnd(pathWidth))}  ${chalk.bold(typeHeader.padEnd(typeWidth))}  ${chalk.bold(statusHeader)}`,
+    );
+    console.log(
+      chalk.gray(
+        `${'-'.repeat(pathWidth)}  ${'-'.repeat(typeWidth)}  ${'-'.repeat(statusWidth)}`,
+      ),
+    );
+
+    for (const status of statuses) {
+      console.log(
+        `${status.repoPath.padEnd(pathWidth)}  ${chalk.gray(status.type.padEnd(typeWidth))}  ${this.formatStatusState(status.state)}`,
+      );
+    }
+  }
+
+  private formatStatusState(state: PrivateConfigEntryState): string {
+    if (state === 'up-to-date') {
+      return chalk.green(state);
+    }
+
+    if (state === 'modified-locally' || state === 'modified-private') {
+      return chalk.yellow(state);
+    }
+
+    return chalk.red(state);
   }
 
   private printBackups(backups: string[]): void {

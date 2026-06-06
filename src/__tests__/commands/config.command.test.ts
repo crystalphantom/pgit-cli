@@ -325,6 +325,46 @@ describe('ConfigCommand', () => {
     });
   });
 
+  describe('executePrivateSyncStatus', () => {
+    it('should display private config status as an aligned table', async () => {
+      mockPrivateConfigSyncManager.getStatus.mockResolvedValue([
+        { repoPath: '.agents', type: 'directory', state: 'modified-locally' },
+        { repoPath: 'skills-lock.json', type: 'file', state: 'up-to-date' },
+        { repoPath: 'video_changelog.md', type: 'file', state: 'missing-repo' },
+      ]);
+
+      const result = await configCommand.executePrivateSyncStatus();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toBe('Private config status displayed');
+      expect(result.exitCode).toBe(0);
+      expect(consoleSpy).toHaveBeenCalledWith('📋 Private config status:');
+      expect(consoleSpy).toHaveBeenCalledWith('');
+      expect(consoleSpy).toHaveBeenCalledWith('Path                Type       Status');
+      expect(consoleSpy).toHaveBeenCalledWith('------------------  ---------  ----------------');
+      expect(consoleSpy).toHaveBeenCalledWith('.agents             directory  modified-locally');
+      expect(consoleSpy).toHaveBeenCalledWith('skills-lock.json    file       up-to-date');
+      expect(consoleSpy).toHaveBeenCalledWith('video_changelog.md  file       missing-repo');
+      expect(result.data).toEqual([
+        { repoPath: '.agents', type: 'directory', state: 'modified-locally' },
+        { repoPath: 'skills-lock.json', type: 'file', state: 'up-to-date' },
+        { repoPath: 'video_changelog.md', type: 'file', state: 'missing-repo' },
+      ]);
+    });
+
+    it('should display an empty tracked-path message', async () => {
+      mockPrivateConfigSyncManager.getStatus.mockResolvedValue([]);
+
+      const result = await configCommand.executePrivateSyncStatus();
+
+      expect(result.success).toBe(true);
+      expect(consoleSpy).toHaveBeenCalledWith('📋 Private config status:');
+      expect(consoleSpy).toHaveBeenCalledWith(
+        '   No private config paths are currently tracked.',
+      );
+    });
+  });
+
   describe('executePrivateAdd', () => {
     it('should add private config and sync push by default', async () => {
       mockPrivateConfigSyncManager.add.mockResolvedValue({
