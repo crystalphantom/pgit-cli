@@ -369,7 +369,7 @@ describe('ConfigManager', () => {
 
     it('should detect version mismatch', async () => {
       const oldConfig: PrivateConfig = {
-        version: '0.9.0',
+        version: '0.8.0',
         privateRepoPath: DEFAULT_PATHS.privateRepo,
         storagePath: DEFAULT_PATHS.storage,
         trackedPaths: [],
@@ -385,7 +385,7 @@ describe('ConfigManager', () => {
         metadata: {
           projectName: 'test-project',
           mainRepoPath: '/test/workspace',
-          cliVersion: '0.9.0',
+          cliVersion: '0.8.0',
           platform: 'test',
           lastModified: new Date('2024-01-01T00:00:00Z'),
         },
@@ -396,7 +396,7 @@ describe('ConfigManager', () => {
       const health = await configManager.getHealth();
 
       expect(health.needsMigration).toBe(true);
-      expect(health.currentVersion).toBe('0.9.0');
+      expect(health.currentVersion).toBe('0.8.0');
       expect(health.targetVersion).toBe(CURRENT_CONFIG_VERSION);
     });
   });
