@@ -69,3 +69,6 @@ test-results/
 .git-private
 .private-storage
 .private-config.json
+
+# Agents
+.agents/

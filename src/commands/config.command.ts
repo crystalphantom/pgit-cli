@@ -576,7 +576,10 @@ export class ConfigCommand {
     const pathHeader = 'Path';
     const typeHeader = 'Type';
     const statusHeader = 'Status';
-    const pathWidth = Math.max(pathHeader.length, ...statuses.map(status => status.repoPath.length));
+    const pathWidth = Math.max(
+      pathHeader.length,
+      ...statuses.map(status => status.repoPath.length),
+    );
     const typeWidth = Math.max(typeHeader.length, ...statuses.map(status => status.type.length));
     const statusWidth = Math.max(
       statusHeader.length,
@@ -588,9 +591,7 @@ export class ConfigCommand {
       `${chalk.bold(pathHeader.padEnd(pathWidth))}  ${chalk.bold(typeHeader.padEnd(typeWidth))}  ${chalk.bold(statusHeader)}`,
     );
     console.log(
-      chalk.gray(
-        `${'-'.repeat(pathWidth)}  ${'-'.repeat(typeWidth)}  ${'-'.repeat(statusWidth)}`,
-      ),
+      chalk.gray(`${'-'.repeat(pathWidth)}  ${'-'.repeat(typeWidth)}  ${'-'.repeat(statusWidth)}`),
     );
 
     for (const status of statuses) {

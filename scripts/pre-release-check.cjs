@@ -106,9 +106,10 @@ function checkBuildAndTest() {
   console.log(chalk.blue(`🔍 Running build and test...\n`));
 
   const commands = [
+    { cmd: 'npm run format:check', name: 'Code Formatting Check' },
     { cmd: 'npm run lint', name: 'Linting' },
     { cmd: 'npm run build', name: 'Build' },
-    { cmd: 'npm run test:coverage', name: 'Tests with coverage' },
+    { cmd: 'npm run test:ci', name: 'Tests (CI sequential mode)' },
   ];
 
   for (const command of commands) {
