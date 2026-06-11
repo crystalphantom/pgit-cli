@@ -1,0 +1,29 @@
+{
+  "version": "0.4.0",
+  "privateRepoPath": ".git-private",
+  "storagePath": ".private-storage",
+  "trackedPaths": [
+    ".serena"
+  ],
+  "initialized": "2025-09-29T19:39:16.775Z",
+  "settings": {
+    "autoGitignore": true,
+    "autoCleanup": true,
+    "verboseOutput": false,
+    "createBackups": true,
+    "maxBackups": 5,
+    "gitExclude": {
+      "enabled": true,
+      "markerComment": "# pgit-cli managed exclusions",
+      "fallbackBehavior": "warn",
+      "validateOperations": true
+    }
+  },
+  "metadata": {
+    "projectName": "pgit-cli-latest",
+    "mainRepoPath": "/Users/vaishnav/playground1/necto-pro/pgit-cli-latest",
+    "cliVersion": "0.4.0",
+    "platform": "macOS",
+    "lastModified": "2025-09-29T19:39:22.661Z"
+  }
+}

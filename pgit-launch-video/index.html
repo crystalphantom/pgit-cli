@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>PGit CLI — Launch</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face {
+        font-family: "Geist";
+        font-style: normal;
+        font-weight: 100 900;
+        src: url("fonts/geist-latin.woff2") format("woff2");
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #09090b;
+      }
+      body {
+        font-family: "Geist", sans-serif;
+        color: #ededed;
+      }
+      .scene {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #09090b;
+      }
+      #s2, #s3, #s4, #s5, #s6, #s7, #s8 { opacity: 0; }
+
+      /* ---------- shared decoratives ---------- */
+      .grid-bg {
+        position: absolute;
+        inset: 0;
+        background-image:
+          repeating-linear-gradient(0deg, rgba(142, 142, 147, 0.07) 0 1px, rgba(142, 142, 147, 0) 1px 120px),
+          repeating-linear-gradient(90deg, rgba(142, 142, 147, 0.07) 0 1px, rgba(142, 142, 147, 0) 1px 120px);
+        opacity: 0.6;
+      }
+      .glow {
+        position: absolute;
+        width: 1400px;
+        height: 1400px;
+        background: radial-gradient(circle, rgba(16, 185, 129, 0.17) 0%, rgba(16, 185, 129, 0) 62%);
+      }
+      .glow-red {
+        background: radial-gradient(circle, rgba(248, 113, 113, 0.15) 0%, rgba(248, 113, 113, 0) 62%);
+      }
+      .ghost {
+        position: absolute;
+        font-family: "JetBrains Mono", monospace;
+        font-weight: 700;
+        color: rgba(237, 237, 237, 0.05);
+        letter-spacing: -0.02em;
+        white-space: nowrap;
+        line-height: 1;
+      }
+      .meta-label {
+        position: absolute;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 19px;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        color: #8e8e93;
+      }
+      .step-label {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 21px;
+        font-weight: 500;
+        letter-spacing: 0.16em;
+        color: #10b981;
+        white-space: nowrap;
+      }
+      .corner-mark {
+        position: absolute;
+        width: 26px;
+        height: 26px;
+        border-left: 2px solid #27272a;
+        border-top: 2px solid #27272a;
+      }
+
+      /* ---------- terminal mockup (DESIGN.md Terminal Mockup spec) ---------- */
+      .term {
+        background: #0c0c0f;
+        border: 1px solid #27272a;
+      }
+      .term-head {
+        height: 58px;
+        background: #0f0f13;
+        border-bottom: 1px solid #27272a;
+        display: flex;
+        align-items: center;
+        padding: 0 26px;
+        gap: 10px;
+      }
+      .term-dot {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        background: #2a2a2e;
+      }
+      .term-title {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 18px;
+        color: #8e8e93;
+        margin-left: 18px;
+        letter-spacing: 0.04em;
+      }
+      .term-body {
+        padding: 34px 40px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 25px;
+        line-height: 1.75;
+      }
+      .cmd-line { white-space: nowrap; }
+      .prompt-ch { color: #10b981; font-weight: 700; }
+      .typed { display: inline-block; white-space: nowrap; vertical-align: bottom; }
+      .out-line { color: #a8a8ad; white-space: nowrap; }
+      .out-ok { color: #10b981; }
+      .out-red { color: #f87171; }
+      .out-amber { color: #fbbf24; }
+
+      .headline {
+        font-weight: 700;
+        letter-spacing: -0.03em;
+        line-height: 1.08;
+        color: #ededed;
+      }
+
+      /* ---------- scene 1 : hook ---------- */
+      #s1-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        padding: 90px 120px;
+        display: flex;
+        flex-direction: column;
+        gap: 36px;
+      }
+      #s1-kicker { font-family: "JetBrains Mono", monospace; font-size: 21px; letter-spacing: 0.2em; color: #10b981; font-weight: 500; }
+      #s1-headline { font-size: 86px; max-width: 1100px; }
+      #s1-term { width: 1180px; margin-top: 8px; }
+      .s1-chip {
+        position: absolute;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 24px;
+        background: #121214;
+        color: #ededed;
+        padding: 16px 26px;
+        border-left: 3px solid #10b981;
+        white-space: nowrap;
+      }
+      #s1-chip-1 { right: 150px; top: 380px; }
+      #s1-chip-2 { right: 240px; top: 490px; }
+      #s1-chip-3 { right: 130px; top: 600px; }
+      #s1-chip-4 { right: 260px; top: 710px; }
+
+      /* ---------- scene 2 : agony ---------- */
+      #s2-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        padding: 90px 120px;
+        display: flex;
+        gap: 70px;
+        align-items: center;
+      }
+      #s2-term { width: 880px; flex-shrink: 0; }
+      #s2-right { display: flex; flex-direction: column; gap: 34px; width: 640px; }
+      .s2-panel {
+        background: #121214;
+        padding: 36px 40px;
+      }
+      .s2-panel-title { font-family: "JetBrains Mono", monospace; font-size: 22px; letter-spacing: 0.08em; margin-bottom: 12px; font-weight: 700; }
+      .s2-panel-body { font-size: 28px; color: #a8a8ad; line-height: 1.45; font-weight: 400; }
+      #s2-loselose { font-family: "JetBrains Mono", monospace; font-size: 21px; letter-spacing: 0.22em; color: #f87171; font-weight: 700; }
+      #s2-stamp {
+        position: absolute;
+        left: 270px;
+        top: 430px;
+        font-size: 100px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: #f87171;
+        border: 5px solid #f87171;
+        padding: 18px 48px;
+        background: rgba(9, 9, 11, 0.82);
+        white-space: nowrap;
+        z-index: 5;
+      }
+
+      /* ---------- scene 3 : reveal ---------- */
+      #s3-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 30px;
+        padding: 120px;
+      }
+      #s3-wordmark {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 190px;
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        line-height: 1;
+      }
+      #s3-title { font-size: 66px; font-weight: 700; letter-spacing: -0.03em; }
+      #s3-rule { width: 520px; height: 3px; background: #10b981; }
+      #s3-sub { font-size: 34px; color: #a8a8ad; font-weight: 400; max-width: 1100px; text-align: center; line-height: 1.5; }
+      #s3-chip {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 22px;
+        color: #10b981;
+        background: #121214;
+        padding: 12px 26px;
+        letter-spacing: 0.1em;
+      }
+
+      /* ---------- scenes 4-7 shared workflow layout ---------- */
+      .wf-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        padding: 80px 120px;
+        display: flex;
+        flex-direction: column;
+        gap: 34px;
+      }
+      .wf-top { display: flex; align-items: baseline; justify-content: space-between; gap: 40px; }
+      .wf-headline { font-size: 72px; }
+      .wf-main { display: flex; gap: 60px; flex: 1; align-items: center; }
+
+      #s4-term, #s5-term, #s6-term, #s7-term { width: 1020px; flex-shrink: 0; }
+      .side-panel {
+        background: #121214;
+        padding: 40px 44px;
+        flex: 1;
+      }
+      .side-title { font-family: "JetBrains Mono", monospace; font-size: 21px; letter-spacing: 0.14em; color: #8e8e93; margin-bottom: 28px; }
+      .file-row {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 26px;
+        padding: 14px 0;
+      }
+      .file-dot { width: 14px; height: 14px; background: #2a2a2e; flex-shrink: 0; }
+      .file-tag { margin-left: auto; font-size: 19px; letter-spacing: 0.12em; color: #10b981; opacity: 0; }
+      .side-foot { margin-top: 30px; font-size: 25px; color: #10b981; font-family: "JetBrains Mono", monospace; }
+
+      /* scene 5 */
+      .bar-track { width: 480px; height: 16px; background: #1c1c20; display: inline-block; vertical-align: middle; }
+      .bar-fill { width: 100%; height: 100%; background: #10b981; transform-origin: left center; display: block; }
+      .drop-row { position: relative; display: inline-block; }
+      .strike {
+        position: absolute;
+        left: -6px;
+        right: -6px;
+        top: 50%;
+        height: 3px;
+        background: #f87171;
+        transform-origin: left center;
+      }
+      #s5-badge {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 27px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        background: #10b981;
+        color: #000000;
+        padding: 24px 34px;
+        white-space: nowrap;
+        align-self: flex-start;
+      }
+
+      /* scene 6 state rail */
+      .rail { display: flex; flex-direction: column; align-items: flex-start; }
+      .rail-chip {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 27px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        padding: 20px 36px;
+        white-space: nowrap;
+      }
+      .rail-line { width: 3px; height: 64px; background: #27272a; margin-left: 56px; transform-origin: top center; }
+      #rail-missing { background: #1c1c20; color: #a8a8ad; }
+      #rail-restored { background: #10b981; color: #000000; }
+      #rail-modified { background: #121214; color: #fbbf24; border-left: 3px solid #fbbf24; }
+
+      /* scene 7 */
+      #s7-hook-panel {
+        position: absolute;
+        left: 120px;
+        top: 505px;
+        width: 1020px;
+        background: #121214;
+        border-top: 4px solid #10b981;
+        padding: 40px 48px;
+        z-index: 6;
+      }
+      #s7-hook-title { font-family: "JetBrains Mono", monospace; font-size: 27px; font-weight: 700; color: #10b981; letter-spacing: 0.04em; }
+      .s7-hook-line { font-family: "JetBrains Mono", monospace; font-size: 24px; color: #a8a8ad; line-height: 1.7; }
+      #s7-right { flex: 1; display: flex; flex-direction: column; gap: 30px; padding-top: 40px; }
+      .s7-word { display: inline-block; margin-right: 22px; }
+      #s7-sub { font-size: 30px; color: #a8a8ad; line-height: 1.5; max-width: 600px; }
+
+      /* ---------- scene 8 : cta ---------- */
+      #s8-content {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 44px;
+        padding: 120px;
+      }
+      #s8-wordmark { font-family: "JetBrains Mono", monospace; font-size: 80px; font-weight: 700; letter-spacing: -0.03em; }
+      #s8-tagline { font-size: 58px; font-weight: 700; letter-spacing: -0.03em; text-align: center; line-height: 1.25; }
+      #s8-pill {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 46px;
+        background: #121214;
+        border: 1px solid #27272a;
+        padding: 34px 60px;
+        white-space: nowrap;
+      }
+      #s8-cursor { display: inline-block; width: 24px; height: 46px; background: #10b981; vertical-align: middle; margin-left: 10px; }
+      #s8-link { font-family: "JetBrains Mono", monospace; font-size: 26px; color: #8e8e93; letter-spacing: 0.06em; }
+
+      /* ---------- transition overlays ---------- */
+      .glitch-ov { position: absolute; inset: 0; opacity: 0; z-index: 50; pointer-events: none; }
+      #glitch-r { background: rgba(248, 113, 113, 0.35); }
+      #glitch-g { background: rgba(16, 185, 129, 0.35); }
+      #glitch-b { background: rgba(96, 165, 250, 0.35); }
+      .wipe { position: absolute; top: 0; left: 0; width: 1920px; height: 1080px; z-index: 60; transform: translateX(-1920px); }
+      #wipe-a { background: #10b981; }
+      #wipe-b { background: #121214; }
+      #fade-out { position: absolute; inset: 0; background: #000000; opacity: 0; z-index: 90; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-width="1920"
+      data-height="1080"
+      data-start="0"
+      data-duration="86"
+    >
+      <!-- ================= SCENE 1 — HOOK ================= -->
+      <div id="s1" class="scene">
+        <div class="grid-bg"></div>
+        <div class="glow" data-layout-ignore id="s1-glow" style="left: -420px; top: -460px"></div>
+        <div class="ghost" id="s1-ghost" style="font-size: 360px; left: 620px; top: 700px" data-layout-ignore>CONTEXT</div>
+        <div class="meta-label" style="right: 120px; top: 96px" id="s1-meta">PGIT — LAUNCH / 2026</div>
+        <div class="corner-mark" style="left: 60px; top: 60px"></div>
+        <div class="corner-mark" style="right: 60px; bottom: 60px; transform: rotate(180deg)"></div>
+        <div id="s1-content">
+          <div id="s1-kicker">AI-ASSISTED DEVELOPMENT</div>
+          <div id="s1-headline" class="headline">Your AI needs context.</div>
+          <div id="s1-term" class="term">
+            <div class="term-head">
+              <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+              <div class="term-title">claude — ~/work/payments</div>
+            </div>
+            <div class="term-body">
+              <div class="cmd-line"><span class="prompt-ch">&gt;</span> <span class="typed" id="s1-cmd">build the payments retry flow</span></div>
+              <div class="out-line" id="s1-a1" style="color: #ededed">I can do that — but I'll need your <span style="color: #10b981">API keys</span></div>
+              <div class="out-line" id="s1-a2" style="color: #ededed">and the <span style="color: #10b981">project spec</span> to actually be useful.</div>
+              <div class="out-line" id="s1-a3">waiting for context…</div>
+            </div>
+          </div>
+        </div>
+        <div class="s1-chip" id="s1-chip-1">.env</div>
+        <div class="s1-chip" id="s1-chip-2">.codex/</div>
+        <div class="s1-chip" id="s1-chip-3">scratchpad.md</div>
+        <div class="s1-chip" id="s1-chip-4">project-spec.md</div>
+      </div>
+
+      <!-- ================= SCENE 2 — AGONY ================= -->
+      <div id="s2" class="scene">
+        <div class="grid-bg"></div>
+        <div class="glow glow-red" data-layout-ignore id="s2-glow" style="right: -420px; top: -380px"></div>
+        <div class="ghost" id="s2-ghost" style="font-size: 380px; left: 1050px; top: 760px" data-layout-ignore>LEAK?</div>
+        <div class="meta-label" style="left: 120px; top: 50px" id="s2-meta">SHARED REPO — company/payments</div>
+        <div id="s2-content">
+          <div id="s2-term" class="term">
+            <div class="term-head">
+              <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+              <div class="term-title">zsh — git</div>
+            </div>
+            <div class="term-body">
+              <div class="cmd-line"><span class="prompt-ch">$</span> <span class="typed" id="s2-cmd">git status</span></div>
+              <div class="out-line" id="s2-o1">On branch main</div>
+              <div class="out-line" id="s2-o2">Untracked files:</div>
+              <div class="out-red" id="s2-o3">&nbsp;&nbsp;.env</div>
+              <div class="out-red" id="s2-o4">&nbsp;&nbsp;.codex/</div>
+              <div class="out-red" id="s2-o5">&nbsp;&nbsp;scratchpad.md</div>
+              <div class="out-red" id="s2-o6">&nbsp;&nbsp;project-spec.md</div>
+            </div>
+          </div>
+          <div id="s2-right">
+            <div class="s2-panel" id="s2-p1">
+              <div class="s2-panel-title" style="color: #f87171">COMMIT THEM?</div>
+              <div class="s2-panel-body">Your keys and notes leak into the whole org's history. Forever.</div>
+            </div>
+            <div class="s2-panel" id="s2-p2">
+              <div class="s2-panel-title" style="color: #f87171">MOVE THEM OUT?</div>
+              <div class="s2-panel-body">Your AI agent goes blind. No context, no help.</div>
+            </div>
+            <div id="s2-loselose">// LOSE–LOSE</div>
+          </div>
+        </div>
+        <div id="s2-stamp" data-layout-allow-overflow>DO NOT COMMIT</div>
+      </div>
+
+      <!-- ================= SCENE 3 — REVEAL ================= -->
+      <div id="s3" class="scene">
+        <div class="glow" data-layout-ignore id="s3-glow" style="left: 260px; top: -160px"></div>
+        <div class="ghost" id="s3-ghost" style="font-size: 470px; left: 200px; top: 820px" data-layout-ignore>PGIT</div>
+        <div class="corner-mark" style="left: 60px; top: 60px"></div>
+        <div class="corner-mark" style="right: 60px; top: 60px; transform: rotate(90deg)"></div>
+        <div class="corner-mark" style="left: 60px; bottom: 60px; transform: rotate(270deg)"></div>
+        <div class="corner-mark" style="right: 60px; bottom: 60px; transform: rotate(180deg)"></div>
+        <div id="s3-content">
+          <div id="s3-wordmark"><span style="color: #10b981">$</span> pgit</div>
+          <div id="s3-title">Meet PGit CLI.</div>
+          <div id="s3-rule"></div>
+          <div id="s3-sub">Agent-visible private config tracking for your Git workspaces.</div>
+          <div id="s3-chip">npm · typescript · v0.9</div>
+        </div>
+      </div>
+
+      <!-- ================= SCENE 4 — ADD ================= -->
+      <div id="s4" class="scene">
+        <div class="grid-bg"></div>
+        <div class="glow" data-layout-ignore id="s4-glow" style="right: -460px; bottom: -460px"></div>
+        <div class="ghost" id="s4-ghost" style="font-size: 400px; left: 1180px; top: 60px" data-layout-ignore>ADD</div>
+        <div class="wf-content">
+          <div class="wf-top">
+            <div class="wf-headline headline" id="s4-headline">Track privately. Keep files real.</div>
+            <div class="step-label" id="s4-step">01 / ADD</div>
+          </div>
+          <div class="wf-main">
+            <div id="s4-term" class="term">
+              <div class="term-head">
+                <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+                <div class="term-title">zsh — pgit</div>
+              </div>
+              <div class="term-body">
+                <div class="cmd-line"><span class="prompt-ch">$</span> <span class="typed" id="s4-cmd">pgit add .codex/ .env scratchpad.md</span></div>
+                <div class="out-ok" id="s4-o1">✓ tracking 3 private paths</div>
+                <div class="out-line" id="s4-o2">files stay on disk — agents read them as-is</div>
+              </div>
+            </div>
+            <div class="side-panel" id="s4-panel">
+              <div class="side-title">AGENT VIEW — REAL FILES ON DISK</div>
+              <div class="file-row" id="s4-f1"><div class="file-dot"></div>.codex/<span class="file-tag">● TRACKED</span></div>
+              <div class="file-row" id="s4-f2"><div class="file-dot"></div>.env<span class="file-tag">● TRACKED</span></div>
+              <div class="file-row" id="s4-f3"><div class="file-dot"></div>scratchpad.md<span class="file-tag">● TRACKED</span></div>
+              <div class="side-foot" id="s4-foot">✓ AI agent: full context</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SCENE 5 — PUSH + DROP ================= -->
+      <div id="s5" class="scene">
+        <div class="grid-bg"></div>
+        <div class="glow" data-layout-ignore id="s5-glow" style="left: -460px; top: -300px"></div>
+        <div class="ghost" id="s5-ghost" style="font-size: 400px; left: 1140px; top: 740px" data-layout-ignore>SYNC</div>
+        <div class="wf-content">
+          <div class="wf-top">
+            <div class="wf-headline headline" id="s5-headline">Sync. Drop. Ship clean.</div>
+            <div class="step-label" id="s5-step">02 / PUSH · 03 / DROP</div>
+          </div>
+          <div class="wf-main">
+            <div id="s5-term" class="term">
+              <div class="term-head">
+                <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+                <div class="term-title">zsh — pgit</div>
+              </div>
+              <div class="term-body">
+                <div class="cmd-line"><span class="prompt-ch">$</span> <span class="typed" id="s5-cmd1">pgit push</span></div>
+                <div class="out-line" id="s5-o1">syncing… <span class="bar-track"><span class="bar-fill" id="s5-bar"></span></span></div>
+                <div class="out-ok" id="s5-o2">✓ synced → ~/.pgit/private-config</div>
+                <div class="cmd-line" id="s5-cmdline2" style="margin-top: 18px"><span class="prompt-ch">$</span> <span class="typed" id="s5-cmd2">pgit drop</span></div>
+                <div class="out-line" id="s5-d1"><span class="drop-row">&nbsp;&nbsp;.codex/<span class="strike" id="s5-st1"></span></span></div>
+                <div class="out-line" id="s5-d2"><span class="drop-row">&nbsp;&nbsp;.env<span class="strike" id="s5-st2"></span></span></div>
+                <div class="out-line" id="s5-d3"><span class="drop-row">&nbsp;&nbsp;scratchpad.md<span class="strike" id="s5-st3"></span></span></div>
+                <div class="out-ok" id="s5-o3">✓ removed from working tree</div>
+              </div>
+            </div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 36px">
+              <div id="s5-badge">READY FOR PR REVIEW ✓</div>
+              <div style="font-size: 30px; color: #a8a8ad; line-height: 1.5; max-width: 530px" id="s5-note">Clean git history. Zero leaks. Your private store keeps everything.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SCENE 6 — PULL + STATUS ================= -->
+      <div id="s6" class="scene">
+        <div class="grid-bg"></div>
+        <div class="glow" data-layout-ignore id="s6-glow" style="left: 460px; top: -560px"></div>
+        <div class="ghost" id="s6-ghost" style="font-size: 400px; left: 1200px; top: 90px" data-layout-ignore>PULL</div>
+        <div class="wf-content">
+          <div class="wf-top">
+            <div class="wf-headline headline" id="s6-headline">Your context, on demand.</div>
+            <div class="step-label" id="s6-step">04 / PULL · 05 / STATUS</div>
+          </div>
+          <div class="wf-main">
+            <div id="s6-term" class="term">
+              <div class="term-head">
+                <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+                <div class="term-title">zsh — pgit</div>
+              </div>
+              <div class="term-body">
+                <div class="cmd-line"><span class="prompt-ch">$</span> <span class="typed" id="s6-cmd1">pgit status</span></div>
+                <div class="out-line" id="s6-o1">● 3 paths missing locally</div>
+                <div class="cmd-line" id="s6-cmdline2" style="margin-top: 14px"><span class="prompt-ch">$</span> <span class="typed" id="s6-cmd2">pgit pull</span></div>
+                <div class="out-ok" id="s6-o2">✓ restored .codex/</div>
+                <div class="out-ok" id="s6-o3">✓ restored .env</div>
+                <div class="out-ok" id="s6-o4">✓ restored scratchpad.md</div>
+                <div class="cmd-line" id="s6-cmdline3" style="margin-top: 14px"><span class="prompt-ch">$</span> <span class="typed" id="s6-cmd3">pgit status</span></div>
+                <div class="out-amber" id="s6-o5">✎ todo.md — modified locally</div>
+              </div>
+            </div>
+            <div style="flex: 1">
+              <div class="rail">
+                <div class="rail-chip" id="rail-missing">MISSING</div>
+                <div class="rail-line" id="rail-l1"></div>
+                <div class="rail-chip" id="rail-restored">RESTORED</div>
+                <div class="rail-line" id="rail-l2"></div>
+                <div class="rail-chip" id="rail-modified">MODIFIED</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= SCENE 7 — SAFETY NET ================= -->
+      <div id="s7" class="scene">
+        <div class="grid-bg"></div>
+        <div class="glow" data-layout-ignore id="s7-glow" style="left: -380px; bottom: -560px"></div>
+        <div class="ghost" id="s7-ghost" style="font-size: 380px; left: 1130px; top: 730px" data-layout-ignore>GUARD</div>
+        <div class="meta-label" style="right: 120px; top: 50px" id="s7-meta">PRE-COMMIT / PRE-PUSH — AUTO-INSTALLED</div>
+        <div class="wf-content">
+          <div class="wf-top">
+            <div class="wf-headline headline" id="s7-headline">
+              <span class="s7-word">Accidents</span><span class="s7-word">happen.</span><span class="s7-word" style="color: #10b981">Leaks</span><span class="s7-word" style="color: #10b981">don't.</span>
+            </div>
+          </div>
+          <div class="wf-main">
+            <div id="s7-term" class="term">
+              <div class="term-head">
+                <div class="term-dot"></div><div class="term-dot"></div><div class="term-dot"></div>
+                <div class="term-title">zsh — git</div>
+              </div>
+              <div class="term-body">
+                <div class="cmd-line"><span class="prompt-ch">$</span> <span class="typed" id="s7-cmd">git commit -am "wip"</span></div>
+                <div style="height: 230px" id="s7-spacer"></div>
+                <div class="out-line" id="s7-o2">commit aborted — private files protected.</div>
+              </div>
+            </div>
+            <div id="s7-right">
+              <div id="s7-sub">PGit installs git hooks automatically, so your private context never reaches the shared repo.</div>
+            </div>
+          </div>
+        </div>
+        <div id="s7-hook-panel" data-layout-allow-overflow>
+          <div id="s7-hook-title">⛔ pgit pre-commit hook</div>
+          <div class="s7-hook-line" style="margin-top: 14px">blocked 3 private paths from commit:</div>
+          <div class="s7-hook-line" style="color: #ededed">&nbsp;&nbsp;.codex/ &nbsp;·&nbsp; .env &nbsp;·&nbsp; scratchpad.md</div>
+        </div>
+      </div>
+
+      <!-- ================= SCENE 8 — CTA ================= -->
+      <div id="s8" class="scene">
+        <div class="glow" data-layout-ignore id="s8-glow" style="left: 260px; top: -120px"></div>
+        <div class="ghost" id="s8-ghost" style="font-size: 470px; left: 230px; top: 830px" data-layout-ignore>PGIT</div>
+        <div id="s8-content">
+          <div id="s8-wordmark"><span style="color: #10b981">$</span> pgit</div>
+          <div id="s8-tagline">The privacy you need.<br />The context your AI wants.</div>
+          <div id="s8-pill"><span style="color: #8e8e93">$</span> npm install -g pgit-cli<span id="s8-cursor"></span></div>
+          <div id="s8-link">github.com/crystalphantom/pgit-cli</div>
+        </div>
+      </div>
+
+      <!-- transition overlays -->
+      <div class="glitch-ov" id="glitch-r"></div>
+      <div class="glitch-ov" id="glitch-g"></div>
+      <div class="glitch-ov" id="glitch-b"></div>
+      <div class="wipe" id="wipe-a"></div>
+      <div class="wipe" id="wipe-b"></div>
+      <div id="fade-out"></div>
+
+      <!-- voiceover -->
+      <audio id="vo1" class="clip" data-duration="7.26" data-start="0.9" data-track-index="2" src="audio/vo-01-hook.wav" data-volume="1"></audio>
+      <audio id="vo2" class="clip" data-duration="7.56" data-start="11.3" data-track-index="2" src="audio/vo-02-agony.wav" data-volume="1"></audio>
+      <audio id="vo3" class="clip" data-duration="4.59" data-start="22.5" data-track-index="2" src="audio/vo-03-reveal.wav" data-volume="1"></audio>
+      <audio id="vo4" class="clip" data-duration="7.15" data-start="31.3" data-track-index="2" src="audio/vo-04-add.wav" data-volume="1"></audio>
+      <audio id="vo5" class="clip" data-duration="9.14" data-start="41.8" data-track-index="2" src="audio/vo-05-pushdrop.wav" data-volume="1"></audio>
+      <audio id="vo6" class="clip" data-duration="6.4" data-start="54.8" data-track-index="2" src="audio/vo-06-pull.wav" data-volume="1"></audio>
+      <audio id="vo7" class="clip" data-duration="6.83" data-start="65.3" data-track-index="2" src="audio/vo-07-safety.wav" data-volume="1"></audio>
+      <audio id="vo8" class="clip" data-duration="4.72" data-start="75.9" data-track-index="2" src="audio/vo-08-cta.wav" data-volume="1"></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      // stepped typing reveal via clip-path
+      function typeOn(sel, t, dur, chars) {
+        tl.fromTo(
+          sel,
+          { clipPath: "inset(0 100% 0 0)" },
+          { clipPath: "inset(0 0% 0 0)", duration: dur, ease: "steps(" + chars + ")" },
+          t
+        );
+      }
+
+      /* ============ SCENE 1 — HOOK (0–10.5) ============ */
+      tl.fromTo("#s1-glow", { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.2, ease: "sine.out" }, 0.15);
+      tl.to("#s1-glow", { scale: 1.1, duration: 2.3, ease: "sine.inOut", yoyo: true, repeat: 3 }, 1.4);
+      tl.fromTo("#s1-ghost", { opacity: 0 }, { opacity: 1, duration: 1.4, ease: "power1.out" }, 0.3);
+      tl.fromTo("#s1-kicker", { letterSpacing: "0.5em", opacity: 0 }, { letterSpacing: "0.2em", opacity: 1, duration: 0.7, ease: "power2.out" }, 0.25);
+      tl.fromTo("#s1-headline", { x: -70, opacity: 0 }, { x: 0, opacity: 1, duration: 0.8, ease: "expo.out" }, 0.45);
+      tl.fromTo("#s1-meta", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "sine.out" }, 0.8);
+      tl.fromTo("#s1-term", { y: 90, opacity: 0 }, { y: 0, opacity: 1, duration: 0.85, ease: "power3.out" }, 0.7);
+      typeOn("#s1-cmd", 1.7, 1.0, 29);
+      tl.fromTo("#s1-a1", { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 3.0);
+      tl.fromTo("#s1-a2", { y: 16, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, ease: "power2.out" }, 3.35);
+      tl.fromTo("#s1-a3", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "sine.out" }, 4.1);
+      tl.fromTo("#s1-chip-1", { x: 140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.6, ease: "back.out(1.5)" }, 4.6);
+      tl.fromTo("#s1-chip-2", { x: 180, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "expo.out" }, 4.85);
+      tl.fromTo("#s1-chip-3", { y: 70, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 5.1);
+      tl.fromTo("#s1-chip-4", { x: 140, opacity: 0 }, { x: 0, opacity: 1, duration: 0.65, ease: "sine.out" }, 5.35);
+      tl.to("#s1-chip-1", { y: -12, duration: 1.5, ease: "sine.inOut", yoyo: true, repeat: 2 }, 5.6);
+      tl.to("#s1-chip-3", { y: 10, duration: 1.7, ease: "sine.inOut", yoyo: true, repeat: 2 }, 6.0);
+
+      /* ============ TRANSITION 1→2 : GLITCH @10.5 ============ */
+      tl.set("#glitch-r", { opacity: 1, x: 40, y: -8 }, 10.5);
+      tl.set("#glitch-g", { opacity: 1, x: -30, y: 12 }, 10.5);
+      tl.set("#glitch-b", { opacity: 1, x: 15, y: -20 }, 10.5);
+      tl.set("#s1", { x: -15 }, 10.5);
+      tl.set("#glitch-r", { x: -45, y: 14 }, 10.53);
+      tl.set("#glitch-b", { x: 35, y: 8 }, 10.53);
+      tl.set("#s1", { x: 22 }, 10.53);
+      tl.set("#glitch-g", { x: 38, y: -16 }, 10.56);
+      tl.set("#s1", { x: -32 }, 10.56);
+      tl.set("#s1", { opacity: 0, x: 0 }, 10.59);
+      tl.set("#s2", { opacity: 1, x: 28 }, 10.59);
+      tl.set("#glitch-r", { x: 25, y: 10 }, 10.62);
+      tl.set("#glitch-g", { x: -20, y: -10 }, 10.62);
+      tl.set("#s2", { x: -14 }, 10.62);
+      tl.set("#s2", { x: 0 }, 10.65);
+      tl.set("#glitch-r", { opacity: 0 }, 10.7);
+      tl.set("#glitch-g", { opacity: 0 }, 10.7);
+      tl.set("#glitch-b", { opacity: 0 }, 10.7);
+
+      /* ============ SCENE 2 — AGONY (10.5–21.5) ============ */
+      tl.fromTo("#s2-glow", { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "sine.out" }, 10.8);
+      tl.to("#s2-glow", { opacity: 0.55, duration: 1.1, ease: "sine.inOut", yoyo: true, repeat: 7 }, 11.65);
+      tl.fromTo("#s2-ghost", { opacity: 0, x: -40 }, { opacity: 1, x: 45, duration: 10.3, ease: "power1.out" }, 11.0);
+      tl.fromTo("#s2-term", { x: -90, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 10.85);
+      typeOn("#s2-cmd", 11.4, 0.6, 10);
+      tl.fromTo("#s2-meta", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "sine.out" }, 11.2);
+      tl.fromTo("#s2-o1", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power1.out" }, 12.15);
+      tl.fromTo("#s2-o2", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "power1.out" }, 12.3);
+      tl.fromTo("#s2-o3", { x: -24, opacity: 0 }, { x: 0, opacity: 1, duration: 0.22, ease: "power4.out" }, 12.5);
+      tl.fromTo("#s2-o4", { x: -24, opacity: 0 }, { x: 0, opacity: 1, duration: 0.22, ease: "power4.out" }, 12.58);
+      tl.fromTo("#s2-o5", { x: -24, opacity: 0 }, { x: 0, opacity: 1, duration: 0.22, ease: "power4.out" }, 12.66);
+      tl.fromTo("#s2-o6", { x: -24, opacity: 0 }, { x: 0, opacity: 1, duration: 0.22, ease: "power4.out" }, 12.74);
+      tl.fromTo("#s2-p1", { x: 120, opacity: 0 }, { x: 0, opacity: 1, duration: 0.65, ease: "expo.out" }, 13.6);
+      tl.fromTo("#s2-p2", { x: 160, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 14.0);
+      tl.fromTo("#s2-loselose", { opacity: 0, letterSpacing: "0.5em" }, { opacity: 1, letterSpacing: "0.22em", duration: 0.6, ease: "power2.out" }, 14.7);
+      tl.fromTo(
+        "#s2-stamp",
+        { scale: 2.6, opacity: 0, rotation: -5 },
+        { scale: 1, opacity: 1, rotation: -5, duration: 0.32, ease: "power4.out" },
+        15.6
+      );
+      tl.set("#s2-stamp", { x: -10, y: 6 }, 15.95);
+      tl.set("#s2-stamp", { x: 8, y: -5 }, 15.99);
+      tl.set("#s2-stamp", { x: -4, y: 2 }, 16.03);
+      tl.set("#s2-stamp", { x: 0, y: 0 }, 16.07);
+
+      /* ============ TRANSITION 2→3 : ZOOM THROUGH @21.5 ============ */
+      tl.to("#s2", { scale: 2.5, opacity: 0, filter: "blur(8px)", duration: 0.4, ease: "power3.in" }, 21.5);
+      tl.fromTo(
+        "#s3",
+        { scale: 0.5, opacity: 0, filter: "blur(8px)" },
+        { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.45, ease: "power3.out" },
+        21.65
+      );
+      tl.set("#s2", { scale: 1, filter: "none", opacity: 0 }, 22.15);
+
+      /* ============ SCENE 3 — REVEAL (21.5–30.5) ============ */
+      tl.fromTo("#s3-glow", { scale: 0.6, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.9, ease: "expo.out" }, 21.8);
+      tl.to("#s3-glow", { scale: 1.12, duration: 2.0, ease: "sine.inOut", yoyo: true, repeat: 3 }, 22.8);
+      tl.fromTo("#s3-ghost", { opacity: 0 }, { opacity: 1, duration: 1.5, ease: "sine.out" }, 22.6);
+      tl.fromTo(
+        "#s3-wordmark",
+        { scale: 1.5, opacity: 0, filter: "blur(14px)" },
+        { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.5, ease: "power4.out" },
+        22.05
+      );
+      tl.fromTo("#s3-title", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.65, ease: "power3.out" }, 22.65);
+      tl.fromTo("#s3-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "power2.inOut" }, 23.0);
+      tl.fromTo("#s3-sub", { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "sine.out" }, 23.4);
+      tl.fromTo("#s3-chip", { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.55, ease: "back.out(1.7)" }, 24.0);
+
+      /* ============ TRANSITION 3→4 : VERTICAL PUSH @30.5 ============ */
+      tl.to("#s3", { y: -1080, duration: 0.5, ease: "power3.inOut" }, 30.5);
+      tl.fromTo("#s4", { y: 1080, opacity: 1 }, { y: 0, duration: 0.5, ease: "power3.inOut" }, 30.5);
+      tl.set("#s3", { opacity: 0, y: 0 }, 31.05);
+
+      /* ============ SCENE 4 — ADD (30.5–41) ============ */
+      tl.fromTo("#s4-glow", { opacity: 0 }, { opacity: 1, duration: 1.0, ease: "sine.out" }, 31.1);
+      tl.to("#s4-glow", { scale: 1.1, duration: 2.2, ease: "sine.inOut", yoyo: true, repeat: 3 }, 32.0);
+      tl.fromTo("#s4-ghost", { y: 40, opacity: 0 }, { y: -40, opacity: 1, duration: 9.5, ease: "power1.out" }, 31.3);
+      tl.fromTo("#s4-headline", { x: -80, opacity: 0 }, { x: 0, opacity: 1, duration: 0.75, ease: "expo.out" }, 31.15);
+      tl.fromTo("#s4-step", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "sine.out" }, 31.6);
+      tl.fromTo("#s4-term", { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 31.5);
+      typeOn("#s4-cmd", 32.3, 1.1, 35);
+      tl.fromTo("#s4-o1", { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" }, 33.7);
+      tl.fromTo("#s4-o2", { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" }, 34.0);
+      tl.fromTo("#s4-panel", { x: 120, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power2.out" }, 34.4);
+      tl.fromTo("#s4-f1 .file-dot", { backgroundColor: "#2a2a2e" }, { backgroundColor: "#10b981", duration: 0.3, ease: "sine.out" }, 35.2);
+      tl.fromTo("#s4-f1 .file-tag", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "sine.out" }, 35.2);
+      tl.fromTo("#s4-f2 .file-dot", { backgroundColor: "#2a2a2e" }, { backgroundColor: "#10b981", duration: 0.3, ease: "sine.out" }, 35.5);
+      tl.fromTo("#s4-f2 .file-tag", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "sine.out" }, 35.5);
+      tl.fromTo("#s4-f3 .file-dot", { backgroundColor: "#2a2a2e" }, { backgroundColor: "#10b981", duration: 0.3, ease: "sine.out" }, 35.8);
+      tl.fromTo("#s4-f3 .file-tag", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "sine.out" }, 35.8);
+      tl.fromTo("#s4-foot", { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.4)" }, 36.4);
+
+      /* ============ TRANSITION 4→5 : PUSH SLIDE @41 ============ */
+      tl.to("#s4", { x: -1920, duration: 0.5, ease: "power3.inOut" }, 41);
+      tl.fromTo("#s5", { x: 1920, opacity: 1 }, { x: 0, duration: 0.5, ease: "power3.inOut" }, 41);
+      tl.set("#s4", { opacity: 0, x: 0 }, 41.55);
+
+      /* ============ SCENE 5 — PUSH + DROP (41–54) ============ */
+      tl.fromTo("#s5-glow", { opacity: 0 }, { opacity: 1, duration: 1.0, ease: "sine.out" }, 41.6);
+      tl.to("#s5-glow", { scale: 1.08, duration: 2.4, ease: "sine.inOut", yoyo: true, repeat: 4 }, 42.5);
+      tl.fromTo("#s5-ghost", { x: -50, opacity: 0 }, { x: 50, opacity: 1, duration: 11.5, ease: "power1.out" }, 41.8);
+      tl.fromTo("#s5-headline", { y: -60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 41.65);
+      tl.fromTo("#s5-step", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "sine.out" }, 42.1);
+      tl.fromTo("#s5-term", { y: 80, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "expo.out" }, 42.0);
+      typeOn("#s5-cmd1", 42.7, 0.5, 9);
+      tl.fromTo("#s5-o1", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "sine.out" }, 43.4);
+      tl.fromTo("#s5-bar", { scaleX: 0 }, { scaleX: 1, duration: 1.2, ease: "power1.inOut" }, 43.5);
+      tl.fromTo("#s5-o2", { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" }, 44.9);
+      typeOn("#s5-cmd2", 46.4, 0.5, 9);
+      tl.fromTo("#s5-d1", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "sine.out" }, 47.1);
+      tl.fromTo("#s5-d2", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "sine.out" }, 47.25);
+      tl.fromTo("#s5-d3", { opacity: 0 }, { opacity: 1, duration: 0.25, ease: "sine.out" }, 47.4);
+      tl.fromTo("#s5-st1", { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "power2.in" }, 47.9);
+      tl.fromTo("#s5-st2", { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "power2.in" }, 48.1);
+      tl.fromTo("#s5-st3", { scaleX: 0 }, { scaleX: 1, duration: 0.3, ease: "power2.in" }, 48.3);
+      tl.to("#s5-d1", { opacity: 0.35, duration: 0.4, ease: "sine.out" }, 48.3);
+      tl.to("#s5-d2", { opacity: 0.35, duration: 0.4, ease: "sine.out" }, 48.5);
+      tl.to("#s5-d3", { opacity: 0.35, duration: 0.4, ease: "sine.out" }, 48.7);
+      tl.fromTo("#s5-o3", { y: 12, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" }, 49.0);
+      tl.fromTo("#s5-badge", { scale: 1.8, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(1.4)" }, 49.8);
+      tl.fromTo("#s5-note", { y: 24, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power2.out" }, 50.4);
+
+      /* ============ TRANSITION 5→6 : PUSH SLIDE @54 ============ */
+      tl.to("#s5", { x: -1920, duration: 0.5, ease: "power3.inOut" }, 54);
+      tl.fromTo("#s6", { x: 1920, opacity: 1 }, { x: 0, duration: 0.5, ease: "power3.inOut" }, 54);
+      tl.set("#s5", { opacity: 0, x: 0 }, 54.55);
+
+      /* ============ SCENE 6 — PULL + STATUS (54–64.5) ============ */
+      tl.fromTo("#s6-glow", { opacity: 0 }, { opacity: 1, duration: 1.0, ease: "sine.out" }, 54.6);
+      tl.to("#s6-glow", { scale: 1.1, duration: 2.2, ease: "sine.inOut", yoyo: true, repeat: 3 }, 55.6);
+      tl.fromTo("#s6-ghost", { y: -40, opacity: 0 }, { y: 40, opacity: 1, duration: 9.5, ease: "power1.out" }, 54.8);
+      tl.fromTo("#s6-headline", { y: 60, opacity: 0 }, { y: 0, opacity: 1, duration: 0.75, ease: "expo.out" }, 54.65);
+      tl.fromTo("#s6-step", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "sine.out" }, 55.1);
+      tl.fromTo("#s6-term", { x: -90, opacity: 0 }, { x: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 55.0);
+      typeOn("#s6-cmd1", 55.6, 0.5, 11);
+      tl.fromTo("#s6-o1", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "sine.out" }, 56.3);
+      typeOn("#s6-cmd2", 57.0, 0.45, 9);
+      tl.fromTo("#s6-o2", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, 57.7);
+      tl.fromTo("#s6-o3", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, 57.9);
+      tl.fromTo("#s6-o4", { x: -20, opacity: 0 }, { x: 0, opacity: 1, duration: 0.3, ease: "power3.out" }, 58.1);
+      typeOn("#s6-cmd3", 59.4, 0.5, 11);
+      tl.fromTo("#s6-o5", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "sine.out" }, 60.2);
+      tl.fromTo("#rail-missing", { rotationX: 60, opacity: 0 }, { rotationX: 0, opacity: 1, duration: 0.5, ease: "back.out(1.6)" }, 56.4);
+      tl.fromTo("#rail-l1", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "power2.inOut" }, 57.6);
+      tl.fromTo("#rail-restored", { rotationX: 60, opacity: 0 }, { rotationX: 0, opacity: 1, duration: 0.5, ease: "back.out(1.6)" }, 58.2);
+      tl.fromTo("#rail-l2", { scaleY: 0 }, { scaleY: 1, duration: 0.4, ease: "power2.inOut" }, 59.6);
+      tl.fromTo("#rail-modified", { rotationX: 60, opacity: 0 }, { rotationX: 0, opacity: 1, duration: 0.5, ease: "back.out(1.6)" }, 60.4);
+
+      /* ============ TRANSITION 6→7 : STAGGERED BLOCKS @64.5 ============ */
+      tl.set("#wipe-a", { x: -1920 }, 64.49);
+      tl.set("#wipe-b", { x: -1920 }, 64.49);
+      tl.to("#wipe-a", { x: 0, duration: 0.25, ease: "power3.inOut" }, 64.5);
+      tl.to("#wipe-b", { x: 0, duration: 0.25, ease: "power3.inOut" }, 64.56);
+      tl.set("#s6", { opacity: 0 }, 64.7);
+      tl.set("#s7", { opacity: 1 }, 64.7);
+      tl.to("#wipe-a", { x: 1920, duration: 0.25, ease: "power3.inOut" }, 64.78);
+      tl.to("#wipe-b", { x: 1920, duration: 0.25, ease: "power3.inOut" }, 64.84);
+
+      /* ============ SCENE 7 — SAFETY NET (64.5–75) ============ */
+      tl.fromTo("#s7-glow", { opacity: 0 }, { opacity: 1, duration: 1.0, ease: "sine.out" }, 65.1);
+      tl.to("#s7-glow", { scale: 1.09, duration: 2.3, ease: "sine.inOut", yoyo: true, repeat: 3 }, 66.0);
+      tl.fromTo("#s7-ghost", { x: 50, opacity: 0 }, { x: -45, opacity: 1, duration: 9.0, ease: "power1.out" }, 65.3);
+      tl.fromTo("#s7-meta", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "sine.out" }, 65.6);
+      tl.fromTo(".s7-word", { y: 44, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power4.out", stagger: 0.12 }, 65.2);
+      tl.fromTo("#s7-term", { y: 70, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "power3.out" }, 65.7);
+      typeOn("#s7-cmd", 66.6, 1.2, 21);
+      tl.fromTo("#s7-hook-panel", { y: -260, opacity: 0 }, { y: 18, opacity: 1, duration: 0.32, ease: "power4.out" }, 68.3);
+      tl.to("#s7-hook-panel", { y: 0, duration: 0.22, ease: "sine.inOut" }, 68.64);
+      tl.fromTo("#s7-o2", { opacity: 0 }, { opacity: 1, duration: 0.45, ease: "sine.out" }, 69.6);
+      tl.fromTo("#s7-sub", { x: 60, opacity: 0 }, { x: 0, opacity: 1, duration: 0.65, ease: "power2.out" }, 70.2);
+      tl.to("#s7-hook-panel", { borderTopColor: "#059669", duration: 0.8, ease: "sine.inOut", yoyo: true, repeat: 3 }, 70.5);
+
+      /* ============ TRANSITION 7→8 : BLUR CROSSFADE @75 ============ */
+      tl.to("#s7", { filter: "blur(10px)", scale: 1.03, opacity: 0, duration: 0.5, ease: "power2.inOut" }, 75);
+      tl.fromTo(
+        "#s8",
+        { filter: "blur(10px)", scale: 0.97, opacity: 0 },
+        { filter: "blur(0px)", scale: 1, opacity: 1, duration: 0.5, ease: "power2.inOut" },
+        75.1
+      );
+      tl.set("#s7", { filter: "none", scale: 1, opacity: 0 }, 75.65);
+
+      /* ============ SCENE 8 — CTA (75–86) ============ */
+      tl.fromTo("#s8-glow", { scale: 0.7, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.4, ease: "sine.out" }, 75.3);
+      tl.to("#s8-glow", { scale: 1.12, duration: 2.6, ease: "sine.inOut", yoyo: true, repeat: 3 }, 76.7);
+      tl.fromTo("#s8-ghost", { opacity: 0 }, { opacity: 1, duration: 1.6, ease: "sine.out" }, 75.8);
+      tl.fromTo("#s8-wordmark", { y: -40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, ease: "power2.out" }, 75.6);
+      tl.fromTo("#s8-tagline", { y: 50, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8, ease: "expo.out" }, 76.1);
+      tl.fromTo("#s8-pill", { scale: 0.82, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.6, ease: "back.out(1.2)" }, 77.0);
+      tl.fromTo("#s8-link", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "sine.out" }, 77.8);
+      tl.to("#s8-cursor", { opacity: 0, duration: 0.45, ease: "steps(1)", yoyo: true, repeat: 11 }, 77.6);
+      tl.to("#fade-out", { opacity: 1, duration: 1.2, ease: "power1.inOut" }, 84.6);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
