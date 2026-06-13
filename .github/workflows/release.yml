@@ -61,17 +61,15 @@ jobs:
       - name: Extract release notes
         id: extract_notes
         run: |
-          # Extract release notes from CHANGELOG.md for this version
           VERSION="${{ steps.verify_tag.outputs.version }}"
           
-          # Create release notes from changelog
           if [ -f "CHANGELOG.md" ]; then
-           # Extract content between current version and next version/end of file
-           sed -n "/## \[v$VERSION\]/,/## \[/p" CHANGELOG.md | head -n -1 > release_notes.md
-            # Remove the version header line
-            tail -n +2 release_notes.md > temp_notes.md && mv temp_notes.md release_notes.md
+            awk -v version="$VERSION" '
+              $0 ~ "^#{1,2} \\[v?" version "\\]" { in_section=1; next }
+              in_section && $0 ~ "^#{1,2} \\[" { exit }
+              in_section { print }
+            ' CHANGELOG.md > release_notes.md
             
-            # If no specific notes found, create generic ones
             if [ ! -s release_notes.md ]; then
               echo "Release v$VERSION" > release_notes.md
               echo "" >> release_notes.md
