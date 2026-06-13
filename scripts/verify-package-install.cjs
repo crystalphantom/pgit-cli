@@ -7,6 +7,7 @@ const path = require('path');
 
 const projectRoot = path.resolve(__dirname, '..');
 const distCli = path.join(projectRoot, 'dist', 'cli.js');
+const packageVersion = require(path.join(projectRoot, 'package.json')).version;
 
 function run(command, args, options = {}) {
   return execFileSync(command, args, {
@@ -52,16 +53,20 @@ try {
 
   const binaryName = process.platform === 'win32' ? 'pgit.cmd' : 'pgit';
   const pgitBinary = path.join(installPrefix, 'bin', binaryName);
-  const versionOutput = execFileSync(pgitBinary, ['-v'], {
-    encoding: 'utf8',
-    env: { ...process.env, HOME: tempHome, USERPROFILE: tempHome },
-  }).trim();
+  for (const flag of ['-v', '-V', '--version']) {
+    const versionOutput = execFileSync(pgitBinary, [flag], {
+      encoding: 'utf8',
+      env: { ...process.env, HOME: tempHome, USERPROFILE: tempHome },
+    }).trim();
 
-  if (!versionOutput) {
-    throw new Error('pgit -v returned empty output');
+    if (versionOutput !== packageVersion) {
+      throw new Error(
+        `pgit ${flag} returned ${versionOutput || 'empty output'}, expected ${packageVersion}`,
+      );
+    }
   }
 
-  console.log(`Package install smoke passed: ${versionOutput}`);
+  console.log(`Package install smoke passed: ${packageVersion}`);
 } finally {
   fs.rmSync(tempDir, { recursive: true, force: true });
 }

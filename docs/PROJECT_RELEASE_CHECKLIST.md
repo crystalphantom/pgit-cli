@@ -13,6 +13,13 @@
 - GitHub release status: check with `gh release list --repo crystalphantom/pgit-cli --limit 5`
 - CI release run status: check with `gh run list --repo crystalphantom/pgit-cli --limit 10`
 
+## Current npm convergence check
+- Repo package version: `node -p "require('./package.json').version"`
+- Published npm latest: `npm view pgit-cli version`
+- Specific version availability: `npm view pgit-cli@<version> version`
+- If GitHub has a release/tag but npm does not have that version, inspect the failed release run:
+  `gh run view <run-id> --repo crystalphantom/pgit-cli --log-failed`
+
 ## Failure cause (observed)
 - `v0.8.1` CI failed during packed CLI installation because `postinstall` runs `node scripts/install-presets.cjs`, but the tarball did not include that script.
 - `v0.8.1` release failed because the tag version was `0.8.1` while `package.json` still declared `0.8.0`.
@@ -59,12 +66,22 @@ Do not use `--no-npm` for an actual release. This project relies on release-it's
 - `GITHUB_TOKEN` (repository)
 - `NPM_TOKEN` with publish scope for `pgit-cli`
 
+The npm token must belong to an npm account with maintainer access to `pgit-cli`. npm may return a
+404 during `npm publish` when the token is valid but does not have permission to publish the package.
+
 ## Rollback / hotfix notes
 - If publish fails after release notes/repo tagging, do not retag same version.
 - Bump patch/minor/major appropriately and create new tag.
 - If a bad version reaches npm, prefer deprecate/remove with registry tooling and publish a corrected follow-up version.
+- If npm publish failed before the version reached npm and no code has changed since the tag, fix
+  the publishing credential and rerun the failed release workflow for the same tag.
 
 ## Blockers discovered in this run
-1. Release pipeline is currently fixed in this repository at `.github/workflows/release.yml` by adding `npm run build` before `npm run test:coverage`.
-2. `v0.7.0` release remains unpublished until a successful rerun.
-3. The workflow should be retriggered after this patch via a new tag or manual rerun of the failed run (if permissions allow).
+1. `v0.9.0` exists as a GitHub release and tag, but npm still reports `0.8.2` as latest.
+2. The latest failed `v0.9.0` Release workflow reached `npm publish`, then npm returned 404 for
+   `PUT https://registry.npmjs.org/pgit-cli`, which indicates the configured `NPM_TOKEN` lacks
+   publish permission for `pgit-cli` or belongs to the wrong npm account.
+3. To publish the already-tagged `v0.9.0` artifact, update `NPM_TOKEN` to a token for the
+   `crystalphantom` npm maintainer account and rerun failed workflow `27125101833`.
+4. If new code changes should be included in the published package, create a follow-up patch release
+   instead of moving the existing `v0.9.0` tag.

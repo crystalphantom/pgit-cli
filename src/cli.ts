@@ -33,6 +33,14 @@ async function main(): Promise<void> {
     logger.warn('Could not read package.json for version, using fallback');
   }
 
+  if (
+    process.argv.length === 3 &&
+    ['-v', '-V', '--version'].includes(process.argv[2] ?? '')
+  ) {
+    process.stdout.write(`${version}\n`);
+    return;
+  }
+
   program
     .name('pgit')
     .description('Private Git Tracking CLI - Manage private files with dual repositories')
