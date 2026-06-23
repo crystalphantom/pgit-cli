@@ -10,7 +10,7 @@
    - [x] Apply preset uses bulk `pgit add` path through one operation for single-path-aggregated commit behavior.
    - [x] `pgit preset -h` and subcommand list are discoverable.
    - [x] Global preset creation works without local init.
-6. [ ] Add a file based on file pattern (e.g., `*.sql`).
+6. [x] Add a file based on file pattern (e.g., `*.sql`), with repeated add excludes.
 7. [~] Pause/close handling for `pgit add`:
    - batch rollback exists and is exercised.
    - pending: graceful `SIGINT`/hard abort handling is still not explicit.

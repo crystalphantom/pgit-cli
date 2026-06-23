@@ -22,6 +22,10 @@ export class ConfigCommand {
     this.privateConfigSyncManager = new PrivateConfigSyncManager(workingDir);
   }
 
+  private static collectRepeatedOption(value: string, previous: string[] = []): string[] {
+    return [...previous, value];
+  }
+
   /**
    * Register the config command with commander
    */
@@ -101,12 +105,18 @@ export class ConfigCommand {
       .option('--no-commit', 'Do not auto-commit removal of already-tracked main Git paths')
       .option('-f, --force', 'Overwrite existing private config entries before re-adding')
       .option('--no-sync-push', 'Do not automatically push private config changes after add')
+      .option(
+        '--exclude <pattern>',
+        'Exclude a glob pattern from add expansion; may be repeated',
+        ConfigCommand.collectRepeatedOption,
+      )
       .action(async (targetPaths, options) => {
         const result = await this.executePrivateAdd(
           targetPaths,
           options.commit === false,
           options.syncPush,
           options.force,
+          options.exclude,
         );
         if (!result.success) {
           process.exit(result.exitCode);
@@ -379,11 +389,17 @@ export class ConfigCommand {
     noCommit: boolean = false,
     syncPush: boolean = true,
     force: boolean = false,
+    excludePatterns: string[] = [],
   ): Promise<CommandResult> {
     try {
-      const addOptions: { noCommit: boolean; force?: boolean } = { noCommit };
+      const addOptions: { noCommit: boolean; force?: boolean; excludePatterns?: string[] } = {
+        noCommit,
+      };
       if (force) {
         addOptions.force = true;
+      }
+      if (excludePatterns.length > 0) {
+        addOptions.excludePatterns = excludePatterns;
       }
 
       const result = await this.privateConfigSyncManager.add(targetPaths, addOptions);

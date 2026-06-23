@@ -427,6 +427,33 @@ describe('ConfigCommand', () => {
       });
     });
 
+    it('should forward exclude patterns to private config manager', async () => {
+      mockPrivateConfigSyncManager.add.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        untrackedPaths: ['rules.md'],
+        untrackedFromMainGit: [],
+      });
+
+      const result = await configCommand.executePrivateAdd('.', false, false, false, [
+        '*.log',
+        'tmp/**',
+      ]);
+
+      expect(result.success).toBe(true);
+      expect(mockPrivateConfigSyncManager.add).toHaveBeenCalledWith('.', {
+        noCommit: false,
+        excludePatterns: ['*.log', 'tmp/**'],
+      });
+    });
+
     it('should skip sync push when disabled', async () => {
       mockPrivateConfigSyncManager.add.mockResolvedValue({
         projectId: 'project-123',
@@ -620,8 +647,9 @@ describe('ConfigCommand', () => {
       configCommand.register(program);
 
       const configSubcommands =
-        program.commands.find(command => command.name() === 'config')?.commands.map(command => command.name()) ??
-        [];
+        program.commands
+          .find(command => command.name() === 'config')
+          ?.commands.map(command => command.name()) ?? [];
 
       expect(configSubcommands).toEqual(
         expect.arrayContaining(['init', 'location', 'edit', 'reset', 'info', 'backup']),
@@ -663,6 +691,44 @@ describe('ConfigCommand', () => {
         force: false,
         repoPaths: ['rules.md'],
       });
+    });
+
+    it('should collect repeated --exclude options on top-level add', async () => {
+      mockPrivateConfigSyncManager.add.mockResolvedValue({
+        projectId: 'project-123',
+        entries: [
+          {
+            repoPath: 'rules.md',
+            type: 'file',
+            privatePath: '/private/rules.md',
+            lastSyncedHash: 'hash',
+          },
+        ],
+        untrackedPaths: ['rules.md'],
+        untrackedFromMainGit: [],
+      });
+
+      const program = new Command();
+      program.exitOverride();
+
+      configCommand.register(program);
+      await program.parseAsync([
+        'node',
+        'pgit',
+        'add',
+        '.',
+        '--no-sync-push',
+        '--exclude',
+        '*.log',
+        '--exclude',
+        'tmp/**',
+      ]);
+
+      expect(mockPrivateConfigSyncManager.add).toHaveBeenCalledWith(['.'], {
+        noCommit: false,
+        excludePatterns: ['*.log', 'tmp/**'],
+      });
+      expect(mockPrivateConfigSyncManager.syncPush).not.toHaveBeenCalled();
     });
 
     it.each([

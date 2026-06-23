@@ -4,6 +4,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import fs from 'fs-extra';
+import picomatch from 'picomatch';
 import { BaseError } from '../errors/base.error';
 
 const execFileAsync = promisify(execFile);
@@ -107,6 +108,7 @@ export interface PrivateConfigDropResult {
 export interface PrivateConfigAddOptions {
   noCommit?: boolean;
   force?: boolean;
+  excludePatterns?: string[];
 }
 
 interface PrivateConfigAddCandidate {
@@ -153,7 +155,7 @@ export class PrivateConfigSyncManager {
     repoPathInput: string | string[],
     options: PrivateConfigAddOptions = {},
   ): Promise<PrivateConfigAddResult> {
-    const candidates = await this.validateAddCandidates(repoPathInput);
+    const candidates = await this.validateAddCandidates(repoPathInput, options.excludePatterns);
     const manifest = await this.loadOrCreateManifest();
     const force = options.force === true;
     const entries: PrivateConfigEntry[] = [];
@@ -597,11 +599,18 @@ export class PrivateConfigSyncManager {
 
   private async validateAddCandidates(
     repoPathInput: string | string[],
+    excludePatterns: string[] = [],
   ): Promise<PrivateConfigAddCandidate[]> {
-    const repoPaths = this.normalizeRepoPathInputs(repoPathInput);
+    const repoPaths = await this.resolveAddRepoPathInputs(repoPathInput);
+    const filteredRepoPaths = this.filterExcludedRepoPaths(repoPaths, excludePatterns);
+
+    if (filteredRepoPaths.length === 0) {
+      throw new PrivateConfigSyncError('No private config paths matched after exclusions.');
+    }
+
     const candidates: PrivateConfigAddCandidate[] = [];
 
-    for (const repoPath of repoPaths) {
+    for (const repoPath of filteredRepoPaths) {
       const absoluteRepoPath = path.join(this.workingDir, ...repoPath.split('/'));
 
       if (!(await fs.pathExists(absoluteRepoPath))) {
@@ -614,6 +623,139 @@ export class PrivateConfigSyncManager {
     }
 
     return candidates;
+  }
+
+  private async resolveAddRepoPathInputs(repoPathInput: string | string[]): Promise<string[]> {
+    const inputs = Array.isArray(repoPathInput) ? repoPathInput : [repoPathInput];
+    const resolvedPaths: string[] = [];
+
+    for (const input of inputs) {
+      const normalizedInput = this.normalizeAddInput(input);
+
+      if (normalizedInput === '.') {
+        resolvedPaths.push(...(await this.listRepositoryFiles()));
+        continue;
+      }
+
+      if (this.isGlobPattern(normalizedInput)) {
+        const matches = await this.expandGlobPattern(normalizedInput);
+        if (matches.length === 0) {
+          throw new PrivateConfigSyncError(`No paths match glob pattern: ${input}`);
+        }
+        resolvedPaths.push(...matches);
+        continue;
+      }
+
+      resolvedPaths.push(this.normalizeRepoPath(normalizedInput));
+    }
+
+    return [...new Set(resolvedPaths)];
+  }
+
+  private normalizeAddInput(input: string): string {
+    const trimmed = input.trim();
+
+    if (!trimmed) {
+      throw new PrivateConfigSyncError('Path must not be empty');
+    }
+
+    if (path.isAbsolute(trimmed)) {
+      throw new PrivateConfigSyncError(`Path must be inside repository: ${input}`);
+    }
+
+    const normalized = this.toPosix(path.normalize(trimmed));
+    const withoutCurrentDir = normalized.replace(/^\.\//, '');
+    const segments = withoutCurrentDir.split('/').filter(Boolean);
+
+    if (segments.includes('..')) {
+      throw new PrivateConfigSyncError(`Path must be inside repository: ${input}`);
+    }
+
+    return withoutCurrentDir || '.';
+  }
+
+  private isGlobPattern(input: string): boolean {
+    return /[*?[\]{}]/.test(input) || /(?:^|\/)[!+@]\(/.test(input);
+  }
+
+  private async expandGlobPattern(pattern: string): Promise<string[]> {
+    const matcher = picomatch(pattern, { dot: true });
+    const repoPaths = await this.listRepositoryEntries();
+    return repoPaths.filter(repoPath => matcher(repoPath));
+  }
+
+  private filterExcludedRepoPaths(repoPaths: string[], excludePatterns: string[]): string[] {
+    const normalizedPatterns = excludePatterns.map(pattern =>
+      this.normalizeExcludePattern(pattern),
+    );
+
+    if (normalizedPatterns.length === 0) {
+      return repoPaths;
+    }
+
+    const matchers = normalizedPatterns.map(pattern => picomatch(pattern, { dot: true }));
+    return repoPaths.filter(repoPath => {
+      const basename = path.posix.basename(repoPath);
+      return !matchers.some(matcher => matcher(repoPath) || matcher(basename));
+    });
+  }
+
+  private normalizeExcludePattern(pattern: string): string {
+    const normalized = this.normalizeAddInput(pattern);
+
+    if (normalized === '.') {
+      throw new PrivateConfigSyncError('Exclude pattern must not be the repository root');
+    }
+
+    return normalized;
+  }
+
+  private async listRepositoryFiles(): Promise<string[]> {
+    const entries = await this.listRepositoryEntries();
+    const files: string[] = [];
+
+    for (const repoPath of entries) {
+      const absolutePath = path.join(this.workingDir, ...repoPath.split('/'));
+      const stats = await fs.stat(absolutePath);
+      if (stats.isFile()) {
+        files.push(repoPath);
+      }
+    }
+
+    return files;
+  }
+
+  private async listRepositoryEntries(): Promise<string[]> {
+    const result: string[] = [];
+
+    const walk = async (currentDir: string, prefix = ''): Promise<void> => {
+      const entries = (await fs.readdir(currentDir, { withFileTypes: true })).sort((left, right) =>
+        left.name.localeCompare(right.name),
+      );
+
+      for (const entry of entries) {
+        const relative = prefix ? `${prefix}/${entry.name}` : entry.name;
+        const absolute = path.join(currentDir, entry.name);
+
+        if (this.isIgnoredDiscoveryPath(relative)) {
+          continue;
+        }
+
+        if (entry.isDirectory()) {
+          result.push(relative);
+          await walk(absolute, relative);
+        } else if (entry.isFile()) {
+          result.push(relative);
+        }
+      }
+    };
+
+    await walk(this.workingDir);
+    return result.sort((left, right) => left.localeCompare(right));
+  }
+
+  private isIgnoredDiscoveryPath(repoPath: string): boolean {
+    return repoPath === '.git' || repoPath.startsWith('.git/');
   }
 
   private normalizeRepoPathInputs(repoPathInput: string | string[]): string[] {

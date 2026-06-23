@@ -20,9 +20,18 @@ These top-level commands are the primary workflow for keeping agent-visible file
 - `pgit add <paths...> --force` : overwrite already-tracked entries
 - `pgit add <paths...> --no-commit` : skip auto-commit of main-repo removals
 - `pgit add <paths...> --no-sync-push` : do not auto push after add
+- `pgit add <paths...> --exclude <pattern>` : exclude a glob from add expansion; may be repeated
 - `pgit drop <paths...> --force` : drop local files even if hashes differ
 - `pgit pull . --force` : overwrite local conflicts for all tracked paths after backup
 - `pgit push . --force` : overwrite private-store conflicts for all tracked paths after backup
+
+### Add path selection
+
+- `pgit add *.env` expands glob patterns against repo paths before tracking matches.
+- Quote glob patterns when your shell would otherwise expand or reject them, for example
+  `pgit add '*.env'`.
+- `pgit add . --exclude '*.log' --exclude 'tmp/**'` expands `.` to repo files, then filters
+  matching paths before anything is copied into the private store.
 
 ### Sync path selection
 

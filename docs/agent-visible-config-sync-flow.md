@@ -42,19 +42,30 @@ necto-pro-a1b2c3d4/
 
 `pgit add` is the primary entry point for agent-visible tracking.
 
-1. Normalize each requested path and verify it is inside the repo and exists.
-2. Validate all paths before mutating anything. If one path is invalid, no path is changed.
-3. Load or create manifest for the project.
-4. Copy each repo path into private store path:
+1. Expand glob inputs such as `*.env` and apply any repeated `--exclude <pattern>` filters.
+2. Normalize each resolved path and verify it is inside the repo and exists.
+3. Validate all paths before mutating anything. If one path is invalid, no path is changed.
+4. Load or create manifest for the project.
+5. Copy each repo path into private store path:
    - file paths copy as files
    - directory paths copy recursively.
-5. Remove already-tracked main-repo entries via `git rm --cached -r -- <path>`.
-6. Save/update manifest entries and checkout state.
-7. Install/refresh hooks (`.git/hooks` or common hooks path).
-8. Optionally auto-run `pgit push <added-paths...>` unless `--no-sync-push`.
-9. Optionally auto-commit the shared-Git removals unless `--no-commit`. The generated
+6. Remove already-tracked main-repo entries via `git rm --cached -r -- <path>`.
+7. Save/update manifest entries and checkout state.
+8. Install/refresh hooks (`.git/hooks` or common hooks path).
+9. Optionally auto-run `pgit push <added-paths...>` unless `--no-sync-push`.
+10. Optionally auto-commit the shared-Git removals unless `--no-commit`. The generated
    deletion-only commit bypasses local hooks. If Git still rejects the commit, `pgit add` reports
    success and leaves the removals staged with manual commit instructions.
+
+### Glob and exclude selection
+
+- Glob inputs are expanded against repo-relative paths before mutation. Quote globs when your shell
+  would otherwise expand or reject them, for example `pgit add '*.env'`.
+- `pgit add .` expands to repo files rather than adding the repository root itself.
+- `--exclude <pattern>` removes matching paths from the expanded add set and may be repeated, for
+  example `pgit add . --exclude '*.log' --exclude 'tmp/**'`.
+- Exclude patterns match repo-relative paths, and basename-only patterns such as `*.log` also match
+  nested file basenames.
 
 ### `--force` and existing entries
 

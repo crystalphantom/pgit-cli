@@ -29,6 +29,10 @@ cd your-project
 
 # Add files and folders to your private store
 pgit add .codex/ .claude/ .opencode/ specs/
+
+# Add by glob, with optional excludes
+pgit add '*.env'
+pgit add . --exclude '*.log' --exclude 'tmp/**'
 ```
 
 Synchronize your private configs across machines/workspaces:

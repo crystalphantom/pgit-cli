@@ -266,6 +266,58 @@ describe('PrivateConfigSyncManager', () => {
     expect(result.entries.map(entry => entry.type)).toEqual(['file', 'directory']);
   });
 
+  it('expands glob patterns before adding private config paths', async () => {
+    await fs.writeFile(path.join(repoDir, 'app.env'), 'app');
+    await fs.writeFile(path.join(repoDir, 'local.env'), 'local');
+    await fs.writeFile(path.join(repoDir, 'debug.log'), 'debug');
+    await fs.ensureDir(path.join(repoDir, 'nested'));
+    await fs.writeFile(path.join(repoDir, 'nested', 'secret.env'), 'nested');
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const result = await manager.add('*.env');
+    const info = await manager.getProjectInfo();
+
+    expect(result.entries.map(entry => entry.repoPath)).toEqual(['app.env', 'local.env']);
+    expect(await fs.pathExists(path.join(info.privateRoot, 'app.env'))).toBe(true);
+    expect(await fs.pathExists(path.join(info.privateRoot, 'local.env'))).toBe(true);
+    expect(await fs.pathExists(path.join(info.privateRoot, 'debug.log'))).toBe(false);
+    expect(await fs.pathExists(path.join(info.privateRoot, 'nested', 'secret.env'))).toBe(false);
+  });
+
+  it('applies repeated exclude patterns to dot expansion', async () => {
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules');
+    await fs.writeFile(path.join(repoDir, 'debug.log'), 'debug');
+    await fs.ensureDir(path.join(repoDir, 'nested'));
+    await fs.writeFile(path.join(repoDir, 'nested', 'notes.md'), 'notes');
+    await fs.writeFile(path.join(repoDir, 'nested', 'trace.log'), 'trace');
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const result = await manager.add('.', {
+      excludePatterns: ['*.log', 'nested/notes.md'],
+    });
+    const info = await manager.getProjectInfo();
+
+    expect(result.entries.map(entry => entry.repoPath)).toEqual(['rules.md']);
+    expect(await fs.pathExists(path.join(info.privateRoot, 'rules.md'))).toBe(true);
+    expect(await fs.pathExists(path.join(info.privateRoot, 'debug.log'))).toBe(false);
+    expect(await fs.pathExists(path.join(info.privateRoot, 'nested', 'notes.md'))).toBe(false);
+    expect(await fs.pathExists(path.join(info.privateRoot, 'nested', 'trace.log'))).toBe(false);
+  });
+
+  it('does not mutate private config when a glob pattern has no matches', async () => {
+    await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules');
+
+    const manager = new PrivateConfigSyncManager(repoDir, homeDir);
+    const info = await manager.getProjectInfo();
+
+    await expect(manager.add(['rules.md', '*.env'])).rejects.toThrow(
+      'No paths match glob pattern: *.env',
+    );
+
+    expect(await fs.pathExists(path.join(info.privateRoot, 'rules.md'))).toBe(false);
+    expect((await manager.getStatus()).map(entry => entry.repoPath)).toEqual([]);
+  });
+
   it('throws when adding an already tracked path without --force', async () => {
     await fs.writeFile(path.join(repoDir, 'rules.md'), 'rules');
     const manager = new PrivateConfigSyncManager(repoDir, homeDir);
