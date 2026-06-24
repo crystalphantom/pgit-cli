@@ -36,6 +36,7 @@ export interface PrivateConfigEntry {
   privatePath: string;
   lastSyncedHash?: string;
   files?: Record<string, string>;
+  excludePatterns?: string[];
 }
 
 export interface PrivateConfigManifest {
@@ -184,15 +185,44 @@ export class PrivateConfigSyncManager {
       }
 
       await fs.ensureDir(path.dirname(privatePath));
+      const excludePatterns = options.excludePatterns || [];
+      const excludeMatchers = excludePatterns.map(pattern =>
+        picomatch(this.normalizeExcludePattern(pattern), { dot: true }),
+      );
+      const copyFilter = (src: string): boolean => {
+        const rel = path.relative(candidate.absoluteRepoPath, src);
+        const repoRelative =
+          candidate.repoPath === '.'
+            ? rel
+            : rel
+              ? `${candidate.repoPath}/${rel}`
+              : candidate.repoPath;
+        const basename = path.posix.basename(src);
+        const isExcluded = excludeMatchers.some(
+          matcher => matcher(this.toPosix(repoRelative)) || matcher(basename),
+        );
+        return !isExcluded;
+      };
       await fs.copy(candidate.absoluteRepoPath, privatePath, {
         overwrite: true,
         errorOnExist: false,
+        filter: excludePatterns.length > 0 ? copyFilter : undefined,
       });
 
       const removedPaths = await this.removeTrackedPathsFromMainGit(candidate.repoPath);
       untrackedFromMainGit.push(...removedPaths);
 
-      const entry = await this.buildEntry(manifest.projectId, candidate.repoPath, candidate.type);
+      const entry = await this.buildEntry(
+        manifest.projectId,
+        candidate.repoPath,
+        candidate.type,
+        options.excludePatterns,
+      );
+      if (candidate.type === 'directory') {
+        manifest.entries = manifest.entries.filter(
+          item => !item.repoPath.startsWith(candidate.repoPath + '/'),
+        );
+      }
       if (existingIndex >= 0) {
         manifest.entries[existingIndex] = entry;
       } else {
@@ -311,8 +341,18 @@ export class PrivateConfigSyncManager {
           return { repoPath: entry.repoPath, type: entry.type, state: 'missing-private' };
         }
 
-        const repoHashes = await this.hashPath(repoPath, entry.type);
-        const privateHashes = await this.hashPath(privatePath, entry.type);
+        const repoHashes = await this.hashPath(
+          repoPath,
+          entry.type,
+          entry.repoPath,
+          entry.excludePatterns,
+        );
+        const privateHashes = await this.hashPath(
+          privatePath,
+          entry.type,
+          entry.repoPath,
+          entry.excludePatterns,
+        );
         const syncedHashes = this.entryHashes(entry);
 
         const repoChanged = !this.hashesEqual(repoHashes, syncedHashes);
@@ -376,9 +416,14 @@ export class PrivateConfigSyncManager {
         backups.push(await this.backupPath(manifest.projectId, direction, entry.repoPath, target));
       }
 
-      await this.mirrorPath(source, target);
+      await this.mirrorPath(source, target, entry.repoPath, entry.excludePatterns);
 
-      const updatedEntry = await this.buildEntry(manifest.projectId, entry.repoPath, entry.type);
+      const updatedEntry = await this.buildEntry(
+        manifest.projectId,
+        entry.repoPath,
+        entry.type,
+        entry.excludePatterns,
+      );
       Object.assign(entry, updatedEntry);
       statuses.push({ repoPath: entry.repoPath, type: entry.type, state: 'up-to-date' });
     }
@@ -622,7 +667,32 @@ export class PrivateConfigSyncManager {
       candidates.push({ repoPath, absoluteRepoPath, type });
     }
 
-    return candidates;
+    // Load manifest if it exists to check for already tracked directory entries
+    let trackedDirectories: string[] = [];
+    try {
+      const manifest = await this.loadManifest();
+      trackedDirectories = manifest.entries
+        .filter(entry => entry.type === 'directory')
+        .map(entry => entry.repoPath);
+    } catch {
+      // Manifest not initialized yet
+    }
+
+    // Filter out overlapping candidates (descendants of other directories) while preserving original order
+    return candidates.filter(candidate => {
+      const hasParentInCandidates = candidates.some(
+        other =>
+          other.type === 'directory' &&
+          other.repoPath !== candidate.repoPath &&
+          candidate.repoPath.startsWith(other.repoPath + '/'),
+      );
+
+      const hasParentInTracked = trackedDirectories.some(parentPath =>
+        candidate.repoPath.startsWith(parentPath + '/'),
+      );
+
+      return !hasParentInCandidates && !hasParentInTracked;
+    });
   }
 
   private async resolveAddRepoPathInputs(repoPathInput: string | string[]): Promise<string[]> {
@@ -680,7 +750,7 @@ export class PrivateConfigSyncManager {
 
   private async expandGlobPattern(pattern: string): Promise<string[]> {
     const matcher = picomatch(pattern, { dot: true });
-    const repoPaths = await this.listRepositoryEntries();
+    const repoPaths = await this.listRepositoryFiles();
     return repoPaths.filter(repoPath => matcher(repoPath));
   }
 
@@ -889,14 +959,19 @@ export class PrivateConfigSyncManager {
     projectId: string,
     repoPath: string,
     type: PrivateConfigEntryType,
+    excludePatterns: string[] = [],
   ): Promise<PrivateConfigEntry> {
     const privatePath = this.getPrivatePath(projectId, repoPath);
-    const hashes = await this.hashPath(privatePath, type);
+    const hashes = await this.hashPath(privatePath, type, repoPath, excludePatterns);
     const entry: PrivateConfigEntry = {
       repoPath,
       type,
       privatePath,
     };
+
+    if (excludePatterns && excludePatterns.length > 0) {
+      entry.excludePatterns = excludePatterns;
+    }
 
     if (type === 'file') {
       entry.lastSyncedHash = hashes['.'];
@@ -915,7 +990,12 @@ export class PrivateConfigSyncManager {
       return false;
     }
 
-    const current = await this.hashPath(targetPath, entry.type);
+    const current = await this.hashPath(
+      targetPath,
+      entry.type,
+      entry.repoPath,
+      entry.excludePatterns,
+    );
     return !this.hashesEqual(current, this.entryHashes(entry));
   }
 
@@ -929,17 +1009,43 @@ export class PrivateConfigSyncManager {
   private async hashPath(
     targetPath: string,
     type: PrivateConfigEntryType,
+    entryRepoPath: string = '',
+    excludePatterns: string[] = [],
   ): Promise<Record<string, string>> {
     if (type === 'file') {
       return { '.': await this.hashFile(targetPath) };
     }
 
     const files = await this.listFiles(targetPath);
+    const filteredFiles = this.filterChildFiles(files, entryRepoPath, excludePatterns);
     const hashes: Record<string, string> = {};
-    for (const file of files) {
+    for (const file of filteredFiles) {
       hashes[file] = await this.hashFile(path.join(targetPath, ...file.split('/')));
     }
     return hashes;
+  }
+
+  private filterChildFiles(
+    files: string[],
+    entryRepoPath: string,
+    excludePatterns: string[],
+  ): string[] {
+    if (!excludePatterns || excludePatterns.length === 0) {
+      return files;
+    }
+
+    const normalizedPatterns = excludePatterns.map(pattern =>
+      this.normalizeExcludePattern(pattern),
+    );
+    const matchers = normalizedPatterns.map(pattern => picomatch(pattern, { dot: true }));
+
+    return files.filter(file => {
+      const repoRelative =
+        !entryRepoPath || entryRepoPath === '.' ? file : `${entryRepoPath}/${file}`;
+      const basename = path.posix.basename(file);
+
+      return !matchers.some(matcher => matcher(this.toPosix(repoRelative)) || matcher(basename));
+    });
   }
 
   private async hashFile(filePath: string): Promise<string> {
@@ -1105,12 +1211,47 @@ export class PrivateConfigSyncManager {
     }
   }
 
-  private async mirrorPath(sourcePath: string, targetPath: string): Promise<void> {
+  private async mirrorPath(
+    sourcePath: string,
+    targetPath: string,
+    entryRepoPath: string = '',
+    excludePatterns: string[] = [],
+  ): Promise<void> {
     await fs.ensureDir(path.dirname(targetPath));
     if (await fs.pathExists(targetPath)) {
       await fs.remove(targetPath);
     }
-    await fs.copy(sourcePath, targetPath, { overwrite: true, errorOnExist: false });
+
+    if (!excludePatterns || excludePatterns.length === 0) {
+      await fs.copy(sourcePath, targetPath, { overwrite: true, errorOnExist: false });
+      return;
+    }
+
+    const excludeMatchers = excludePatterns.map(pattern =>
+      picomatch(this.normalizeExcludePattern(pattern), { dot: true }),
+    );
+
+    const copyFilter = (src: string): boolean => {
+      const rel = path.relative(sourcePath, src);
+      const repoRelative =
+        !entryRepoPath || entryRepoPath === '.'
+          ? rel
+          : rel
+            ? `${entryRepoPath}/${rel}`
+            : entryRepoPath;
+      const basename = path.posix.basename(src);
+
+      const isExcluded = excludeMatchers.some(
+        matcher => matcher(this.toPosix(repoRelative)) || matcher(basename),
+      );
+      return !isExcluded;
+    };
+
+    await fs.copy(sourcePath, targetPath, {
+      overwrite: true,
+      errorOnExist: false,
+      filter: copyFilter,
+    });
   }
 
   private async getHooksDir(): Promise<string> {
